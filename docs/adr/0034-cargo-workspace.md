@@ -6,6 +6,10 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-28 (retro after #18):*
+>
+> - **`cargo xtask glossary`** joins the repo guards and CI. It fails when a Content ID kind, in a Content ID or a Rust `Kind::NAME`, is a term on one of GLOSSARY.md's _Avoid_ lists; research notes are not scanned, since they stay as written. #18's review spent two rounds on the kind `mastery`, which the glossary avoids, so the mechanical part of that check moves out of review.
+
 > *Amended 2026-11-28 (retro after #16):*
 >
 > - **`adr-check` also checks amendment order.** Every ADR in the working tree, new or old, lists its amendment blocks newest first; a block dated after the one above it fails as `adr-amendment-order`. Every ADR already did this; now it is enforced.
