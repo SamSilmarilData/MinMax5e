@@ -108,11 +108,11 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
             }
         }
     }
-    gained.featured::<R, kind::Species>(pack, &build.species)?;
-    gained.featured::<R, kind::Background>(pack, &build.background)?;
-    gained.featured::<R, kind::Feat>(pack, &build.origin_feat)?;
+    gained.with_features::<R, kind::Species>(pack, &build.species)?;
+    gained.with_features::<R, kind::Background>(pack, &build.background)?;
+    gained.with_features::<R, kind::Feat>(pack, &build.origin_feat)?;
     for feat in &build.feats {
-        gained.featured::<R, kind::Feat>(pack, feat)?;
+        gained.with_features::<R, kind::Feat>(pack, feat)?;
     }
 
     let weapon_id = &build.loadout.main_hand;
@@ -121,12 +121,12 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
         .ok_or_else(|| not_in_pack::<kind::Item>(weapon_id))?];
     // With Weapon Mastery, the weapon's mastery property joins its attacks. The Loadout
     // holds one weapon, so what the property grants is the Build's.
-    if let Some(mastery) = weapon
+    if let Some(property) = weapon
         .mastery_property
         .as_ref()
         .filter(|_| gained.weapon_mastery)
     {
-        gained.featured::<R, kind::MasteryProperty>(pack, mastery)?;
+        gained.with_features::<R, kind::MasteryProperty>(pack, property)?;
     }
 
     // `build.ruleset()` has checked there is at least one level.
@@ -213,12 +213,14 @@ impl Default for Gained {
 
 impl Gained {
     /// Adds the features of the species, background, feat or mastery property `id`.
-    fn featured<R: Ruleset, K: FeaturesKind>(
+    fn with_features<R: Ruleset, K: FeaturesKind>(
         &mut self,
         pack: &Pack<R>,
         id: &ContentId,
     ) -> Result<(), CompileError> {
-        let found = pack.featured::<K>(id).ok_or_else(|| not_in_pack::<K>(id))?;
+        let found = pack
+            .with_features::<K>(id)
+            .ok_or_else(|| not_in_pack::<K>(id))?;
         let encoding = pack[found]
             .encoding
             .as_ref()
