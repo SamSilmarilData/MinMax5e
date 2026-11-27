@@ -355,7 +355,7 @@ pub enum Job {
 | `Rayon` | native (owner) | `cores − 1` threads; 4.3–5.5× at 10 threads on the M5 [measured]; `AtomicU64` incumbent |
 | `WorkerPool` | web (friends) | coordinator + N compute + interactive workers; postcard over transferable `ArrayBuffer`s; one compiled `WebAssembly.Module` (ADR-0045); 1.0–1.5× native per core [measured, Cranelift proxy] |
 
-ADR-0037's snapshot test becomes `Inline` = `Rayon(N)` = `WorkerPool(N)`, plus a **cross-target result hash**: the same fixed synthetic job set must hash to the same value on native and `wasm32` (research 13 §4 does exactly this).
+ADR-0037's snapshot test becomes `Inline` = `Rayon(N)` = `WorkerPool(N)`, plus a **cross-target result hash**: the same fixed synthetic job set must hash to the same value on native and `wasm32` (research 13 §4 does exactly this). Until `mm-solver` exists, `cargo xtask xhash` hashes fixture Build evaluations instead (ADR-0050, amended 2026-11-28).
 
 **What is deterministic, and what is not** [design, after Gurobi and Rapier]:
 

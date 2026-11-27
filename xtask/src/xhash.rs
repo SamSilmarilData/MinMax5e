@@ -56,8 +56,8 @@ struct Entry {
 }
 
 /// Runs the cross-target hash for the repository at `root`. With `mismatch`, the last
-/// digit of the first WebAssembly result is changed before hashing (a one-ulp-sized
-/// change), to show that a difference fails.
+/// digit of the first WebAssembly result is changed before hashing (the smallest change
+/// to the printed text), to show that a difference fails.
 pub fn run(root: &Path, mismatch: bool) -> Result<Outcome> {
     // wasmtime mounts the root by path, so give it one without `..`.
     let root = &root
