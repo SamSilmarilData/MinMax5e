@@ -21,7 +21,7 @@ use crate::Outcome;
 use crate::report::{Check as _, Report};
 
 /// The hashed set, relative to the repository root.
-const SET: &str = "xtask/xhash.toml";
+const HASHED_SET: &str = "xtask/xhash.toml";
 /// The pack every Build in the set is evaluated on, relative to the repository root.
 const PACK: &str = "crates/mm-testkit/fixtures/pack";
 const WASM_TARGET: &str = "wasm32-wasip1";
@@ -30,11 +30,11 @@ const GUEST_ROOT: &str = "/repo";
 
 /// The one check `xhash` runs.
 #[derive(Debug, Clone, Copy)]
-struct Differs;
+struct TargetMismatch;
 
-impl crate::report::Check for Differs {
+impl crate::report::Check for TargetMismatch {
     fn name(self) -> &'static str {
-        "differs"
+        "target-mismatch"
     }
 }
 
@@ -55,8 +55,9 @@ struct Entry {
     ac: i32,
 }
 
-/// Runs the cross-target hash for the repository at `root`. With `mismatch`, one bit of
-/// the first WebAssembly result is flipped before hashing, to show that a difference fails.
+/// Runs the cross-target hash for the repository at `root`. With `mismatch`, the last
+/// digit of the first WebAssembly result is changed before hashing (a one-ulp-sized
+/// change), to show that a difference fails.
 pub fn run(root: &Path, mismatch: bool) -> Result<Outcome> {
     // wasmtime mounts the root by path, so give it one without `..`.
     let root = &root
@@ -88,14 +89,13 @@ pub fn run(root: &Path, mismatch: bool) -> Result<Outcome> {
             .arg(&wasm_bin);
         let mut wasm = evaluate(wasmtime, Path::new(GUEST_ROOT), entry)
             .context("running the wasm32-wasip1 build (is wasmtime installed and on PATH?)")?;
-        if mismatch
-            && index == 0
-            && let Some(last) = wasm.last_mut()
-        {
-            *last ^= 1;
+        if mismatch && index == 0 {
+            corrupt_last_digit(&mut wasm)?;
         }
         if native != wasm {
-            report.push(Differs.problem(&entry.path, "native and wasm32-wasip1 results differ"));
+            report.push(
+                TargetMismatch.problem(&entry.path, "native and wasm32-wasip1 results differ"),
+            );
         }
         absorb(&mut native_hash, entry, &native);
         absorb(&mut wasm_hash, entry, &wasm);
@@ -111,12 +111,12 @@ pub fn run(root: &Path, mismatch: bool) -> Result<Outcome> {
 }
 
 fn read_set(root: &Path) -> Result<HashedSet> {
-    let path = root.join(SET);
+    let path = root.join(HASHED_SET);
     let text =
         std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-    let set: HashedSet = toml::from_str(&text).with_context(|| format!("parsing {SET}"))?;
+    let set: HashedSet = toml::from_str(&text).with_context(|| format!("parsing {HASHED_SET}"))?;
     if set.build.is_empty() {
-        bail!("{SET} lists no Builds");
+        bail!("{HASHED_SET} lists no Builds");
     }
     Ok(set)
 }
@@ -180,4 +180,16 @@ fn absorb(hasher: &mut blake3::Hasher, entry: &Entry, output: &[u8]) {
     hasher.update(entry.path.as_bytes());
     hasher.update(&(output.len() as u64).to_le_bytes());
     hasher.update(output);
+}
+
+/// Flips the low bit of the last ASCII digit in `output`, which keeps it a digit
+/// (`0`↔`1`, …, `8`↔`9`): the smallest change to a printed number.
+fn corrupt_last_digit(output: &mut [u8]) -> Result<()> {
+    let digit = output
+        .iter_mut()
+        .rev()
+        .find(|byte| byte.is_ascii_digit())
+        .context("--mismatch: the WebAssembly result has no digit to change")?;
+    *digit ^= 1;
+    Ok(())
 }

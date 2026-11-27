@@ -53,8 +53,8 @@ enum Command {
     /// hashed set with each, and prints both hashes. Needs wasmtime on PATH. To add a
     /// fixture Build to the hashed set, append a `[[build]]` entry to xtask/xhash.toml.
     Xhash {
-        /// Flip one bit of the first WebAssembly result before hashing, to show that a
-        /// difference fails.
+        /// Change the last digit of the first WebAssembly result before hashing, to show
+        /// that a difference fails.
         #[arg(long)]
         mismatch: bool,
     },
