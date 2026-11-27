@@ -52,6 +52,82 @@ impl crate::report::Check for Check {
     }
 }
 
+/// Every crate in ADR-0034's crate map, including ones not yet created.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Crate {
+    Dice,
+    Core,
+    Load,
+    Import,
+    Engine,
+    Solver,
+    Cache,
+    Rules2024,
+    Rules2014,
+    AppCore,
+    Host,
+    Testkit,
+    Gui,
+    Worker,
+    Cli,
+    Xtask,
+}
+
+impl Crate {
+    const ALL: [Crate; 16] = [
+        Crate::Dice,
+        Crate::Core,
+        Crate::Load,
+        Crate::Import,
+        Crate::Engine,
+        Crate::Solver,
+        Crate::Cache,
+        Crate::Rules2024,
+        Crate::Rules2014,
+        Crate::AppCore,
+        Crate::Host,
+        Crate::Testkit,
+        Crate::Gui,
+        Crate::Worker,
+        Crate::Cli,
+        Crate::Xtask,
+    ];
+
+    /// The package name.
+    fn name(self) -> &'static str {
+        match self {
+            Crate::Dice => "mm-dice",
+            Crate::Core => "mm-core",
+            Crate::Load => "mm-load",
+            Crate::Import => "mm-import",
+            Crate::Engine => "mm-engine",
+            Crate::Solver => "mm-solver",
+            Crate::Cache => "mm-cache",
+            Crate::Rules2024 => "mm-rules-2024",
+            Crate::Rules2014 => "mm-rules-2014",
+            Crate::AppCore => "mm-app-core",
+            Crate::Host => "mm-host",
+            Crate::Testkit => "mm-testkit",
+            Crate::Gui => "mm-gui",
+            Crate::Worker => "mm-worker",
+            Crate::Cli => "mm-cli",
+            Crate::Xtask => "xtask",
+        }
+    }
+
+    fn from_name(name: &str) -> Option<Crate> {
+        Crate::ALL.into_iter().find(|c| c.name() == name)
+    }
+
+    /// This crate's row in the table.
+    fn rule(self) -> &'static CrateRule {
+        TABLE
+            .iter()
+            .find(|row| row.krate == self)
+            .expect("every crate has a row in the table")
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Role {
     Library,
@@ -74,8 +150,8 @@ enum ThirdParty {
 }
 
 impl ThirdParty {
-    /// Why `dep` is refused, or `None` if it is allowed.
-    fn refusal(self, dep: &str) -> Option<String> {
+    /// Why the third-party crate `dep` is rejected, or `None` if it is allowed.
+    fn rejection(self, dep: &str) -> Option<String> {
         match self {
             ThirdParty::Any => None,
             ThirdParty::Only(allowed) if allowed.contains(&dep) => None,
@@ -90,126 +166,106 @@ impl ThirdParty {
 
 #[derive(Debug)]
 struct CrateRule {
-    name: &'static str,
+    krate: Crate,
     role: Role,
-    may_use: Vec<&'static str>,
+    may_use: Vec<Crate>,
     third_party: ThirdParty,
 }
 
 impl CrateRule {
+    /// Whether this crate may depend on the workspace crate `dep`. Any crate may take
+    /// `mm-testkit` as a dev-dependency.
+    fn permits(&self, dep: Crate, dev: bool) -> bool {
+        self.may_use.contains(&dep) || (dev && dep == Crate::Testkit)
+    }
+
     /// Why this crate may not depend on the workspace crate `dep`, phrased by the rule broken.
-    fn refusal_of(&self, dep: &str) -> String {
-        match rule_for(dep).map(|r| r.role) {
-            Some(Role::Rules) => {
+    fn workspace_dep_rejection(&self, dep: Crate) -> String {
+        let name = self.krate.name();
+        match dep.rule().role {
+            Role::Rules => {
                 "only binaries and mm-testkit may depend on a rules crate (ADR-0034)".to_owned()
             }
-            Some(Role::Host) => "only binaries may depend on mm-host (ADR-0034)".to_owned(),
-            Some(Role::Testkit) => {
+            Role::Host => "only binaries may depend on mm-host (ADR-0034)".to_owned(),
+            Role::Testkit => {
                 "mm-testkit is used only as a dev-dependency, from integration tests (ADR-0034)"
                     .to_owned()
             }
-            Some(Role::Binary) => "nothing may depend on a binary (ADR-0034)".to_owned(),
-            Some(Role::Library) | None if self.may_use.is_empty() => {
-                format!("{} may depend on no workspace crate (ADR-0034)", self.name)
+            Role::Binary => "nothing may depend on a binary (ADR-0034)".to_owned(),
+            Role::Library if self.may_use.is_empty() => {
+                format!("{name} may depend on no workspace crate (ADR-0034)")
             }
-            Some(Role::Library) | None => format!(
-                "{} may depend only on {} (ADR-0034)",
-                self.name,
-                self.may_use.join(", ")
-            ),
+            Role::Library => {
+                let allowed: Vec<_> = self.may_use.iter().map(|c| c.name()).collect();
+                format!(
+                    "{name} may depend only on {} (ADR-0034)",
+                    allowed.join(", ")
+                )
+            }
         }
     }
 }
 
 /// ADR-0034 as amended 2026-11-27, and the crate map in architecture §8.
 static TABLE: LazyLock<Vec<CrateRule>> = LazyLock::new(|| {
-    use Role::{Binary, Host, Library, Rules, Testkit};
+    use Crate::{
+        AppCore, Cache, Cli, Core, Dice, Engine, Gui, Host, Import, Load, Rules2014, Rules2024,
+        Solver, Testkit, Worker, Xtask,
+    };
 
-    let layered = |base: &[&'static str], more: &[&'static str]| -> Vec<&'static str> {
+    let plus = |base: &[Crate], more: &[Crate]| -> Vec<Crate> {
         base.iter().chain(more).copied().collect()
     };
     // Each layer may use everything below it.
-    let below_app = [
-        "mm-dice",
-        "mm-core",
-        "mm-load",
-        "mm-import",
-        "mm-engine",
-        "mm-solver",
-        "mm-cache",
-    ];
-    let below_host = layered(&below_app, &["mm-app-core"]);
-    let shell = layered(&below_host, &["mm-host", "mm-rules-2024", "mm-rules-2014"]);
+    let below_app = [Dice, Core, Load, Import, Engine, Solver, Cache];
+    let below_host = plus(&below_app, &[AppCore]);
+    let shell = plus(&below_host, &[Host, Rules2024, Rules2014]);
 
-    let row = |name, role, may_use: &[&'static str], third_party| CrateRule {
-        name,
+    let table_row = |krate, role, may_use: &[Crate], third_party| CrateRule {
+        krate,
         role,
         may_use: may_use.to_vec(),
         third_party,
     };
     vec![
-        row("mm-dice", Library, &[], ThirdParty::None),
-        row(
-            "mm-core",
-            Library,
+        table_row(Dice, Role::Library, &[], ThirdParty::None),
+        table_row(
+            Core,
+            Role::Library,
             &[],
             ThirdParty::Only(&["blake3", "serde", "thiserror"]),
         ),
-        row("mm-load", Library, &["mm-core"], ThirdParty::Any),
-        row(
-            "mm-import",
-            Library,
-            &["mm-core", "mm-load"],
+        table_row(Load, Role::Library, &[Core], ThirdParty::Any),
+        table_row(Import, Role::Library, &[Core, Load], ThirdParty::Any),
+        table_row(Engine, Role::Library, &[Core, Load, Dice], ThirdParty::Any),
+        table_row(
+            Solver,
+            Role::Library,
+            &[Core, Load, Dice, Engine],
             ThirdParty::Any,
         ),
-        row(
-            "mm-engine",
-            Library,
-            &["mm-core", "mm-load", "mm-dice"],
+        table_row(
+            Cache,
+            Role::Library,
+            &[Core, Load, Dice, Engine, Solver],
             ThirdParty::Any,
         ),
-        row(
-            "mm-solver",
-            Library,
-            &["mm-core", "mm-load", "mm-dice", "mm-engine"],
-            ThirdParty::Any,
-        ),
-        row(
-            "mm-cache",
-            Library,
-            &["mm-core", "mm-load", "mm-dice", "mm-engine", "mm-solver"],
-            ThirdParty::Any,
-        ),
-        row("mm-rules-2024", Rules, &["mm-core"], ThirdParty::Any),
-        row("mm-rules-2014", Rules, &["mm-core"], ThirdParty::Any),
-        row("mm-app-core", Library, &below_app, ThirdParty::Any),
-        row("mm-host", Host, &below_host, ThirdParty::Any),
-        row(
-            "mm-testkit",
+        table_row(Rules2024, Role::Rules, &[Core], ThirdParty::Any),
+        table_row(Rules2014, Role::Rules, &[Core], ThirdParty::Any),
+        table_row(AppCore, Role::Library, &below_app, ThirdParty::Any),
+        table_row(Host, Role::Host, &below_host, ThirdParty::Any),
+        table_row(
             Testkit,
-            &[
-                "mm-dice",
-                "mm-core",
-                "mm-load",
-                "mm-engine",
-                "mm-solver",
-                "mm-rules-2024",
-                "mm-rules-2014",
-            ],
+            Role::Testkit,
+            &[Dice, Core, Load, Engine, Solver, Rules2024, Rules2014],
             ThirdParty::Any,
         ),
-        row("mm-gui", Binary, &shell, ThirdParty::Any),
-        row("mm-worker", Binary, &shell, ThirdParty::Any),
-        row("mm-cli", Binary, &shell, ThirdParty::Any),
-        row("xtask", Binary, &[], ThirdParty::Any),
+        table_row(Gui, Role::Binary, &shell, ThirdParty::Any),
+        table_row(Worker, Role::Binary, &shell, ThirdParty::Any),
+        table_row(Cli, Role::Binary, &shell, ThirdParty::Any),
+        table_row(Xtask, Role::Binary, &[], ThirdParty::Any),
     ]
 });
-
-const TESTKIT: &str = "mm-testkit";
-
-fn rule_for(name: &str) -> Option<&'static CrateRule> {
-    TABLE.iter().find(|r| r.name == name)
-}
 
 pub fn run(manifest_path: &Path) -> Result<Outcome> {
     let metadata = MetadataCommand::new()
@@ -218,15 +274,15 @@ pub fn run(manifest_path: &Path) -> Result<Outcome> {
         .exec()
         .with_context(|| format!("running cargo metadata on {}", manifest_path.display()))?;
     let packages = metadata.workspace_packages();
-    let mut checker = Checker {
+    let mut scan = DepsScan {
         members: packages.iter().map(|p| p.name.as_str()).collect(),
         root: metadata.workspace_root.as_std_path(),
         report: Report::new("deps"),
     };
     for package in &packages {
-        checker.check_package(package)?;
+        scan.check_package(package)?;
     }
-    Ok(checker.report.finish(
+    Ok(scan.report.finish(
         &format!(
             "{} workspace crate(s) follow the ADR-0034 rules",
             packages.len()
@@ -235,14 +291,14 @@ pub fn run(manifest_path: &Path) -> Result<Outcome> {
     ))
 }
 
-/// The workspace being checked, and what has been found so far.
-struct Checker<'a> {
+/// One run of `deps`: the workspace being checked, and the problems found so far.
+struct DepsScan<'a> {
     members: BTreeSet<&'a str>,
     root: &'a Path,
     report: Report<Check>,
 }
 
-impl Checker<'_> {
+impl DepsScan<'_> {
     fn check_package(&mut self, package: &Package) -> Result<()> {
         let name = package.name.as_str();
         if package
@@ -258,28 +314,32 @@ impl Checker<'_> {
                 .push(Check::Package.problem(name, "must use the MIT licence"));
         }
 
-        let Some(rule) = rule_for(name) else {
-            self.report.push(Check::CrateTable.problem(name,
+        let Some(krate) = Crate::from_name(name) else {
+            self.report.push(Check::CrateTable.problem(
+                name,
                 "not in the ADR-0034 crate table; add it to xtask/src/deps.rs with its allowed dependencies, after amending ADR-0034",
             ));
             return Ok(());
         };
 
         for dep in &package.dependencies {
-            self.check_dependency(rule, dep);
+            self.check_dependency(krate.rule(), dep);
         }
-        let uses_testkit = package.dependencies.iter().any(|d| d.name == TESTKIT);
-        if name != TESTKIT && uses_testkit {
+        let uses_testkit = package
+            .dependencies
+            .iter()
+            .any(|d| d.name == Crate::Testkit.name());
+        if krate != Crate::Testkit && uses_testkit {
             self.check_testkit_use(package)?;
         }
         Ok(())
     }
 
     fn check_dependency(&mut self, from: &CrateRule, dep: &Dependency) {
-        let edge = format!("{} -> {}", from.name, dep.name);
+        let edge = format!("{} -> {}", from.krate.name(), dep.name);
         let dev = dep.kind == DependencyKind::Development;
 
-        if dep.name == TESTKIT && dep.rename.is_some() {
+        if dep.name == Crate::Testkit.name() && dep.rename.is_some() {
             self.report.push(Check::Testkit.problem(
                 edge.as_str(),
                 "do not rename mm-testkit; `xtask deps` finds its uses by name",
@@ -288,19 +348,21 @@ impl Checker<'_> {
 
         let is_member = dep.path.is_some() && self.members.contains(dep.name.as_str());
         if !is_member {
-            if !dev && let Some(why) = from.third_party.refusal(&dep.name) {
-                self.report.push(
-                    Check::ThirdParty.problem(edge, format!("{} {why} (ADR-0034)", from.name)),
-                );
+            if !dev && let Some(why) = from.third_party.rejection(&dep.name) {
+                let message = format!("{} {why} (ADR-0034)", from.krate.name());
+                self.report.push(Check::ThirdParty.problem(edge, message));
             }
             return;
         }
 
-        if from.may_use.contains(&dep.name.as_str()) || (dev && dep.name == TESTKIT) {
+        // A member outside the table is reported on its own; its edges have no rule to check.
+        let Some(dep_crate) = Crate::from_name(&dep.name) else {
             return;
+        };
+        if !from.permits(dep_crate, dev) {
+            let message = from.workspace_dep_rejection(dep_crate);
+            self.report.push(Check::AllowedDeps.problem(edge, message));
         }
-        self.report
-            .push(Check::AllowedDeps.problem(edge, from.refusal_of(&dep.name)));
     }
 
     /// In a crate that depends on `mm-testkit`, no `.rs` file outside `tests/` may use it.
@@ -317,14 +379,15 @@ impl Checker<'_> {
         for file in files {
             let text = std::fs::read_to_string(&file)
                 .with_context(|| format!("reading {}", file.display()))?;
-            let shown = file
+            let relative_path = file
                 .strip_prefix(self.root)
                 .unwrap_or(&file)
                 .display()
                 .to_string();
             for (index, line) in text.lines().enumerate() {
                 if contains_word(code_part(line), "mm_testkit") {
-                    self.report.push(Check::Testkit.problem(at_line(&shown, index),
+                    self.report.push(Check::Testkit.problem(
+                        at_line(&relative_path, index),
                         "uses mm_testkit outside tests/; oracles are used only from integration tests (ADR-0034)",
                     ));
                 }
@@ -363,4 +426,18 @@ fn contains_word(line: &str, word: &str) -> bool {
         let ident = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
         !ident(before) && !ident(after)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Crate, TABLE};
+
+    #[test]
+    fn every_crate_has_exactly_one_row() {
+        for krate in Crate::ALL {
+            let rows = TABLE.iter().filter(|row| row.krate == krate).count();
+            assert_eq!(rows, 1, "{} has {rows} rows", krate.name());
+        }
+        assert_eq!(TABLE.len(), Crate::ALL.len());
+    }
 }

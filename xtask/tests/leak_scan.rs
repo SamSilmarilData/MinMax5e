@@ -237,7 +237,7 @@ fn content_ids_outside_fixtures_are_not_checked() {
 }
 
 #[test]
-fn the_nondeterministic_simd_feature_fails_anywhere() {
+fn the_nondeterministic_simd_feature_fails_in_a_tracked_file() {
     let feature = ["relaxed", "simd"].join("-");
     let tree = TempTree::git();
     tree.track(
@@ -254,6 +254,27 @@ fn the_nondeterministic_simd_feature_fails_in_an_untracked_file() {
     tree.track("README.md", "hi\n")
         .write(".cargo/config.toml", format!("target-feature=+{feature}\n"));
     scan(&tree).assert_fails_with(&[&format!(".cargo/config.toml:1: [{feature}]")]);
+}
+
+#[test]
+fn a_tracked_file_may_be_exempted_from_the_simd_check_but_an_untracked_one_may_not() {
+    let feature = ["relaxed", "simd"].join("-");
+    let tree = TempTree::git();
+    tree.track("docs/adr/0050.md", format!("Bans `{feature}`.\n"))
+        .track(
+            "xtask/leak-allow.toml",
+            format!(
+                "[[file]]\npath = \"docs/adr/0050.md\"\nallow = [\"{feature}\"]\nreason = \"explains the ban\"\n"
+            ),
+        )
+        .write("notes.txt", format!("try +{feature}\n"));
+    let run = scan(&tree);
+    run.assert_fails_with(&[&format!("notes.txt:1: [{feature}]")]);
+    assert!(
+        !run.stdout().contains("docs/adr/0050.md"),
+        "{}",
+        run.stdout()
+    );
 }
 
 #[test]

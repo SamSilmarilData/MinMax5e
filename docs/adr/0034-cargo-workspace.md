@@ -9,8 +9,8 @@ status: accepted
 > *Amended 2026-11-27 (workspace foundation, #13):*
 >
 > - **`mm-core`'s third-party dependencies are limited** to serde, thiserror and blake3 (spec #12), and `mm-dice` has none. `xtask deps` enforces both for normal and build dependencies; dev-dependencies are free.
-> - **`mm-testkit` may not be renamed** in a manifest, so `xtask deps` can find its uses by name. That scan ignores `//` comments.
-> - **cargo-deny bans do apply to workspace path crates,** dev-dependencies and `wrappers` included (checked with cargo-deny 0.22, answering research 09 §7 question 4). `deny.toml` therefore bans the rules crates and `mm-host` outside their allowed users, as the backstop to `xtask deps`.
+> - **`mm-testkit` may not be renamed** in a manifest, so `xtask deps` can find its uses by name. That scan ignores `//` comments. **It flags any use outside `<crate>/tests/`,** including `benches/`, `examples/` and `build.rs`, not only unit-test modules: integration tests are the one place oracles belong.
+> - **cargo-deny bans do apply to workspace path crates,** dev-dependencies and `wrappers` included (checked with cargo-deny 0.22, answering research 09 §7 question 4). `deny.toml` therefore bans the rules crates and `mm-host` outside their allowed users, as the backstop to `xtask deps`. This settles the "unverified" notes in the body above and in the walking-skeleton amendment.
 > - **`xtask xhash` joins CI with its own ticket (#16).** Until the engine exists there is no evaluation to hash, so CI from commit one runs every other check in the walking-skeleton amendment below.
 > - **The `trunk build --release` and `dist/` checks (ADR-0043 amendment) join CI with the web build,** at build-order step 8. Until `mm-gui` and `web/` exist there is nothing to build or check.
 > - **`mm-testkit` may depend on** `mm-dice`, `mm-core`, `mm-load`, `mm-engine`, `mm-solver` and both rules crates, the crates its oracles and fixtures exercise. A step that needs more (for example `mm-import` for the synthetic mini-corpus at step 6) adds it here and in `xtask deps` with an amendment.

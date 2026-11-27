@@ -370,6 +370,8 @@ ADR-0037's snapshot test becomes `Inline` = `Rayon(N)` = `WorkerPool(N)`, plus a
   - `f64::max`/`min` on values that might be NaN (use explicit comparisons, as the spike does);
   - fast-math flags.
 
+  *Updated by the 2026-11-27 amendments to ADR-0037 and ADR-0050 (#13):* `powi` is banned too, `max`/`min` are banned in all scored code, `sqrt` is allowed, and "transcendental" covers every method whose precision Rust leaves unspecified. `clippy.toml` holds the full list.
+
   `+simd128` is allowed: it is deterministic [measured].
 
 ### 6.3 Expected Solve times [estimate from measured per-kit costs]

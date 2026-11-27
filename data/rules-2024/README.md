@@ -4,7 +4,8 @@ Hand-written RON encodings of 2024-rules mechanics, one file per content item, l
 `mm-load` and embedded by `mm-rules-2024` at build time (ADR-0002, ADR-0010, ADR-0035).
 
 Empty until real encodings start, after `mm-import` (build-order step 6). Until then every
-mechanic is exercised through the synthetic fixtures in `crates/mm-testkit/fixtures/`.
+mechanic is exercised through synthetic fixtures, which will live in `mm-testkit` once
+that crate exists (walking skeleton, build-order steps 1–3).
 
 Rules for this directory (ADR-0028):
 

@@ -204,21 +204,18 @@ fn scan_tracked(file: &RepoFile, patterns: &Patterns) -> Vec<Problem<Check>> {
         }
     }
 
-    let extension = Path::new(&file.path)
-        .extension()
-        .map(|e| e.to_string_lossy().to_ascii_lowercase());
+    let kind = FileKind::of(&file.path);
     let fixture = file.path.split('/').any(|part| part == "fixtures");
-    let marked_json_fixture =
-        fixture && extension.as_deref() == Some("json") && json_marked(&file.contents);
+    let marked_json_fixture = fixture && kind == FileKind::Json && json_marked(&file.contents);
 
-    if matches!(extension.as_deref(), Some("json" | "pack" | "postcard")) && !marked_json_fixture {
+    if matches!(kind, FileKind::Json | FileKind::PackedData) && !marked_json_fixture {
         problems.push(Check::DataFile.problem(
             &file.path,
             "tracked JSON, pack or postcard file; rules data and anything derived from it stays in the local cache",
         ));
     }
     if fixture {
-        problems.extend(scan_fixture(file, extension.as_deref(), patterns));
+        problems.extend(scan_fixture(file, kind, patterns));
     }
     problems
 }
@@ -241,18 +238,40 @@ fn json_marked(contents: &[u8]) -> bool {
         .is_ok_and(|doc| doc.get("_fixture").and_then(|v| v.as_str()) == Some("synthetic"))
 }
 
-fn scan_fixture(
-    file: &RepoFile,
-    extension: Option<&str>,
-    patterns: &Patterns,
-) -> Vec<Problem<Check>> {
+/// What a file is, by its extension (case-insensitive).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FileKind {
+    Ron,
+    Json,
+    Markdown,
+    /// `*.pack` or `*.postcard`: compiled rules packs and the result cache.
+    PackedData,
+    Other,
+}
+
+impl FileKind {
+    fn of(path: &str) -> Self {
+        let extension = Path::new(path)
+            .extension()
+            .map(|e| e.to_string_lossy().to_ascii_lowercase());
+        match extension.as_deref() {
+            Some("ron") => FileKind::Ron,
+            Some("json") => FileKind::Json,
+            Some("md") => FileKind::Markdown,
+            Some("pack" | "postcard") => FileKind::PackedData,
+            _ => FileKind::Other,
+        }
+    }
+}
+
+fn scan_fixture(file: &RepoFile, kind: FileKind, patterns: &Patterns) -> Vec<Problem<Check>> {
     let mut problems = Vec::new();
     let mut problem = |at: String, message: String| {
         problems.push(Check::Fixture.problem(at, message));
     };
 
-    match extension {
-        Some("ron") => {
+    match kind {
+        FileKind::Ron => {
             let first = lines(&file.contents).next().map_or(&[][..], |(_, l)| l);
             if first.strip_suffix(b"\r").unwrap_or(first) != RON_MARKER {
                 problem(
@@ -262,7 +281,7 @@ fn scan_fixture(
                 );
             }
         }
-        Some("json") => {
+        FileKind::Json => {
             if !json_marked(&file.contents) {
                 problem(
                     file.path.clone(),
@@ -272,8 +291,8 @@ fn scan_fixture(
             }
         }
         // Documentation about the fixtures; its Content IDs are still checked below.
-        Some("md") => {}
-        _ => problem(
+        FileKind::Markdown => {}
+        FileKind::PackedData | FileKind::Other => problem(
             file.path.clone(),
             "fixtures are RON or JSON files carrying the synthetic marker (or Markdown notes)"
                 .to_owned(),
