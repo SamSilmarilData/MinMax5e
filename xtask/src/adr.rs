@@ -6,6 +6,9 @@
 //! `> *Amended YYYY-MM-DD`) and blank lines, and its `status:` line may change (for example to
 //! `superseded by ADR-…`). Any other added, changed or removed line fails, and so does
 //! deleting the file. ADRs that are new, or not accepted at the base, are not checked.
+//!
+//! Every ADR in the working tree, new or old, also lists its amendment blocks newest first:
+//! each block's date is on or before the date of the block above it.
 
 use std::path::Path;
 use std::process::Command;
@@ -21,19 +24,21 @@ const ADR_DIR: &str = "docs/adr";
 #[derive(Debug, Clone, Copy)]
 enum Check {
     SilentEdit,
+    AmendmentOrder,
 }
 
 impl crate::report::Check for Check {
     fn name(self) -> &'static str {
         match self {
             Check::SilentEdit => "adr-silent-edit",
+            Check::AmendmentOrder => "adr-amendment-order",
         }
     }
 }
 
 pub fn run(root: &Path, base: &str) -> Result<Outcome> {
     let base = git(root, &["merge-base", base, "HEAD"])?.trim().to_owned();
-    let amendment_start = Regex::new(r"^> \*Amended \d{4}-\d{2}-\d{2}").expect("valid regex");
+    let amendment_start = Regex::new(r"^> \*Amended (\d{4}-\d{2}-\d{2})").expect("valid regex");
     let mut report = Report::new("adr-check");
     let mut checked = 0;
 
@@ -86,10 +91,62 @@ pub fn run(root: &Path, base: &str) -> Result<Outcome> {
         }
     }
 
+    check_amendment_order(root, &amendment_start, &mut report)?;
+
     Ok(report.finish(
         &format!("{checked} accepted ADR(s) changed only by amendment since {base:.12}"),
-        "Accepted ADRs change by dated amendment or a superseding ADR (CLAUDE.md).",
+        "Accepted ADRs change by dated amendment or a superseding ADR (CLAUDE.md), and amendments are listed newest first.",
     ))
+}
+
+/// Reports every amendment block dated after the block above it, in every ADR in the
+/// working tree.
+fn check_amendment_order(
+    root: &Path,
+    amendment_start: &Regex,
+    report: &mut Report<Check>,
+) -> Result<()> {
+    let dir = root.join(ADR_DIR);
+    let mut paths: Vec<_> = std::fs::read_dir(&dir)
+        .with_context(|| format!("reading {}", dir.display()))?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<std::io::Result<_>>()
+        .with_context(|| format!("reading {}", dir.display()))?;
+    paths.retain(|path| {
+        path.extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("md"))
+    });
+    paths.sort();
+    for path in paths {
+        let text = std::fs::read_to_string(&path)
+            .with_context(|| format!("reading {}", path.display()))?;
+        let name = format!(
+            "{ADR_DIR}/{}",
+            path.file_name().unwrap_or_default().to_string_lossy()
+        );
+        let mut above: Option<&str> = None;
+        for (index, line) in text.lines().enumerate() {
+            let Some(date) = amendment_start
+                .captures(line)
+                .and_then(|captures| captures.get(1))
+            else {
+                continue;
+            };
+            let date = date.as_str();
+            if let Some(above) = above
+                && date > above
+            {
+                report.push(Check::AmendmentOrder.problem(
+                    at_line(&name, index),
+                    format!(
+                        "amendment dated {date} sits below one dated {above}; list amendments newest first"
+                    ),
+                ));
+            }
+            above = Some(date);
+        }
+    }
+    Ok(())
 }
 
 /// The value of the frontmatter `status:` line.

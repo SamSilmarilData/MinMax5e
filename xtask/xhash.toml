@@ -1,7 +1,8 @@
 # The fixture Builds `cargo xtask xhash` evaluates natively and under wasmtime, then
 # hashes (ADR-0050). The result must hash alike on both targets.
 #
-# To add a Build to the hashed set, append an entry:
+# Every Build in crates/mm-testkit/fixtures/builds/ must be listed here; the xtask test
+# `every_fixture_build_is_in_the_hashed_set` fails otherwise. To add one, append an entry:
 #
 #   [[build]]
 #   path = "crates/mm-testkit/fixtures/builds/<name>.ron"  # relative to the repo root

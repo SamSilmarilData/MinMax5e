@@ -6,6 +6,11 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-28 (retro after #16):*
+>
+> - **`adr-check` also checks amendment order.** Every ADR in the working tree, new or old, lists its amendment blocks newest first; a block dated after the one above it fails as `adr-amendment-order`. Every ADR already did this; now it is enforced.
+> - **Every fixture Build is in the cross-target hash.** An ordinary xtask test, which needs no wasmtime and so runs on every CI leg, fails when `crates/mm-testkit/fixtures/builds/` and `xtask/xhash.toml` disagree.
+
 > *Amended 2026-11-28 (#16):* **`xtask xhash` has joined CI,** as steps in the macOS leg of the test job rather than a job of its own: they install wasmtime, run `cargo xtask xhash`, and run its `#[ignore]`d process tests (`cargo test -p xtask --test xhash -- --ignored`). This completes the CI list in the walking-skeleton amendment below, except for the web-build checks (step 8). What is hashed is recorded in ADR-0050's amendment of the same date.
 
 > *Amended 2026-11-27 (environment retro after #13):* **`cargo xtask adr-check`** joins the repo guards and CI. An ADR accepted at the base commit may gain dated amendment blocks and change its `status:` line; any other edit, or deleting it, fails. It enforces CLAUDE.md's rule that decisions change by amendment or a superseding ADR, never by a silent edit.
