@@ -2,11 +2,14 @@
 //!
 //! The names checked, each read as lowercase words, against every term on an `_Avoid_:`
 //! line of the staged GLOSSARY.md:
-//! - `kind`: the `<kind>` segment of a Content ID (`<ruleset>:<kind>/…`), and the name a
-//!   `const NAME: &'static str = "…"` gives a kind in Rust, hyphens read as spaces;
+//! - `kind`: the `<kind>` segment of a Content ID (`<ruleset>:<kind>/…`) in any file, and the
+//!   string a Rust `impl Kind for … { const NAME … }` gives, hyphens read as spaces;
 //! - `variant`: a variant of a Rust `enum Record` or `enum Encoding`, split at its capitals
-//!   (`MasteryProperty` is "mastery property"). A pack's RON is written in these names, as
-//!   long as no `#[serde(rename)]` changes them; none does.
+//!   (`MasteryProperty` is "mastery property"), and the string a `#[serde(rename = "…")]` on
+//!   it gives, since a pack's RON is written in those names.
+//!
+//! Rust files are parsed with `syn`, so comments, strings, attributes and generics cannot hide
+//! a name; a file that does not parse is a `parse` problem rather than a silent pass.
 //!
 //! Prose and other identifiers are left to review: the avoid lists hold common words
 //! ("source", "version"), and terms one entry avoids that another defines ("corpus", "errata"),
@@ -19,6 +22,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use regex::Regex;
+use syn::visit::Visit;
 
 use crate::Outcome;
 use crate::content_id;
@@ -33,17 +37,27 @@ const RESEARCH_DIR: &str = "docs/research/";
 /// The enums whose variant names a pack's RON is written in.
 const CONTENT_ENUMS: [&str; 2] = ["Record", "Encoding"];
 
-#[derive(Debug, Clone, Copy)]
+/// The trait whose `NAME` is a Content ID kind.
+const KIND_TRAIT: &str = "Kind";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Check {
+    /// A Content ID kind.
     Kind,
+    /// A `Kind::NAME` in Rust.
+    KindName,
+    /// A content enum variant, or its serde rename.
     Variant,
+    /// A Rust file `syn` cannot parse, so its names cannot be checked.
+    Parse,
 }
 
 impl crate::report::Check for Check {
     fn name(self) -> &'static str {
         match self {
-            Check::Kind => "kind",
+            Check::Kind | Check::KindName => "kind",
             Check::Variant => "variant",
+            Check::Parse => "parse",
         }
     }
 }
@@ -56,23 +70,35 @@ struct Avoided {
     entry: String,
 }
 
-/// The patterns a scan reads names with.
-struct Patterns {
-    content_id: Regex,
-    kind_name: Regex,
-    content_enum: Regex,
+/// A name the guard checks, where it was found.
+#[derive(Debug)]
+struct Found {
+    /// The line index, from 0.
+    line: usize,
+    check: Check,
+    name: String,
+    /// The name as lowercase words, as the avoid lists write terms.
+    words: String,
 }
 
-impl Patterns {
-    fn new() -> Self {
+impl Found {
+    fn new(line: usize, check: Check, name: String) -> Self {
+        let words = words_of(&name);
         Self {
-            content_id: Regex::new(content_id::PATTERN).expect("valid regex"),
-            kind_name: Regex::new(r#"const NAME: &'static str = "([a-z][a-z0-9-]*)""#)
-                .expect("valid regex"),
-            content_enum: Regex::new(&format!(r"\benum (?:{})\b", CONTENT_ENUMS.join("|")))
-                .expect("valid regex"),
+            line,
+            check,
+            name,
+            words,
         }
     }
+}
+
+/// How many names of each check a scan read.
+#[derive(Debug, Default)]
+struct Counts {
+    kinds: usize,
+    kind_names: usize,
+    variants: usize,
 }
 
 pub fn run(root: &Path) -> Result<Outcome> {
@@ -83,153 +109,154 @@ pub fn run(root: &Path) -> Result<Outcome> {
         .with_context(|| format!("{GLOSSARY} is not tracked in {}", root.display()))?;
     let avoided = avoided_terms(&String::from_utf8_lossy(&glossary.contents));
 
-    let patterns = Patterns::new();
+    let content_id = Regex::new(content_id::PATTERN).expect("valid regex");
     let mut report = Report::new("glossary");
-    let (mut scanned, mut kinds, mut variants) = (0, 0, 0);
+    let mut counts = Counts::default();
+    let mut scanned = 0;
     for file in files.iter().filter(|f| !f.path.starts_with(RESEARCH_DIR)) {
         scanned += 1;
-        let rust = Path::new(&file.path)
-            .extension()
-            .is_some_and(|ext| ext == "rs");
         let text = String::from_utf8_lossy(&file.contents);
-        for found in names(&patterns, rust, &text) {
-            match found.check {
-                Check::Kind => kinds += 1,
-                Check::Variant => variants += 1,
+        let mut found = content_id_kinds(&content_id, &text);
+        if Path::new(&file.path)
+            .extension()
+            .is_some_and(|ext| ext == "rs")
+        {
+            match syn::parse_file(&text) {
+                Ok(parsed) => found.extend(rust_names(&parsed)),
+                Err(err) => report.push(Check::Parse.problem(
+                    at_line(&file.path, err.span().start().line.saturating_sub(1)),
+                    format!("cannot parse it to check its names: {err}"),
+                )),
             }
-            if let Some(hit) = avoided.iter().find(|a| a.term == found.words) {
-                report.push(found.check.problem(
-                    at_line(&file.path, found.line),
+        }
+        for name in found {
+            match name.check {
+                Check::Kind => counts.kinds += 1,
+                Check::KindName => counts.kind_names += 1,
+                Check::Variant => counts.variants += 1,
+                Check::Parse => {}
+            }
+            if let Some(hit) = avoided.iter().find(|a| a.term == name.words) {
+                report.push(name.check.problem(
+                    at_line(&file.path, name.line),
                     format!(
                         "the {} \"{}\" is a term {GLOSSARY} avoids (see **{}**)",
-                        found.check.name(),
-                        found.name,
+                        name.check.name(),
+                        name.name,
                         hit.entry
                     ),
                 ));
             }
         }
     }
-    // The counts show the scan found names at all: a renamed content enum would otherwise
-    // pass silently.
+    // The counts show the scan found names at all: a renamed trait or content enum would
+    // otherwise pass silently.
+    let Counts {
+        kinds,
+        kind_names,
+        variants,
+    } = counts;
     Ok(report.finish(
         &format!(
-            "{kinds} kind(s) and {variants} content enum variant(s) in {scanned} tracked file(s) \
-             clean against {} avoided term(s)",
+            "{kinds} Content ID kind(s), {kind_names} Kind::NAME(s) and {variants} content enum \
+             variant(s) in {scanned} tracked file(s) clean against {} avoided term(s)",
             avoided.len()
         ),
         "Name it after the glossary entry it belongs to.",
     ))
 }
 
-/// A name the guard checks, where it was found.
-#[derive(Debug)]
-struct Found {
-    line: usize,
-    check: Check,
-    name: String,
-    /// The name as lowercase words, as the avoid lists write terms.
-    words: String,
+/// The kind of every Content ID in `text`.
+fn content_id_kinds(content_id: &Regex, text: &str) -> Vec<Found> {
+    text.lines()
+        .enumerate()
+        .flat_map(|(index, line)| {
+            content_id
+                .captures_iter(line)
+                .filter_map(|caps| caps.name("kind"))
+                .map(move |kind| Found::new(index, Check::Kind, kind.as_str().to_owned()))
+        })
+        .collect()
 }
 
-/// Every checked name in `text`. `rust` says whether to look for content enum variants.
-fn names(patterns: &Patterns, rust: bool, text: &str) -> Vec<Found> {
-    let mut found = Vec::new();
-    for (index, line) in text.lines().enumerate() {
-        let kinds = patterns
-            .content_id
-            .captures_iter(line)
-            .filter_map(|caps| caps.name("kind"))
-            .chain(
-                patterns
-                    .kind_name
-                    .captures_iter(line)
-                    .filter_map(|caps| caps.get(1)),
-            );
-        for kind in kinds {
-            let name = kind.as_str();
-            found.push(Found {
-                line: index,
-                check: Check::Kind,
-                name: name.to_owned(),
-                words: name.replace('-', " "),
-            });
-        }
-    }
-    if rust {
-        found.extend(
-            content_variants(patterns, text)
-                .into_iter()
-                .map(|(line, name)| Found {
-                    line,
-                    check: Check::Variant,
-                    words: words_of(&name),
-                    name,
-                }),
-        );
-    }
-    found
+/// Every `Kind::NAME` and content enum variant in a parsed Rust file.
+fn rust_names(file: &syn::File) -> Vec<Found> {
+    let mut names = RustNames::default();
+    names.visit_file(file);
+    names.found
 }
 
-/// The variants of every content enum in Rust `text`, with their line indexes.
-///
-/// Comments are dropped first, so brackets in them cannot unbalance the walk. A variant is
-/// the first name at the enum body's top level, after its `{` or a `,`; attributes, fields
-/// and tuple types sit deeper and are skipped.
-fn content_variants(patterns: &Patterns, text: &str) -> Vec<(usize, String)> {
-    let code: String = text
-        .lines()
-        .map(|line| line.split_once("//").map_or(line, |(code, _)| code))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let mut variants = Vec::new();
-    for start in patterns.content_enum.find_iter(&code) {
-        let Some(open) = code[start.end()..].find('{') else {
-            continue;
-        };
-        let body = start.end() + open;
-        let mut line = code[..body].matches('\n').count();
-        let mut depth = 0_u32;
-        let mut expect_variant = false;
-        let mut chars = code[body..].char_indices().peekable();
-        while let Some((_, c)) = chars.next() {
-            match c {
-                '\n' => line += 1,
-                '{' | '(' | '[' | '<' => {
-                    depth += 1;
-                    expect_variant = depth == 1;
+#[derive(Default)]
+struct RustNames {
+    found: Vec<Found>,
+}
+
+impl RustNames {
+    fn push(&mut self, at: proc_macro2::Span, check: Check, name: String) {
+        let line = at.start().line.saturating_sub(1);
+        self.found.push(Found::new(line, check, name));
+    }
+}
+
+impl<'ast> Visit<'ast> for RustNames {
+    fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
+        let is_kind = item
+            .trait_
+            .as_ref()
+            .and_then(|(_, path, _)| path.segments.last())
+            .is_some_and(|segment| segment.ident == KIND_TRAIT);
+        if is_kind {
+            for member in &item.items {
+                if let syn::ImplItem::Const(constant) = member
+                    && constant.ident == "NAME"
+                    && let syn::Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(name),
+                        ..
+                    }) = &constant.expr
+                {
+                    self.push(name.span(), Check::KindName, name.value());
                 }
-                '}' | ')' | ']' | '>' => {
-                    depth = depth.saturating_sub(1);
-                    if depth == 0 {
-                        break;
-                    }
-                }
-                ',' if depth == 1 => expect_variant = true,
-                c if depth == 1 && expect_variant && c.is_ascii_uppercase() => {
-                    let mut name = String::from(c);
-                    while let Some(&(_, next)) = chars.peek() {
-                        if !(next.is_ascii_alphanumeric() || next == '_') {
-                            break;
-                        }
-                        name.push(next);
-                        chars.next();
-                    }
-                    variants.push((line, name));
-                    expect_variant = false;
-                }
-                _ => {}
             }
         }
+        syn::visit::visit_item_impl(self, item);
     }
-    variants
+
+    fn visit_item_enum(&mut self, item: &'ast syn::ItemEnum) {
+        if CONTENT_ENUMS.iter().any(|name| item.ident == name) {
+            for variant in &item.variants {
+                self.push(
+                    variant.ident.span(),
+                    Check::Variant,
+                    variant.ident.to_string(),
+                );
+                for attr in variant.attrs.iter().filter(|a| a.path().is_ident("serde")) {
+                    // A serde attribute this cannot read names nothing RON sees here.
+                    let _ = attr.parse_nested_meta(|meta| {
+                        if meta.path.is_ident("rename") {
+                            let renamed: syn::LitStr = meta.value()?.parse()?;
+                            self.push(renamed.span(), Check::Variant, renamed.value());
+                        } else if meta.input.peek(syn::Token![=]) {
+                            let _: syn::Expr = meta.value()?.parse()?;
+                        }
+                        Ok(())
+                    });
+                }
+            }
+        }
+        syn::visit::visit_item_enum(self, item);
+    }
 }
 
-/// A `PascalCase` name as lowercase words: `MasteryProperty` is "mastery property".
+/// A name as lowercase words: `MasteryProperty`, `mastery-property` and `mastery_property`
+/// are all "mastery property".
 fn words_of(name: &str) -> String {
     let mut words = String::new();
     for (i, c) in name.chars().enumerate() {
-        if c.is_ascii_uppercase() && i > 0 {
+        if c == '-' || c == '_' {
+            words.push(' ');
+            continue;
+        }
+        if c.is_ascii_uppercase() && i > 0 && !words.ends_with(' ') {
             words.push(' ');
         }
         words.push(c.to_ascii_lowercase());

@@ -30,6 +30,8 @@ cargo_metadata = "0.23"
 toml = "0.9"
 regex = "1"
 serde_json = "1"
+syn = { version = "2", features = ["full", "visit"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }
 
 # The dependency list is fixed by the walking-skeleton spec before the crates that use
 # it exist. Drop this once every entry has a user.

@@ -8,7 +8,7 @@ status: accepted
 
 > *Amended 2026-11-28 (retro after #18):*
 >
-> - **`cargo xtask glossary`** joins the repo guards and CI. It fails when a content kind's name is a term on one of GLOSSARY.md's _Avoid_ lists: the kind in a Content ID or a Rust `Kind::NAME`, and the variants of `enum Record` and `enum Encoding`, the names a pack's RON is written in. Research notes are not scanned, since they stay as written; prose and other identifiers stay with review. The Content ID pattern it reads is the leak scan's, now shared. #18's review spent two rounds on the kind `mastery`, which the glossary avoids, so the mechanical part of that check moves out of review.
+> - **`cargo xtask glossary`** joins the repo guards and CI. It fails when a content kind's name is a term on one of GLOSSARY.md's _Avoid_ lists: the kind in a Content ID or a Rust `Kind::NAME`, and the variants of `enum Record` and `enum Encoding` with any `#[serde(rename)]` they carry, the names a pack's RON is written in. It parses Rust with `syn` (a new `xtask` dependency, already in the graph through serde), so comments, strings and attributes cannot hide a name, and a file that does not parse fails. Research notes are not scanned, since they stay as written; prose and other identifiers stay with review. The Content ID pattern it reads is the leak scan's, now shared. #18's review spent two rounds on the kind `mastery`, which the glossary avoids, so the mechanical part of that check moves out of review.
 
 > *Amended 2026-11-28 (retro after #16):*
 >

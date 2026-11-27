@@ -16,11 +16,6 @@ fn content_id(ruleset: &str, kind: &str) -> String {
     format!("id: \"{ruleset}:{kind}/test-graze|tst\",\n")
 }
 
-/// A Rust enum, assembled so this file does not match the guard itself.
-fn rust_enum(name: &str, body: &str) -> String {
-    format!("pub {} {name} {body}", "enum")
-}
-
 fn check(tree: &TempTree) -> common::XtaskRun {
     xtask(&["glossary", "--root", tree.path().to_str().unwrap()])
 }
@@ -54,16 +49,6 @@ fn an_avoided_term_as_a_content_id_kind_fails() {
 }
 
 #[test]
-fn an_avoided_term_as_a_kind_name_in_rust_fails() {
-    let tree = tree_with_glossary();
-    tree.track(
-        "src/kind.rs",
-        "impl Kind for T {\n    const NAME: &'static str = \"weapon-trait\";\n}\n",
-    );
-    check(&tree).assert_fails_with(&["src/kind.rs:2", "\"weapon-trait\""]);
-}
-
-#[test]
 fn a_parenthetical_note_is_not_part_of_the_term() {
     let tree = tree_with_glossary();
     tree.track("a.ron", content_id("2014", "source"));
@@ -71,46 +56,13 @@ fn a_parenthetical_note_is_not_part_of_the_term() {
 }
 
 #[test]
-fn research_notes_stay_as_written() {
-    let tree = tree_with_glossary();
-    tree.track("docs/research/09.md", content_id("2024", "mastery"));
-    check(&tree).assert_ok();
-}
-
-#[test]
-fn the_repository_passes_and_its_content_enums_are_read() {
-    let run = xtask(&["glossary"]);
-    run.assert_ok();
-    // mm-core's `Record` and `Encoding` have at least these variants between them, so a
-    // rename that stops the scan finding them fails here.
-    let variants: usize = run
-        .stdout()
-        .split(" content enum variant(s)")
-        .next()
-        .and_then(|head| head.rsplit(' ').next())
-        .and_then(|n| n.parse().ok())
-        .unwrap();
-    assert!(variants >= 10, "{}", run.stdout());
-}
-
-#[test]
-fn brackets_in_comments_and_one_line_enums_do_not_hide_variants() {
+fn an_avoided_term_as_a_kind_name_in_rust_fails() {
     let tree = tree_with_glossary();
     tree.track(
-        "src/records.rs",
-        format!(
-            "{}\n\n{}\n",
-            rust_enum(
-                "Record",
-                "{\n    /// Options: a) one, b) two.\n    Class(A), // (see ADR-0008\n    Mastery(A),\n}"
-            ),
-            rust_enum("Encoding", "{ Plain, WeaponTrait(B) }")
-        ),
+        "src/kind.rs",
+        "impl Kind for A {\n    const NAME: &'static str = \"class\";\n}\n\nimpl crate::Kind for T {\n    const NAME: &str =\n        \"weapon-trait\";\n}\n",
     );
-    check(&tree).assert_fails_with(&[
-        "src/records.rs:4: [variant] the variant \"Mastery\"",
-        "src/records.rs:7: [variant] the variant \"WeaponTrait\"",
-    ]);
+    check(&tree).assert_fails_with(&["src/kind.rs:7", "[kind] the kind \"weapon-trait\""]);
 }
 
 #[test]
@@ -118,19 +70,12 @@ fn an_avoided_term_as_a_content_enum_variant_fails() {
     let tree = tree_with_glossary();
     tree.track(
         "src/records.rs",
-        format!(
-            "{}\n\n{}\n",
-            rust_enum(
-                "Record",
-                "{\n    /// A class.\n    Class(NamedRecord),\n    Mastery {\n        id: Id,\n    },\n}"
-            ),
-            rust_enum("Other", "{\n    WeaponTrait,\n}")
-        ),
+        "pub enum Record {\n    /// A class.\n    Class(NamedRecord),\n    Mastery {\n        id: Id,\n    },\n}\n\npub enum Other {\n    WeaponTrait,\n}\n",
     );
     let run = check(&tree);
     run.assert_fails_with(&["src/records.rs:4", "[variant]", "\"Mastery\""]);
     assert!(
-        !run.stdout().contains("WeaponTrait") && !run.stdout().contains(":5"),
+        !run.stdout().contains("WeaponTrait"),
         "only a content enum's own variants are checked\n{}",
         run.stdout()
     );
@@ -141,9 +86,71 @@ fn a_variant_is_read_as_words() {
     let tree = tree_with_glossary();
     tree.track(
         "src/effect.rs",
-        rust_enum("Encoding", "{\n    WeaponTrait(FeaturesEncoding),\n}\n"),
+        "pub enum Encoding {\n    WeaponTrait(FeaturesEncoding),\n}\n",
     );
     check(&tree).assert_fails_with(&["src/effect.rs:2", "\"WeaponTrait\""]);
+}
+
+/// Each enum hides `Mastery` behind something a line-based scan misreads.
+#[test]
+fn nothing_in_a_content_enum_hides_a_later_variant() {
+    let hiders = [
+        "#[default] A,",
+        "#[serde(alias = \"a)\")] A,",
+        "#[doc = \"see http://x\"] A,",
+        "A(fn(u8) -> u8),",
+        "A(Box<dyn Fn() -> B>),",
+        "A = 1 << 2,",
+        "A, /* ) */",
+        "/// Options: a) one, b) two.\n    A, // (see ADR-0008",
+    ];
+    for hider in hiders {
+        let tree = tree_with_glossary();
+        tree.track(
+            "src/records.rs",
+            format!("pub enum Record {{\n    {hider}\n    Mastery,\n}}\n"),
+        );
+        let run = check(&tree);
+        assert!(
+            run.stdout().contains("[variant] the variant \"Mastery\""),
+            "{hider:?} hid the variant\n{}",
+            run.stdout()
+        );
+    }
+}
+
+#[test]
+fn a_one_line_content_enum_is_read() {
+    let tree = tree_with_glossary();
+    tree.track(
+        "src/effect.rs",
+        "pub enum Encoding { Plain, WeaponTrait(B) }\n",
+    );
+    check(&tree).assert_fails_with(&["src/effect.rs:1", "\"WeaponTrait\""]);
+}
+
+#[test]
+fn a_serde_rename_is_the_name_ron_sees() {
+    let tree = tree_with_glossary();
+    tree.track(
+        "src/records.rs",
+        "pub enum Record {\n    #[serde(rename = \"mastery\")]\n    MasteryProperty,\n}\n",
+    );
+    check(&tree).assert_fails_with(&["src/records.rs:2", "[variant] the variant \"mastery\""]);
+}
+
+#[test]
+fn a_rust_file_that_does_not_parse_fails() {
+    let tree = tree_with_glossary();
+    tree.track("src/broken.rs", "pub enum Record {\n    A,\n");
+    check(&tree).assert_fails_with(&["src/broken.rs", "[parse]"]);
+}
+
+#[test]
+fn research_notes_stay_as_written() {
+    let tree = tree_with_glossary();
+    tree.track("docs/research/09.md", content_id("2024", "mastery"));
+    check(&tree).assert_ok();
 }
 
 #[test]
@@ -156,5 +163,29 @@ fn a_repository_without_a_glossary_is_an_error() {
         run.stderr().contains("GLOSSARY.md is not tracked"),
         "{}",
         run.stderr()
+    );
+}
+
+/// The number the clean summary line gives before `label`.
+fn count_before(stdout: &str, label: &str) -> usize {
+    stdout
+        .split(label)
+        .next()
+        .and_then(|head| head.rsplit(' ').next())
+        .and_then(|n| n.parse().ok())
+        .unwrap_or_else(|| panic!("the summary has no count before {label:?}:\n{stdout}"))
+}
+
+#[test]
+fn the_repository_passes_and_its_kinds_and_content_enums_are_read() {
+    let run = xtask(&["glossary"]);
+    run.assert_ok();
+    // mm-core has at least these between its `Kind` impls and its `Record` and `Encoding`
+    // enums, so a rename that stops the scan finding them fails here.
+    let stdout = run.stdout();
+    assert!(count_before(&stdout, " Kind::NAME(s)") >= 6, "{stdout}");
+    assert!(
+        count_before(&stdout, " content enum variant(s)") >= 10,
+        "{stdout}"
     );
 }
