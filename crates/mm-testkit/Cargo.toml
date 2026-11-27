@@ -1,0 +1,17 @@
+[package]
+name = "mm-testkit"
+version = "0.0.0"
+description = "Test oracles and fixtures, used only from integration tests (ADR-0034, ADR-0056)."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+mm-dice = { path = "../mm-dice" }
+num-bigint.workspace = true
+num-rational.workspace = true
+num-traits.workspace = true
+
+[lints]
+workspace = true

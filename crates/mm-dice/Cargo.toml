@@ -1,0 +1,17 @@
+[package]
+name = "mm-dice"
+version = "0.0.0"
+description = "The distribution kernel: exact damage distributions, moments, d20 outcomes and AC lanes."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# No dependencies (ADR-0034): the kernel sits below everything else.
+
+[dev-dependencies]
+mm-testkit = { path = "../mm-testkit" }
+proptest.workspace = true
+
+[lints]
+workspace = true
