@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Each Kit Shape's rotation is traced once into a reduced Tape and evaluated over AC lanes
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 A Combat Kit (ADR-0015) is split into a **Kit Shape**, everything that changes which states exist or which choices are legal, and **Kit Params**, the numbers: to-hit, damage-term moments, DCs.
 

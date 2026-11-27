@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Reliability is headlined as time-to-kill and kill probability, with a low-end floor beside it
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 The dashboard's main reliability figures are **time-to-kill** and **P(kill within K rounds)** against the baseline HP, with the floor (p10, or CVaR₁₀, the mean of the worst 10% of rounds) shown beside them. Standard deviation and coefficient of variation are secondary.
 

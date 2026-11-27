@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Expected value is what the solver optimizes; risk measures only re-rank
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 > *Amended 2026-11-27 (ADR-0053, ADR-0055):*
 >

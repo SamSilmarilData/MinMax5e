@@ -1,8 +1,24 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # A Cargo workspace with UI-agnostic core crates and thin GUI and CLI shells
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
+
+> *Amended 2026-11-27 (walking-skeleton lock):*
+>
+> - **Ports are owned by their lowest consumer.** `Storage` lives in `mm-cache`, `Fetcher` in `mm-import`, and `Clock` in `mm-app-core`. `mm-host` implements all three. Defining them all in `mm-app-core` made a cycle, because `mm-cache` and `mm-import` sit below it.
+> - **`Inline` lives in `mm-solver`** (`run_inline`): it has no threads, so ADR-0050 allows it, and solver tests need no higher crate. `Rayon` stays in `mm-app-core` behind the `parallel` feature, and `WorkerPool` stays in `mm-host`.
+> - **`Pack<R>` lives in `mm-load`,** so it can be built only by `load_pack`, and `mm-engine` depends on `mm-load`. `mm-core` does not depend on `mm-dice`: the DSL holds dice as data. `Sources` (named texts) lives in `mm-core`, so a rules crate can return its embedded encodings without depending on the loader.
+> - **`mm-engine` exposes `pub mod turn`** (`TurnState`, `legal_steps`, `apply`, `Illegal`) beside `compile`/`evaluate`/`validate`, so the oracles and `validate` share the ADR-0012 authority.
+> - **`mm-import` emits resolved records** (our own serde types in `mm-core`), and `mm-load` turns records plus RON encodings into a `Pack<R>`.
+> - **Crates are added when a build-order step needs them,** not as empty stubs. Day one has `mm-dice`, `mm-core`, `mm-load`, `mm-engine`, `mm-rules-2024`, `mm-testkit`, `mm-cli` and `xtask`.
+> - **`mm-testkit` defines a `TestRules` ruleset** with a different economy, so engine genericity (ADR-0008) is tested before `mm-rules-2014` exists.
+> - **Oracles are used only from integration tests** (`crates/*/tests/`), never from unit-test modules, which avoids a dev-dependency cycle with two copies of engine types. `xtask deps` enforces this.
+> - **`xtask deps` is the authority** for the dependency rules, checked against `cargo metadata`. cargo-deny bans are a backstop, since it is unverified whether they apply to path crates.
+> - **Conventions:** toolchain pinned to 1.100.0 with targets `wasm32-unknown-unknown` and `wasm32-wasip1`; edition 2024, `rust-version = "1.100"`, resolver 3; `[workspace.dependencies]` and `[workspace.lints]` as in research 09 §6. ADR-0050's float bans are `clippy.toml` `disallowed-methods`; `+simd128` is set for wasm in `.cargo/config.toml`; `xtask` fails on `relaxed-simd`.
+> - **CI from commit one:** fmt; clippy `-D warnings`; tests; the wasm32 check; `xtask deps`; `xtask leak-scan`; `cargo deny`; and `xtask xhash`, the cross-target result hash (native vs `wasm32-wasip1` under wasmtime). `cargo-mutants` and wall-clock benchmarks stay out of per-commit CI.
 
 > *Amended 2026-11-27 (ADR-0047–0052):*
 >

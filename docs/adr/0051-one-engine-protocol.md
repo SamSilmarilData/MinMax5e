@@ -4,6 +4,11 @@ status: proposed
 
 # The UI talks to the engine only through one message protocol, on both targets
 
+> *Amended 2026-11-27 (walking-skeleton lock; still proposed, to be accepted at build-order step 7):*
+>
+> - **`ToEngine::Evaluate { gen, build, assumptions }`** is added. It scores one user-supplied Build (glossary: Evaluate) and is answered by `Done` carrying an `Evaluation`. Without it the protocol could only Solve.
+> - **The CLI joins the protocol when the Session exists (step 7).** Until then `mm-cli evaluate` calls `mm-engine`'s public facade directly. When it moves onto the Session, its golden outputs must not change, so the move is itself a test.
+
 `mm-app-core::proto` defines the whole UI ↔ engine contract as two enums. `ToEngine` carries `Submit`, `Rescore`, `Import` and `Cancel`. `FromEngine` carries `Progress`, `BestSoFar`, `Done` (with an `Optimality` certificate: proven optimal, or best found with gap ≤ x%), `ImportProgress` and `Error`. Every message carries the generation `gen` (ADR-0040).
 
 - **Native:** `crossbeam-channel` carrying the enums directly, with no serialisation, plus `ctx.request_repaint()`.

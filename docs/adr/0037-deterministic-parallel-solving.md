@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Parallel solving is deterministic
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 > *Amended 2026-11-27 (ADR-0050):*
 >

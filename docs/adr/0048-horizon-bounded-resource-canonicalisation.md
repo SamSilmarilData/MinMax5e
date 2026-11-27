@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Resource state is clamped to what can still be spent before the horizon
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 Every resource kind in a Ruleset's economy declares a `ResourceDecl`:
 

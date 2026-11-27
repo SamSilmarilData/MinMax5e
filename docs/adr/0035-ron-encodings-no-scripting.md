@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Encodings are RON files loaded at runtime into closed Rust enums; no macro DSL and no embedded scripting
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 Hand-authored encodings live in `data/rules-*/**/*.ron` and deserialize with serde into the closed Effect DSL enums of ADR-0010. They are embedded with `include_str!` in release builds and can be overridden with `--pack-dir` during development. That is safe under ADR-0028 because they are our own text. Load errors come back as `miette` diagnostics, and a `cargo test` loads every pack. Research 09 §3.5 encodes Vex, Sneak Attack, and 2024 Divine Smite entirely in RON, with no hooks.
 

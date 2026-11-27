@@ -5,7 +5,7 @@ A build solver for fifth-edition tabletop RPG characters: it searches the space 
 ## Rulesets and content
 
 **Ruleset**:
-One of two mutually exclusive rule environments, `2024` (primary) or `2014` (legacy). Defined by its core rules and action economy, it scopes every piece of content and every evaluation.
+One of two mutually exclusive rule environments, `2024` (primary) or `2014` (legacy). Defined by its core rules and action economy, it scopes every piece of content and every evaluation. A Ruleset covers that edition's full published rules, not only the SRD subset.
 _Avoid_: edition mode, version, 5.5e, One D&D
 
 **Rules Pack**:
@@ -246,6 +246,14 @@ _Avoid_: option, combo
 **Candidate pool**:
 The set of Candidates kept from a Solve (in memory, or in the disk cache for one Partition) that is guaranteed to contain the top Builds at every encounter grid point.
 _Avoid_: cache, shortlist
+
+**Encounter grid**:
+The finite set of encounter points a Candidate pool is exact over: target AC 10–25 × advantage state × target resistance × round count.
+_Avoid_: scenario space, sweep
+
+**Lens**:
+A way of ranking the Candidate pool (Expected, Reliability, or Robust) that re-orders Builds without changing any Rotation.
+_Avoid_: objective (that is what the Rotation maximises), mode, filter
 
 **Partition**:
 The slice of the Build space defined by level, class combination, mode, and Adventuring Day Model for which a Candidate pool is computed.

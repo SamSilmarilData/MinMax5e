@@ -1,8 +1,16 @@
 # MinMax5e architecture
 
-Status: proposal, revision 4 (2026-11-27). This note is the map. The decisions themselves live in **ADR-0047 to ADR-0057** (proposed), and in dated amendments to ADR-0006, 0015, 0017, 0018, 0020, 0034, 0037, 0038 and 0045. The evidence is in research [13](research/13-tape-spike.md) (spike measurements), [14](research/14-prior-art-and-refinements.md) (prior art) and [15](research/15-problems-ahead-and-methods.md) (problems ahead and the methods the literature supports). The code is in `spikes/tape-spike/`. Nothing here overrides an ADR. Where the note and an ADR disagree, the ADR wins.
+Status: revision 5 (2026-11-27), locked for the walking skeleton. This note is the map. The decisions themselves live in **ADR-0047 to ADR-0057** (status per ADR, §10), and in dated amendments to ADR-0006, 0015, 0017, 0018, 0020, 0034, 0037, 0038 and 0045. The evidence is in research [13](research/13-tape-spike.md) (spike measurements), [14](research/14-prior-art-and-refinements.md) (prior art) and [15](research/15-problems-ahead-and-methods.md) (problems ahead and the methods the literature supports). The code is in `spikes/tape-spike/`. Nothing here overrides an ADR. Where the note and an ADR disagree, the ADR wins.
 
 Conventions follow `docs/research/`: **[measured]** cites research 13–15, **[design]** is a proposal, **[estimate]** is arithmetic a spike must confirm. Domain terms are used as `GLOSSARY.md` defines them; the engine terms (Kit Shape, Tape, Occupancy, …) were added to it in this revision.
+
+**Changes in revision 5 (walking-skeleton lock):**
+
+- The ADRs the skeleton depends on are **accepted** (§10 has the status table).
+- Crate map conflicts settled (ADR-0034 amendment): ports owned by their lowest consumer, `Inline` in `mm-solver`, `Pack<R>` in `mm-load`, `mm-core` free of `mm-dice`, crates added only when a step needs them, and a `TestRules` ruleset in the testkit.
+- The protocol gains `Evaluate`; the CLI joins it at step 7 (ADR-0051 amendment).
+- Step 3 prints the Round 1 Turn Plan under the optimal Policy instead of a Combat Script, which needs the tape (§11).
+- §11.1 scopes the walking skeleton: content, outputs and the "done" gate.
 
 **Changes in revision 4:**
 
@@ -382,7 +390,8 @@ Both rows are within ADR-0020's "live, with progress" class. The unknown is the 
 The UI always talks to the engine through **messages**, even natively. The protocol is defined once in `mm-app-core::proto`:
 
 ```rust
-pub enum ToEngine   { Submit { gen: u64, query: Query }, Rescore { gen: u64, enc: Encounter },
+pub enum ToEngine   { Submit { gen: u64, query: Query }, Evaluate { gen: u64, build: Build, assumptions: AssumptionSet },
+                      Rescore { gen: u64, enc: Encounter },
                       Import { source: CorpusSource }, Cancel { gen: u64 } }
 pub enum FromEngine { Progress { gen: u64, done: u32, of: u32 }, BestSoFar { gen: u64, snap: Arc<SolveSnapshot> },
                       Done { gen: u64, cert: Optimality }, ImportProgress(..), Error { gen: u64, err: EngineError } }
@@ -408,7 +417,7 @@ The UI thread never runs solver work on either target (ADR-0043). Grid sliders r
 
 ### 7.3 Ports and adapters
 
-`mm-app-core` defines `Storage`, `Fetcher` and `Clock`. `mm-host` implements them for `native` (`directories` + `std::fs`, a blocking HTTP client, `Instant`) and `web` (OPFS via `FileSystemSyncAccessHandle`, `fetch` with jsDelivr first, `performance.now()`), keeping `cfg` out of the core. The executor is picked by the shell, not by a port.
+Each port is owned by its lowest consumer (revision 5, ADR-0034 amendment): `Storage` by `mm-cache`, `Fetcher` by `mm-import`, `Clock` by `mm-app-core`. `mm-host` implements them for `native` (`directories` + `std::fs`, a blocking HTTP client, `Instant`) and `web` (OPFS via `FileSystemSyncAccessHandle`, `fetch` with jsDelivr first, `performance.now()`), keeping `cfg` out of the core. The executor is picked by the shell, not by a port.
 
 ---
 
@@ -420,26 +429,33 @@ This is ADR-0034's workspace with module boundaries filled in. New items are mar
 crates/
   mm-dice         Pmf, Moments, d20 exact-integer tables, Scratch                       (no deps)
   mm-core         Ruleset, Id<R,K>, Effect DSL, HookDecl, ResourceDecl ★, Build/Choice/
-                  Encounter/Ruling, Fp ★, Provenance (ADR-0046)
-  mm-load         RON/JSON → Pack<R>; predicate → bitmask; coverage; miette diagnostics
-  mm-import       fetch + verify + resolve corpus → packs (library; native and worker)
-  mm-engine       compile: Build → CombatKit → (KitShape, KitParams) ★
-                  turn:    TurnState, legal_steps, apply, validate → Illegal(reason)
+                  Encounter/Ruling, Fp ★, Provenance (ADR-0046), resolved records, Sources
+                  (no dependency on mm-dice)
+  mm-load         records + RON encodings → Pack<R> (owns the type); predicate → bitmask;
+                  coverage; miette diagnostics
+  mm-import       fetch + verify + resolve corpus → records → packs (library; native and worker);
+                  owns the Fetcher port
+  mm-engine       (depends on mm-load for Pack<R>)
+                  compile: Build → CombatKit → (KitShape, KitParams) ★, records the Rulings read
+                  turn:    TurnState, legal_steps, apply, validate → Illegal(reason)  (pub, for oracles)
+                  interp:  hash-map DP over lanes; the permanent differential reference
                   trace ★: KitShape → Tape (canonicalisation, multi-root, liveness slots)
                   reduce ★: unique-table reduction + liveness slot allocation
                   algebra ★: moments | policy | occupancy | pmf
                   explain: occupancy → attribution, sensitivities, resource use;
                            script ★ (rule-grammar search, priced by occupancy); crossover AC
   mm-solver       factor ★ | join ★ | bound | plan ★ | job ★ | merge | pool | diversity | curve
-  mm-cache        Fp-keyed postcard store over the Storage port; Tape ★ and Pool entries
+                  | run_inline ★ (the Inline executor)
+  mm-cache        Fp-keyed postcard store; owns the Storage port; Tape ★ and Pool entries
   mm-rules-2024   Rules2024: impl Ruleset (economy incl. ResourceDecls) + hooks   (mm-core only)
   mm-rules-2014   Rules2014: impl Ruleset + hooks                                  (mm-core only)
-  mm-app-core     Session, proto ★, executors ★ (Inline, Rayon), ports, view models
+  mm-app-core     Session, proto ★, Rayon executor ★ (`parallel` feature), Clock port, view models
   mm-host ★       native/ and web/ adapters for Storage, Fetcher, Clock; WorkerPool executor
   mm-gui          egui shell, native + wasm32
   mm-worker       web worker binary: coordinator | compute | interactive roles
   mm-cli          solve | evaluate | explain ★ | fetch | import | validate-packs | golden | bench
-  mm-testkit      synthetic mini-corpus ★, Rational + Sample algebras, proptest strategies
+  mm-testkit      synthetic fixtures ★, TestRules ★, Rational + Sample oracles, proptest strategies,
+                  metamorphic relations (used only from integration tests)
 xtask/ ★          dep-graph check (ADR-0034 via cargo metadata), dist/ content check, leak scan,
                   cross-target result hash (native vs wasm32-wasip1 under wasmtime)
 spikes/ ★         standalone measurement code (tape-spike), not workspace members
@@ -447,7 +463,7 @@ data/rules-2024/**.ron, data/rules-2014/**.ron
 web/              index.html, manifest, service worker, _headers, gate Worker (JS), wrangler.jsonc
 ```
 
-The dependency rules are unchanged from ADR-0034. `mm-host` sits beside the shells, and only binaries depend on it.
+The dependency rules are ADR-0034's, as amended on 2026-11-27, and `xtask deps` is their authority. `mm-host` sits beside the shells, and only binaries depend on it. Crates are created when a build-order step first needs them (§11).
 
 ---
 
@@ -491,7 +507,19 @@ Differential checks; the spike has already run each one marked with a result:
 
 ## 10. Decisions recorded
 
-**New ADRs (proposed):**
+**Status after the walking-skeleton lock (2026-11-27):**
+
+| Status | ADRs |
+|---|---|
+| Accepted | 0002, 0006, 0007, 0008, 0010–0015, 0017, 0023–0025, 0028, 0029, 0033–0037, 0047, 0048, 0050, 0052, 0056 |
+| Proposed, accept at step 4 | 0054, 0055 |
+| Proposed, accept at step 5 | 0018, 0020, 0049, 0053 |
+| Proposed, accept at step 6 | 0009, 0027, 0030, 0031 |
+| Proposed, accept at step 7 | 0026, 0032, 0039, 0040, 0051 (amended) |
+| Proposed, accept at step 8 | 0041, 0043, 0044, 0045, 0046 |
+| Proposed, accept at step 9 | 0016, 0038, 0057 |
+
+**New ADRs (revision 4):**
 
 | ADR | Decision | Section |
 |---|---|---|
@@ -533,13 +561,49 @@ Each step ends with something runnable from `mm-cli`.
 
 1. **`mm-dice` + d20 tables + Rational oracle.** Reproduce research 03 §7.2 on a synthetic greatsword.
 2. **`mm-core` (incl. `ResourceDecl`, `Fp`) + `mm-load` + synthetic mini-corpus.** `validate-packs` passes in CI.
-3. **Engine interpreter.** `mm-cli evaluate build.ron` prints DPR, the Reliability Band and a Combat Script. *This already meets spec §5.4 for a hand-entered Build.*
-4. **Trace (canonical, multi-root) + Moments/Pmf algebras,** with every check in §9 as a test. The spike is the template.
+3. **Engine interpreter.** `mm-cli evaluate build.ron` prints DPR, the Reliability Band, Time-to-kill and the Round 1 Turn Plan under the optimal Policy. *(Revision 5: the Combat Script moves to step 4+, because ADR-0055 prices it with Occupancy on a tape.)* The interpreter stays as the permanent differential reference (ADR-0056).
+4. **Trace (canonical, multi-root) + Moments/Pmf algebras,** with every check in §9 as a test. The spike is the template. Occupancy and the Combat Script (ADR-0054, ADR-0055) follow on the same tape.
 5. **Factor tables + projected join + bounds + Screen + top-K + MMR** on `Inline`. `mm-cli solve` answers "L8, Sustained, no multiclass, AC 17". **Run S2′ here:** distinct kits and shapes per partition, and how tight the bounds are.
 6. **`mm-import` on the real corpus** (local only), plus the staleness report (ADR-0031).
 7. **`mm-app-core` Session + protocol + Rayon + native egui** (research 10 spikes S1–S3).
 8. **Web:** `mm-worker`, `mm-host::web`, WorkerPool, Trunk, the gate and the deploy (spikes W1–W4, with W2 now a browser check of research 13 §4).
 9. **Curves, disk cache, and 2–3-class beams with optimality certificates.**
+
+### 11.1 The walking skeleton (steps 1–3)
+
+Locked 2026-11-27. The tape spike is **frozen** as evidence, not promoted: the crates are a rewrite, porting specific algorithms (d20 outcome, the moment fold, later `regalloc`/`reduce`) with a pointer back to the spike.
+
+**Crates:** `mm-dice`, `mm-core`, `mm-load`, `mm-engine`, `mm-rules-2024` (economy and `ResourceDecl`s only), `mm-testkit`, `mm-cli`, `xtask`. No hook machinery yet (ADR-0036 is implemented with the first encoding that needs it).
+
+**Synthetic content** (source `tst`, in `crates/mm-testkit/fixtures/`):
+
+- one species, background and Origin feat with no combat effect, so a Build is complete;
+- `test-warrior`: Extra Attack, Weapon Mastery, a style that counts 1s and 2s as 3;
+- `test-crusader`: half-caster slots, Extra Attack, and the optional `test-smite` Rider (Bonus Action, one slot, once per turn, dice doubled on a crit);
+- `test-heavy-hitter`: +PB on Attack-action hits with a Heavy weapon, and a crit-gated Bonus Action attack;
+- `test-greatblade` (2d6, Heavy, Graze-like mastery) and `test-sideblade` (1d6, Light, Vex-like mastery);
+- one Ruling, `R-TST-HEW-BONUS`: whether the crit-gated attack gets the +PB.
+
+The level-5 warrior reproduces research 03 §7.2 end to end; the crusader mirrors the spike's smite model.
+
+**Assumptions:** Nova (rounds 1–2) and Sustained (default Adventuring Day Model: 4 encounters × 3 rounds, short rest after encounter 2, solved as one MDP). Target from ADR-0024 (AC and HP only), overridable.
+
+**CLI:** `mm-cli evaluate <build.ron> [--assumptions] [--ac] [--hp] [--mode nova|sustained|both] [--rulings] [--pack-dir]… [--format text|ron]` and `mm-cli validate-packs`. `compile` already emits `(KitShape, KitParams)` with `ShapeKey`/`ParamsFp` over the Rulings read, so the tape drops in behind the same call at step 4.
+
+**Done** when CI is green (fmt, clippy, tests, the wasm32 check, `xtask deps`, `xtask leak-scan`, `cargo deny`, `xtask xhash`) and these pass:
+
+1. golden: research 03 §7.2's mean, SD, percentiles and variant table, first in `mm-dice` alone, then through the pipeline;
+2. `mm-dice` against BigRational to within 1e-12 relative;
+3. Monte Carlo over `mm_engine::turn` (seeded): |z(E)| ≤ 4, SD within 1%, at three ACs;
+4. research 15's six metamorphic relations under proptest, plus +1 to-hit = AC − 1 bit for bit;
+5. legality: every explored path replays through `apply`; hand-written illegal plans return the expected `Illegal`;
+6. the fixtures load and evaluate under `TestRules`; a cross-prefix ID is a load error;
+7. malformed fixtures give snapshotted miette diagnostics; coverage is complete;
+8. flipping `R-TST-HEW-BONUS` changes the affected keys and DPR by the expected delta, and only those;
+9. insta RON goldens of `evaluate --format ron` per fixture Build;
+10. `xhash` equal on native and `wasm32-wasip1`.
+
+Spike parity (within 1e-9) is a one-off check recorded in research 13, not a gate.
 
 ## 12. Problems ahead, and the method for each
 

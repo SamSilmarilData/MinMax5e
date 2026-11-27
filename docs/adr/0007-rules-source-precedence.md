@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Order of trust between rules sources
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 When sources disagree, precedence is:
 

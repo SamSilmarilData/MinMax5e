@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Importing is a separate step that writes compiled packs to the local cache; no `build.rs`
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 > *Amended 2026-11-27 (browser):* in the web build, `mm-import` runs inside the solver worker (ADR-0045) and writes packs to OPFS (ADR-0038). The guarantee is unchanged: the deployed site bundle contains **no corpus bytes**, and every visitor's browser builds its own packs. CI enforces this with the `dist/` content check (ADR-0044).
 

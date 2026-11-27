@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Effects attach to fixed, named resolution stages, never to priority numbers
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 Damage riders and modifiers attach to a closed list of resolution stages (e.g. before the attack roll, attack roll, on hit, on crit, damage, end of turn; full list in research 04 §2.2). Ordering within a stage follows from the operation type (set, then upgrade, then add), never from a priority number the author supplies.
 

@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Ambiguous rules become named, versioned Rulings, and every result records which Rulings it used
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 > *Amended 2026-11-27 (ADR-0052):* fingerprints include only the Rulings that a kit's compile or trace actually read. So "how much DPR flipping this Ruling changes" re-scores only the pool entries that depend on that Ruling, not the whole Solve. Each disputed Ruling also gets a test scenario asserting the DPR delta between its options (ADR-0056).
 

@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Exact damage distributions are the source of truth; Monte Carlo is only a test oracle
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 Every probability, percentile, and curve the product displays comes from exact float64 damage distributions propagated through the turn state machine (ADR-0012 and ADR-0013). Damage spreads over few enough values that this is cheap: about 0.04 ms per round for a level-5 Great Weapon Master Fighter, against about 13 ms for Monte Carlo to reach ±0.03 DPR. It is also deterministic, so solver rankings and slider updates never jitter, and rare outcomes such as P(kill in round 1) are exact.
 

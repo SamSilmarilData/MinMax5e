@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Hand-author mechanics instead of parsing rules prose
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 The spec says features are "converted from natural language text into executable mathematical triggers". We will not parse prose, at runtime or at build time. Executable behaviour (triggers, conditions, effects, action costs, limits) is hand-authored in our own Effect DSL (ADR-0010) and keyed by content ID. Drafts written with an LLM are allowed but must always be reviewed. Descriptive text and metadata are a separate layer that the engine never reads, so the legally sensitive text can be swapped or left out without touching the engine.
 

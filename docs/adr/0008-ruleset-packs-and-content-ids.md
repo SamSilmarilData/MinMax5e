@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Each edition is a separate Rules Pack over a shared core, and every content ID starts with its ruleset
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 The spec requires "hard boundaries" against mixing editions. We enforce them at the data and package level, not in solver logic:
 

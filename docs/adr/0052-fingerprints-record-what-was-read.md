@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Cache keys are fingerprints of what each stage actually read, including only the Rulings it consulted
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 Every pipeline stage is a pure function from fingerprinted inputs to a fingerprinted output:
 

@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Hooks are pure `fn` pointers with static declarations, registered per ruleset crate
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 A hook is `HookDecl<R> { id, stage, costs, outputs, run: fn(&TurnView<R>, &Event, &HookArgs) -> EffectList }`, declared in its ruleset crate and resolved to an index when the pack loads. Predicates compile to bitmask tests in the Combat Kit. Plain `fn` pointers are stateless and `Send + Sync`, and the solver can inspect their declarations without running them. Dispatch stays out of the hot loop.
 

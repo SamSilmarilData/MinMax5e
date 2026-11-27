@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # A Solve is a deterministic job plan; interchangeable executors run it, and only the final result is promised identical
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 `mm-solver` has no threads, channels or clocks. It exposes four pure functions:
 

@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Turn plans are decision trees evaluated over hit, miss, and crit branches, not lists of independent attacks
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 A Turn Plan's later steps may depend on how earlier attacks turned out: smite only after a hit or crit, Vex granting advantage on the next attack, Sneak Attack once per turn. The evaluator branches on each attack's miss, hit, or crit outcome, merges branches that reach the same TurnState, and convolves damage distributions along each branch. Sustained DPR is a Markov chain over the state at each round boundary.
 

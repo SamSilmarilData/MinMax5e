@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # The default target is a monster of CR equal to character level, with stats fitted to SRD 5.2.1
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 When the user hasn't overridden the Encounter Profile, the target dummy has these stats:
 

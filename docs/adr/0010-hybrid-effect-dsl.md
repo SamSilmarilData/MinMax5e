@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Effects are written in a small, closed data format, with named code hooks for anything it can't express
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 Content behaviour is data built from a fixed set of building blocks: stages (ADR-0011), predicates, operations, limits, and costs. Predicates are tests over tags such as `weapon:property:finesse`, in the style of PF2e. Where the building blocks aren't enough, the data refers to a Rust hook by id (ADR-0036). Each hook **declares** its stage, costs, and output kinds, and must be a pure function of (TurnState, event).
 

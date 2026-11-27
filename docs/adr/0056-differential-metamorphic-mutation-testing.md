@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Correctness rests on differential, metamorphic and mutation testing, because most answers have no hand-computable oracle
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 Golden tests need a hand-computed expected value, which isn't practical for a 12-round adventuring day or a multiclass rotation. This is the *test oracle problem*. Three techniques cover it.
 

@@ -1,8 +1,18 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # The public repository contains nothing derived from upstream data
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
+
+> *Amended 2026-11-27 (walking-skeleton lock): how enforcement works.*
+>
+> - **Cache location.** The local cache is `directories::ProjectDirs` cache dir (`~/Library/Caches/minmax5e/` on macOS), holding `corpus/<lockhash>/`, `packs/<lockhash>/<ruleset>.pack` and `results/`. `MINMAX5E_CACHE` overrides it, and an override inside a git working tree is refused. The in-repo `.gitignore` entries stay as a second guard.
+> - **`cargo xtask leak-scan`** runs in CI and in `.githooks/pre-commit` (enabled with `git config core.hooksPath .githooks`). It fails on:
+>   - `{@tag` markup (`\{@[a-z]+[ |}]`) in any tracked file not on the per-file allowlist `xtask/leak-allow.toml`, where every entry states its reason (research notes and ADRs that describe the markup);
+>   - any tracked `*.json`, `*.pack` or `*.postcard` outside that allowlist;
+>   - any file under a `fixtures/` directory without the synthetic marker (`// fixture: synthetic` as the first line of RON, `"_fixture": "synthetic"` in JSON), or with a Content ID whose source is not `tst`.
 
 > *Amended 2026-11-27:* the **deployed web bundle** (`dist/`, served by ADR-0044) counts as a published artifact, under the same rules as a release binary. It contains code, our encodings, and our own assets only. A CI check fails the deploy on any unexpected file type or any `{@` markup. The corpus is fetched by each visitor's browser, never by CI or the host.
 

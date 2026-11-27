@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Build search is separate from rotation, and each build's rotation is solved exactly
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 > *Amended 2026-11-27 (ADR-0047, ADR-0049):* the rotation is still solved exactly per kit, but the work is split. Each **Kit Shape** is traced once into a reduced Tape, which is then evaluated per kit's **Kit Params**. Equal kits are merged *by construction* in the projected join (ADR-0049), not by a process-wide `DashMap` memo. That memo is now an optional native-only accelerator, because Web Workers share no memory (ADR-0045). Measured: 3.4–6.2× faster than per-kit hash-map DP, and bit-identical ([research 13](../research/13-tape-spike.md)).
 

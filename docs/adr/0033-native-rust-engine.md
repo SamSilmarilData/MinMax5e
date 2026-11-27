@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # The engine and solver are native Rust, parallelised with rayon
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 > *Amended 2026-11-27:* `wasm32-unknown-unknown` is now a **first-class target**, because friends run the engine in browser workers (ADR-0043, ADR-0045). The considered option "Rust→WASM in a browser, rejected: no browser is needed" no longer holds. The measured expectation is 1.45–1.55× native per core (USENIX ATC '19). WASM SIMD128 intrinsics are stable (Rust 1.54+) and run in every current browser (Safari 16.4+). The toolchain stays on stable Rust; nightly is needed only if ADR-0045's rayon-on-web upgrade is ever taken.
 

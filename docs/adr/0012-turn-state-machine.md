@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # One turn state machine generates legal turns and validates any turn
+
+> *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
 The turn is a state machine that tracks:
 
