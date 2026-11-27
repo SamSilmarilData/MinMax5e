@@ -38,7 +38,7 @@ _Avoid_: source (clashes with book source codes), origin (clashes with Origin fe
 
 **Citation**:
 Where an encoded feature's mechanics come from (a section or page reference, never the rules text), with its Source tier (ADR-0007).
-_Avoid_: reference, attribution
+_Avoid_: attribution, source (clashes with book source codes)
 
 **Source tier**:
 A Citation's place in the order of trust (ADR-0007): errata, SRD, Corpus, or synthetic for fixtures.

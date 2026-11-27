@@ -86,7 +86,7 @@ fn a_misspelled_dsl_variant_is_a_diagnostic() {
 }
 
 #[test]
-fn an_encoding_without_a_citation_is_a_diagnostic() {
+fn a_feature_without_a_citation_is_a_diagnostic() {
     let stderr = diagnostic_for(
         "missing-citation",
         "encodings/test-warrior.ron",
