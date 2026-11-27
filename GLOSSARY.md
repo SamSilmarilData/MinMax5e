@@ -251,6 +251,14 @@ _Avoid_: cache, shortlist
 The slice of the Build space defined by level, class combination, mode, and Adventuring Day Model for which a Candidate pool is computed.
 _Avoid_: bucket, shard
 
+**Share Link**:
+A URL that reproduces a result (Assumption Set, constraints, and optionally Builds by Content ID) on the recipient's own data. It carries no rules text.
+_Avoid_: permalink, export
+
+**Invite**:
+A personal, revocable link that gives one friend access to the hosted app.
+_Avoid_: account, login, password
+
 **Build Signature**:
 The coarse identity (class split, subclasses, weapon style, key feats) used to decide whether two Builds are meaningfully different.
 _Avoid_: archetype, family

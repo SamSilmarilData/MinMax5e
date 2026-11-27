@@ -4,6 +4,8 @@ status: proposed
 
 # Parallel solving is deterministic
 
+> *Amended 2026-11-27:* there are now two executors for the same chunk plan: rayon natively, and the Web Worker pool in the browser (ADR-0045). Both merge per-chunk results in chunk order, so rankings are identical across executors and worker counts. The snapshot test asserts native 1 thread = native N threads = web 1 worker = web N workers (the web case under `wasm-bindgen-test` in a headless browser).
+
 Rankings must not flicker between runs or between thread counts (ADR-0023). rayon's floating-point `sum`/`reduce` is documented as non-deterministic, so:
 
 - parallelise only *across candidates*, never inside a single evaluation's float accumulation;

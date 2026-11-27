@@ -4,6 +4,8 @@ status: proposed
 
 # MinMax5e is a native desktop app, macOS first and cross-platform-capable, and all compute runs in-process on local threads
 
+> *Amended 2026-11-27:* the native app is now **the owner's build**. Friends use the same app through the browser (ADR-0043), so native release binaries for friends, and the unsigned-app right-click → Open step, are no longer needed. "No compute inside a browser" now applies to the native build only. On the web, compute runs in Web Workers on the visitor's device (ADR-0045), which keeps this ADR's intent: all compute local, with no server.
+
 MinMax5e ships as a single native Rust binary, built first for the author's Mac. There is no hosted site, no server, and no compute inside a WebView or browser. The solver runs on an in-process rayon pool (cores − 1; the machine is an Apple M5 with 4 performance and 6 efficiency cores). It works fully offline, and all data stays local.
 
 *Amended 2026-11-27 for sharing with friends (ADR-0026):*

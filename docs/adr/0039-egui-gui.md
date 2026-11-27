@@ -4,6 +4,13 @@ status: proposed
 
 # The GUI is egui/eframe with egui_plot charts; Dioxus desktop is the fallback
 
+> *Amended 2026-11-27:*
+>
+> - **One egui UI for native and web** (ADR-0043). eframe 0.36 fixed mobile keyboards, autocorrect, and IME on the web, and 0.37 added kinetic scrolling and browser glyph rasterisation.
+> - **Web accessibility:** on the web, AccessKit isn't available. eframe offers only a speech-synthesis screen reader. The data-table view for every chart is therefore required, not optional.
+> - **Renderer:** native uses `wgpu`. The web uses `glow` (WebGL2) unless spike W1 shows `wgpu` costs little extra size. eframe supports both on web through `WebOptions::renderer`.
+> - **Spike S4 (VoiceOver) now also covers the web screen reader.**
+
 `mm-gui` uses `eframe` 0.37, `egui_plot` 0.38, and `egui_extras` for tables and the action-economy swimlanes, with AccessKit enabled and minor versions pinned. egui is the most actively released pure-Rust GUI (MIT/Apache-2.0). egui_plot is the only interactive pure-Rust charting that covers every dashboard chart in research 06:
 
 - the AC sensitivity lines with markers, crossover annotations, and a rule at the chosen AC;

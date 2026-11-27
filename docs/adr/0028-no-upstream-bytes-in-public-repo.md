@@ -4,6 +4,8 @@ status: proposed
 
 # The public repository contains nothing derived from upstream data
 
+> *Amended 2026-11-27:* the **deployed web bundle** (`dist/`, served by ADR-0044) counts as a published artifact, under the same rules as a release binary. It contains code, our encodings, and our own assets only. A CI check fails the deploy on any unexpected file type or any `{@` markup. The corpus is fetched by each visitor's browser, never by CI or the host.
+
 Every recorded takedown notice from WotC or D&D Beyond (2017 and 2024, read in full) targets **publicly hosted copies**, in one case a single file in an unrelated personal repository. MinMax5e's repo is public. Using the data locally is the low-risk case; committing it is the case that gets taken down. So:
 
 - **Must never be committed:** raw 5e.tools JSON, derived JSON or packs, corpus snapshots (including `insta` snapshots and golden files generated from the corpus), Rust source generated from the data, and binaries or Release assets that embed it.

@@ -4,6 +4,13 @@ status: proposed
 
 # A Cargo workspace with UI-agnostic core crates and thin GUI and CLI shells
 
+> *Amended 2026-11-27 (ADR-0043, ADR-0045):*
+>
+> - `mm-gui` builds for both native and `wasm32`.
+> - New crate **`mm-worker`**: the browser's solver worker binary. It is a thin shell over `mm-app-core`, `mm-solver`, and `mm-import`, with no UI dependencies, built by Trunk with `data-type="worker"`.
+> - New folder **`web/`**: `index.html`, the manifest, icons, the service worker, `_headers`, the invite-gate Worker script (JavaScript, ADR-0044), and `wrangler.jsonc`.
+> - The rule that every crate except `mm-gui`'s native backend and `mm-cli` builds for wasm32 is unchanged. CI now also runs a full `trunk build --release` and the `dist/` content check (ADR-0028).
+
 ```
 crates/
   mm-dice        Distribution Kernel (no deps)

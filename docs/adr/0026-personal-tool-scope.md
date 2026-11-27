@@ -4,6 +4,8 @@ status: proposed
 
 # MinMax5e is a personal tool shared privately with a few friends, not a product
 
+> *Amended 2026-11-27 (web delivery, ADR-0043/0044):* "sharing with friends" now means sending a friend a **personal invite link** to the web build at a `workers.dev` URL. The site is gated: no valid invite cookie, no app. It is `noindex`, and it serves only our code and encodings. Each friend's browser downloads its own corpus copy from the public mirror (ADR-0041), so the sharing rule below holds unchanged. A gated URL known only to invited friends counts as private sharing. Removing the gate, promoting the URL, or accepting strangers would count as becoming public (last paragraph).
+
 MinMax5e is built mainly for the author's own use, and may be shared privately with a few friends. There is no public website, no hosting, no accounts, and no sales.
 
 **Sharing rule: share the app, never the data.** Friends receive the app (a binary with no data in it, or the source) and the author's own encodings. Each install downloads its own copy of the 5e.tools corpus from the public mirror (ADR-0041). Nobody passes corpus files, compiled packs, or caches to anyone else. Build results (choices, numbers, rotations, with no rules text) may be shared freely, like a character sheet. Several earlier decisions protected a public product, and this one removes their premise:

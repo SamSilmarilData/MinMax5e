@@ -4,6 +4,8 @@ status: proposed
 
 # Importing is a separate step that writes compiled packs to the local cache; no `build.rs`
 
+> *Amended 2026-11-27 (browser):* in the web build, `mm-import` runs inside the solver worker (ADR-0045) and writes packs to OPFS (ADR-0038). The guarantee is unchanged: the deployed site bundle contains **no corpus bytes**, and every visitor's browser builds its own packs. CI enforces this with the `dist/` content check (ADR-0044).
+
 > *Amended 2026-11-27:* `mm-import` is a **library crate** called by the app (ADR-0041) and by `mm-cli import`, not just a developer binary. That way a friend's install can build its own packs with no developer tooling.
 
 The `mm-import` library:

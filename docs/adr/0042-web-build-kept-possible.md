@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: superseded by ADR-0043
 ---
 
 # The engine stays buildable for the browser (wasm32), but no web version is deployed
+
+> **Superseded 2026-11-27 by [ADR-0043](0043-friends-use-the-web-build.md).** The web build is now how friends use MinMax5e. The wasm32 constraints below still apply. Two things changed: the browser runs the solver on a Web Worker pool (ADR-0045), not a single yielding thread, and it is hosted on Cloudflare Workers behind invite links (ADR-0044), not on GitHub Pages with `coi-serviceworker`.
 
 A friend may want to use MinMax5e on a phone. The native app (ADR-0032) can't reach phones without app-store friction, but egui (ADR-0039) can render the same UI in a browser. To keep that door open cheaply, every crate except the native shells must compile for `wasm32-unknown-unknown`:
 

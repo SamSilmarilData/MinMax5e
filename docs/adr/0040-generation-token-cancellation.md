@@ -4,6 +4,14 @@ status: proposed
 
 # Solves are cancelled cooperatively with a generation token, and results stream as immutable snapshots
 
+> *Amended 2026-11-27 (browser, ADR-0045):*
+>
+> - **No shared `AtomicU64`.** Without `SharedArrayBuffer`, the generation travels in every message. The coordinator drops chunk results whose generation is stale.
+> - **Smaller chunks.** Chunks are sized to about 10–30 ms, so a cancelled solve stops within one chunk per worker.
+> - **Hard cancel.** It terminates the workers and respawns them from the already compiled `WebAssembly.Module`.
+> - **Unchanged:** the UI-facing contract (`SolveEvent { gen, … }`, discarding stale events) and the classification of inputs as lookup or re-search.
+> - **Superseded:** the single-thread yielding fallback described below is replaced by the worker pool.
+
 Every new search increments an `AtomicU64` generation. Solver chunks of about 5–10 ms check whether their generation is stale and stop if so. Workers send `SolveEvent { gen, … }` messages carrying `Arc` snapshots over a `crossbeam-channel`, and wake the UI with `ctx.request_repaint()`. The UI discards events from stale generations.
 
 Inputs are classified as either *lookup* (target AC: re-score the in-memory pool, ADR-0020) or *re-search* (constraints). Only re-search inputs dispatch a new solve, debounced by about 100 ms. `mm-solver` takes the token through its `Control` parameter, so the GUI, the CLI, and any fallback GUI share the same cancellation path.

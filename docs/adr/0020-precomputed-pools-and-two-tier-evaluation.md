@@ -4,6 +4,12 @@ status: proposed
 
 # Two-tier evaluation: live search where it fits, with an in-memory pool and a local disk cache
 
+> *Amended 2026-11-27 (web delivery, ADR-0043/0045):*
+>
+> - **Slider re-scores** go to the **interactive worker**, which holds the in-memory pool. They are a message round trip within one frame, and never queue behind a running solve.
+> - **Device-dependent times:** the latency table below is for the native M5. In a browser, expect roughly 1.5–2× those times on a laptop, and more on older phones [estimate, spike W2]. The UI estimates the cost before a heavy solve and labels it a background job when it is. It always shows the best result found so far, which branch-and-bound guarantees.
+> - **Share links:** the Assumption Set, constraints, and optionally Builds as Content IDs are encoded in the URL fragment. A friend's browser re-scores a shared result from its own corpus in under a second, with no heavy search. Links carry IDs and numbers, never rules text.
+
 > **Amended 2026-11-27** for the native Rust app (ADR-0032, ADR-0033). The original version had offline-computed pools shipped as build artifacts of a static site. That site no longer exists. Native multithreaded speed makes live search the primary path for most queries, and pools are now local.
 
 Exact damage distributions for every candidate are not interactive in any language. Evaluation therefore has two tiers:

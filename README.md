@@ -7,6 +7,7 @@
 ![status: design phase](https://img.shields.io/badge/status-design%20phase-orange)
 ![language: Rust](https://img.shields.io/badge/language-Rust-b7410e?logo=rust)
 ![UI: egui](https://img.shields.io/badge/UI-egui-4b8bbe)
+![runs in: browser + native](https://img.shields.io/badge/runs%20in-browser%20%2B%20native-0a7bbb)
 ![rules: 2024 first](https://img.shields.io/badge/rules-2024%20first-6f42c1)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -38,8 +39,8 @@ Character builders record the choices you make. Optimization guides rate options
 
 | | |
 |---|---|
-| [`docs/research/`](docs/research/README.md) | Ten research notes: rules mechanics, probability maths, solver design, rules-engine prior art, the Rust stack, and data ingestion |
-| [`docs/adr/`](docs/adr/) | 42 Architecture Decision Records (35 proposed; superseded and deprecated ones kept for history) |
+| [`docs/research/`](docs/research/README.md) | Twelve research notes: rules mechanics, probability maths, solver design, rules-engine prior art, the Rust stack, data ingestion, web delivery, and open access |
+| [`docs/adr/`](docs/adr/) | 46 Architecture Decision Records (38 proposed; superseded and deprecated ones kept for history) |
 | [`GLOSSARY.md`](GLOSSARY.md) | Project vocabulary |
 
 ### Planned architecture
@@ -51,11 +52,16 @@ mm-cli ────────┴─► mm-app-core ─► mm-solver ─► mm-
                      └─► mm-import ─► local cache          mm-dice (exact distributions)
 ```
 
-A native Rust app, with the solver running on all cores (rayon) and the UI in egui with egui_plot charts. The engine stays buildable for WebAssembly.
+One Rust codebase, two ways to run it:
+
+- **In the browser:** the egui app compiled to WebAssembly, with the solver on a pool of Web Workers. Friends open a personal invite link; there's nothing to install.
+- **Native:** the same app with the solver on all cores (rayon).
+
+The UI is egui with egui_plot charts. Everything is computed on your own device; there's no server-side solving.
 
 ## Rules data
 
-This repository contains **no rules content**. On first launch, the app downloads a pinned version of the community 5e.tools data from its public mirror and builds its rule packs on your machine. Mechanics are encoded by hand, in our own words. Quoted rules text comes only from the System Reference Documents, under CC-BY-4.0.
+This repository, and the deployed web app, contain **no rules content**. On first launch, the app downloads a pinned version of the community 5e.tools data from its public mirror and builds its rule packs on your device. Mechanics are encoded by hand, in our own words. Quoted rules text comes only from the System Reference Documents, under CC-BY-4.0.
 
 ## License
 
