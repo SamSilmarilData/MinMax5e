@@ -35,13 +35,31 @@ Character builders record the choices you make. Optimization guides rate options
 
 ## Status
 
-**Design phase.** There is no code yet. The research and the architecture decisions are written up:
+**Design phase.** The Cargo workspace and its repo guards are in place; the product crates come next. The research and the architecture decisions are written up:
 
 | | |
 |---|---|
 | [`docs/research/`](docs/research/README.md) | Twelve research notes: rules mechanics, probability maths, solver design, rules-engine prior art, the Rust stack, data ingestion, web delivery, and open access |
 | [`docs/adr/`](docs/adr/) | 46 Architecture Decision Records (38 proposed; superseded and deprecated ones kept for history) |
 | [`GLOSSARY.md`](GLOSSARY.md) | Project vocabulary |
+
+### Working on the code
+
+The toolchain is pinned in `rust-toolchain.toml` (Rust 1.100.0, with the `wasm32-unknown-unknown` and `wasm32-wasip1` targets); rustup installs it on first use.
+
+Enable the pre-commit hook once per clone. It runs the leak scan before every commit:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+The repo guards, which CI also runs on every push:
+
+| Command | Checks |
+|---|---|
+| `cargo xtask deps` | The crate dependency rules of [ADR-0034](docs/adr/0034-cargo-workspace.md), against `cargo metadata` |
+| `cargo xtask leak-scan` | No upstream rules data in tracked files ([ADR-0028](docs/adr/0028-no-upstream-bytes-in-public-repo.md)). Exemptions, each with a reason, live in `xtask/leak-allow.toml` |
+| `cargo deny check` | Advisories, licences and banned crates (needs [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)) |
 
 ### Planned architecture
 

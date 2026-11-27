@@ -1,0 +1,71 @@
+# Per-file exemptions from `cargo xtask leak-scan` (ADR-0028).
+#
+# Each entry names one tracked file, the checks it is exempt from, and why.
+# Checks: tag-markup, data-file, fixture, relaxed-simd.
+# An entry for a path that is no longer tracked fails the scan, so stale entries get removed.
+
+[[file]]
+path = ".claude/settings.json"
+allow = ["data-file"]
+reason = "Claude Code project settings (enabled plugins); our own config, not rules data"
+
+[[file]]
+path = "docs/adr/0002-hand-authored-mechanics.md"
+allow = ["tag-markup"]
+reason = "ADR quotes an example of the markup to explain why encodings are hand-written"
+
+[[file]]
+path = "docs/adr/0028-no-upstream-bytes-in-public-repo.md"
+allow = ["tag-markup"]
+reason = "ADR defines the pattern the leak scan looks for"
+
+[[file]]
+path = "docs/adr/0034-cargo-workspace.md"
+allow = ["relaxed-simd"]
+reason = "ADR records the ban on the relaxed-SIMD target feature"
+
+[[file]]
+path = "docs/adr/0037-deterministic-parallel-solving.md"
+allow = ["relaxed-simd"]
+reason = "ADR records the ban on the relaxed-SIMD target feature"
+
+[[file]]
+path = "docs/adr/0050-solve-as-deterministic-job-plan.md"
+allow = ["relaxed-simd"]
+reason = "ADR records the ban on the relaxed-SIMD target feature"
+
+[[file]]
+path = "docs/architecture.md"
+allow = ["relaxed-simd"]
+reason = "architecture note explains why the relaxed-SIMD target feature is banned"
+
+[[file]]
+path = "docs/research/01-data-source-and-licensing.md"
+allow = ["tag-markup"]
+reason = "research note describes the 5e.tools markup format with short illustrative snippets"
+
+[[file]]
+path = "docs/research/04-rules-engine-architecture.md"
+allow = ["tag-markup"]
+reason = "research note describes how the markup encodes mechanics, with short illustrative snippets"
+
+[[file]]
+path = "docs/research/08-5etools-ingestion-personal-use.md"
+allow = ["tag-markup"]
+reason = "research note on ingestion documents the markup the importer must parse"
+
+[[file]]
+path = "docs/research/14-prior-art-and-refinements.md"
+allow = ["relaxed-simd"]
+reason = "research note cites prior art on relaxed-SIMD nondeterminism"
+
+[[file]]
+path = "docs/research/15-problems-ahead-and-methods.md"
+allow = ["relaxed-simd"]
+reason = "research note lists relaxed SIMD among the banned operations"
+
+[[file]]
+path = "xtask/leak-allow.toml"
+allow = ["relaxed-simd"]
+reason = "the allowlist names the check it exempts files from"
+

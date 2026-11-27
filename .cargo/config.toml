@@ -1,0 +1,10 @@
+[alias]
+xtask = "run --quiet --package xtask --"
+
+# 128-bit SIMD is deterministic and allowed on wasm. Its relaxed variant is not
+# (ADR-0050); `cargo xtask leak-scan` fails if it appears anywhere in the tree.
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]
+
+[target.wasm32-wasip1]
+rustflags = ["-C", "target-feature=+simd128"]

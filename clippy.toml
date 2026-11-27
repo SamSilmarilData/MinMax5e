@@ -1,0 +1,34 @@
+# Cross-target determinism (ADR-0037, ADR-0050). Scored values use IEEE basic
+# operations only: no fused multiply-add, no transcendentals, and no f64 max/min,
+# whose NaN handling differs from an explicit comparison. A display-only helper
+# may allow one of these locally with `#[expect(clippy::disallowed_methods, reason = "...")]`.
+disallowed-methods = [
+  { path = "f64::mul_add", reason = "fused multiply-add rounds differently across targets (ADR-0050)" },
+  { path = "f32::mul_add", reason = "fused multiply-add rounds differently across targets (ADR-0050)" },
+  { path = "f64::powf", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f32::powf", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f64::powi", reason = "not specified as correctly rounded; multiply explicitly (ADR-0050)" },
+  { path = "f32::powi", reason = "not specified as correctly rounded; multiply explicitly (ADR-0050)" },
+  { path = "f64::exp", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f32::exp", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f64::exp2", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f64::exp_m1", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f64::ln", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f32::ln", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f64::ln_1p", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f64::log", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f64::log2", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f64::log10", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f32::log", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f32::log2", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f32::log10", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
+  { path = "f64::sqrt", reason = "keep out of scored values; only a display helper may use it (ADR-0050)" },
+  { path = "f32::sqrt", reason = "keep out of scored values; only a display helper may use it (ADR-0050)" },
+  { path = "f64::max", reason = "NaN-unsafe; compare explicitly or use total_cmp (ADR-0037)" },
+  { path = "f64::min", reason = "NaN-unsafe; compare explicitly or use total_cmp (ADR-0037)" },
+  { path = "f32::max", reason = "NaN-unsafe; compare explicitly or use total_cmp (ADR-0037)" },
+  { path = "f32::min", reason = "NaN-unsafe; compare explicitly or use total_cmp (ADR-0037)" },
+]
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true

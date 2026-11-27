@@ -1,0 +1,6 @@
+#!/bin/sh
+# Stops a commit that would add upstream rules data to the public repo (ADR-0028).
+# Enable once per clone with:  git config core.hooksPath .githooks
+set -eu
+PATH="$HOME/.cargo/bin:$PATH"
+exec cargo xtask leak-scan
