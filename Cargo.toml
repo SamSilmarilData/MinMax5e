@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
-# Crates are added when a build-order step needs them (ADR-0034); add "crates/*" with the first one.
-members = ["xtask"]
+# Crates are added when a build-order step needs them (ADR-0034).
+members = ["crates/*", "xtask"]
 # The spikes are frozen measurement code, not workspace members (architecture §11.1).
 exclude = ["spikes"]
 

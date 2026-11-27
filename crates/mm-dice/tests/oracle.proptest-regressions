@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 3d5f2a9ce89d75b8a00ff53f3852252a7d4f4baf5e16ef24468fa5ac17111f0e # shrinks to bonus = 10, ac = 0, crit_on = 15, mode = Normal
+cc 4b4bbfcd10ad827a6692047b87949eae938841ee9d7604cc70de2957e411ce40 # shrinks to recipe = TurnRecipe { attacks: [AttackRecipe { dice: [(1, 4)], low_face: None, flat: 0, graze: 0, roll: AttackRoll { bonus: 8, ac: 8, crit_on: 18, mode: Normal } }], floor: None, cap: None }
