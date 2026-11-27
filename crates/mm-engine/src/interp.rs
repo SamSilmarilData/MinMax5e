@@ -19,6 +19,7 @@ pub(crate) fn total_moments(shape: &KitShape, params: &KitParams, rounds: u32) -
         .rows
         .iter()
         .map(|row| RowTerms {
+            miss: row.miss,
             hit: row.hit,
             crit: row.crit,
             odds: AcLanes::from_fn(|ac| {
@@ -42,6 +43,7 @@ pub(crate) fn total_moments(shape: &KitShape, params: &KitParams, rounds: u32) -
 }
 
 struct RowTerms {
+    miss: Moments,
     hit: Moments,
     crit: Moments,
     odds: AcLanes<mm_dice::OutcomeOdds>,
@@ -83,7 +85,7 @@ impl Dp<'_> {
             self.value(round, next)
         });
         let terms = &self.rows[row];
-        let dealt = [Moments::point(0), terms.hit, terms.crit];
+        let dealt = [terms.miss, terms.hit, terms.crit];
         AcLanes::from_fn(|ac| {
             let odds = terms.odds[ac];
             let weights = [odds.miss, odds.hit, odds.crit];

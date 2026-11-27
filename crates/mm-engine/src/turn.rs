@@ -13,10 +13,14 @@ use crate::kit::{AttackSource, KitShape};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TurnState {
     action_used: bool,
+    bonus_action_used: bool,
     /// Attacks still to make from an Attack action already taken.
     attacks_left: u8,
     /// The attack row whose roll is pending.
     pending: Option<u8>,
+    /// The row a crit has just offered: the next step may take it, and any other step
+    /// forfeits it.
+    offered: Option<u8>,
     ended: bool,
 }
 
@@ -57,6 +61,10 @@ pub enum Illegal {
     NoSuchRow(u8),
     #[error("the Action is already used and its attacks are spent")]
     AttackActionSpent,
+    #[error("the Bonus Action is already used")]
+    BonusActionUsed,
+    #[error("no crit has just offered this attack")]
+    NotOffered,
 }
 
 impl TurnState {
@@ -64,8 +72,10 @@ impl TurnState {
     pub fn start() -> TurnState {
         TurnState {
             action_used: false,
+            bonus_action_used: false,
             attacks_left: 0,
             pending: None,
+            offered: None,
             ended: false,
         }
     }
@@ -104,6 +114,8 @@ pub fn apply(shape: &KitShape, state: TurnState, step: Step) -> Result<TurnState
         return Err(Illegal::TurnOver);
     }
     let mut next = state;
+    // An offer lasts one step: taking it or not, it is gone after this one.
+    next.offered = None;
     match step {
         Step::Attack { row } => {
             if state.pending.is_some() {
@@ -124,14 +136,24 @@ pub fn apply(shape: &KitShape, state: TurnState, step: Step) -> Result<TurnState
                         return Err(Illegal::AttackActionSpent);
                     }
                 }
+                AttackSource::BonusActionAfterCrit => {
+                    if state.bonus_action_used {
+                        return Err(Illegal::BonusActionUsed);
+                    }
+                    if state.offered != Some(row) {
+                        return Err(Illegal::NotOffered);
+                    }
+                    next.bonus_action_used = true;
+                }
             }
             next.pending = Some(row);
         }
-        Step::Roll(_) => {
-            if state.pending.is_none() {
-                return Err(Illegal::NoRollPending);
-            }
+        Step::Roll(outcome) => {
+            let row = state.pending.ok_or(Illegal::NoRollPending)?;
             next.pending = None;
+            if outcome == Outcome::Crit && !state.bonus_action_used {
+                next.offered = shape.rows[usize::from(row)].crit_offers;
+            }
         }
         Step::EndTurn => {
             if state.pending.is_some() {

@@ -1,0 +1,16 @@
+---
+source: crates/mm-cli/tests/validate_packs.rs
+expression: stderr
+---
+error: the pack has 1 problem(s)
+    Diagnostic severity: error
+
+Error: 2024:item/test-badblade|tst has mastery 2024:mastery/test-nothing|tst, which is not a mastery in the pack
+    Diagnostic severity: error
+
+Begin snippet for malformed/unknown-mastery/records/test-badblade.ron starting at line 8, column 1
+
+snippet line 8:         properties: [],
+snippet line 9:         mastery: Some("2024:mastery/test-nothing|tst"),
+    label at line 9, columns 23 to 53: here
+snippet line 10:     )),

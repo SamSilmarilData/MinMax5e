@@ -1,0 +1,19 @@
+// fixture: synthetic
+// A fighting style: with a two-handed weapon, each damage die that rolls a 1 or 2
+// counts as a 3.
+Feat((
+    id: "2024:feat/test-great-style|tst",
+    features: [
+        (
+            name: "Test Great Style",
+            citation: (tier: Synthetic, reference: "research 03 §7.2, the fighting style"),
+            riders: [
+                (
+                    on: AttackHit,
+                    when: Some(Fact(WeaponProperty(TwoHanded))),
+                    effect: MinimumDieRoll(3),
+                ),
+            ],
+        ),
+    ],
+))

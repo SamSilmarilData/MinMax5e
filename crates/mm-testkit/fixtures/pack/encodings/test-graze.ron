@@ -1,0 +1,15 @@
+// fixture: synthetic
+// A Graze-like mastery property: a miss still deals damage equal to the attack's
+// ability modifier.
+Mastery((
+    id: "2024:mastery/test-graze|tst",
+    features: [
+        (
+            name: "Test Graze",
+            citation: (tier: Synthetic, reference: "research 03 §7.2, Graze"),
+            riders: [
+                (on: AttackMiss, effect: AbilityModifierDamage),
+            ],
+        ),
+    ],
+))

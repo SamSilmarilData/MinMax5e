@@ -1,0 +1,18 @@
+// fixture: synthetic
+// warrior-5 with test-heavy-striker in place of test-heavy-hitter: the +PB damage stays,
+// the crit-gated Bonus Action attack goes (research 03 §7.2, "No Hew").
+Build(
+    species: "2024:species/test-folk|tst",
+    background: "2024:background/test-drillhand|tst",
+    origin_feat: "2024:feat/test-steady|tst",
+    abilities: (str: 18, dex: 10, con: 14, int: 8, wis: 12, cha: 10),
+    levels: [
+        "2024:class/test-warrior|tst",
+        "2024:class/test-warrior|tst",
+        "2024:class/test-warrior|tst",
+        "2024:class/test-warrior|tst",
+        "2024:class/test-warrior|tst",
+    ],
+    feats: ["2024:feat/test-great-style|tst", "2024:feat/test-heavy-striker|tst"],
+    loadout: (main_hand: "2024:item/test-greatblade|tst"),
+)

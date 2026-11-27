@@ -1,7 +1,22 @@
 // fixture: synthetic
-// The synthetic warrior's mechanics. Level 1 grants nothing beyond the Attack action;
-// Extra Attack, Weapon Mastery and the style arrive with #18.
+// The synthetic warrior's mechanics: Weapon Mastery at level 1 and Extra Attack at
+// level 5. Its fighting style is a feat the Build names (`test-great-style`).
 Class((
     class: "2024:class/test-warrior|tst",
-    features: [],
+    features: [
+        (
+            level: 1,
+            name: "Weapon Mastery",
+            citation: (tier: Synthetic, reference: "research 03 §7.2, Weapon Mastery"),
+            riders: [],
+            grants: [WeaponMastery],
+        ),
+        (
+            level: 5,
+            name: "Extra Attack",
+            citation: (tier: Synthetic, reference: "research 03 §7.2, Extra Attack"),
+            riders: [],
+            grants: [ExtraAttack(2)],
+        ),
+    ],
 ))

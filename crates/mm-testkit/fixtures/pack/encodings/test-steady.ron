@@ -1,0 +1,6 @@
+// fixture: synthetic
+// An Origin feat with no combat effect, so a Build is complete.
+Feat((
+    id: "2024:feat/test-steady|tst",
+    features: [],
+))

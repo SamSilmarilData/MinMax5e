@@ -1,0 +1,7 @@
+// fixture: synthetic
+// A background with no combat effect. Its ability increases are already in the Build's
+// final ability scores.
+Background((
+    id: "2024:background/test-drillhand|tst",
+    features: [],
+))

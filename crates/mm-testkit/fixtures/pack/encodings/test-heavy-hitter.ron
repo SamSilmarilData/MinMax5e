@@ -1,0 +1,21 @@
+// fixture: synthetic
+// A heavy-weapon feat: hits made as part of the Attack action with a Heavy weapon deal
+// extra damage equal to the proficiency bonus, and a crit offers one more attack with the
+// same weapon as a Bonus Action, taken immediately after it.
+Feat((
+    id: "2024:feat/test-heavy-hitter|tst",
+    features: [
+        (
+            name: "Test Heavy Hitter",
+            citation: (tier: Synthetic, reference: "research 03 §7.2, the heavy-weapon feat"),
+            riders: [
+                (
+                    on: AttackHit,
+                    when: Some(All([Fact(AttackAction), Fact(WeaponProperty(Heavy))])),
+                    effect: ProficiencyBonusDamage,
+                ),
+                (on: AttackCrit, optional: true, effect: BonusActionAttack),
+            ],
+        ),
+    ],
+))
