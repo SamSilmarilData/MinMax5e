@@ -5,11 +5,12 @@ expression: stderr
 error: the pack has 1 problem(s)
     Diagnostic severity: error
 
-Error: Unexpected missing field named `citation` in `ClassEncoding`
+Error: Unexpected missing field named `citation` in `LevelFeature`
     Diagnostic severity: error
 
-Begin snippet for malformed/missing-citation/encodings/test-warrior.ron starting at line 6, column 1
+Begin snippet for malformed/missing-citation/encodings/test-warrior.ron starting at line 12, column 1
 
-snippet line 6:     features: [],
-snippet line 7: ))
-    label at line 7, column 1: here
+snippet line 12:             ],
+snippet line 13:         ),
+    label at line 13, column 9: here
+snippet line 14:     ],

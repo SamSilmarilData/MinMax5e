@@ -1,6 +1,10 @@
 //! `mm-cli validate-packs` as a process (spec #12, seam 1).
 
+mod common;
+
 use std::process::{Command, Output};
+
+use common::{stderr_of_failure, stdout_of};
 
 /// Runs `mm-cli validate-packs --pack-dir <dir>…` from the fixtures directory, so the
 /// file names in its output are relative and the snapshots are machine-independent.
@@ -15,29 +19,14 @@ fn validate_packs(dirs: &[&str]) -> Output {
     command.output().expect("mm-cli runs")
 }
 
-fn stdout_of_success(output: &Output) -> String {
-    assert!(
-        output.status.success(),
-        "mm-cli failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout.clone()).expect("UTF-8 output")
-}
-
 #[test]
 fn the_good_fixtures_validate_with_every_in_scope_id_encoded() {
-    let stdout = stdout_of_success(&validate_packs(&["pack"]));
+    let stdout = stdout_of(&validate_packs(&["pack"]));
     assert!(
         stdout.contains("encoded  2024:class/test-warrior|tst"),
         "{stdout}"
     );
     assert!(!stdout.contains("missing"), "{stdout}");
-}
-
-/// The stderr of a run that must fail, for snapshotting.
-fn stderr_of_failure(output: &Output) -> String {
-    assert!(!output.status.success(), "mm-cli should have failed");
-    String::from_utf8(output.stderr.clone()).expect("UTF-8 output")
 }
 
 #[test]

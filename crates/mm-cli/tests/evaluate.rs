@@ -1,8 +1,11 @@
 //! `mm-cli evaluate` as a process (spec #12, seam 1).
 
+mod common;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+use common::{stderr_of_failure, stdout_of};
 use mm_testkit::tolerance::assert_close;
 use serde::Deserialize;
 
@@ -29,20 +32,6 @@ fn evaluate_with(build: &Path, pack: &Path, extra: &[&str]) -> Output {
 /// Evaluates the fixture Build `build` on the fixture pack against AC 16.
 fn evaluate(build: &str, extra: &[&str]) -> Output {
     evaluate_with(&fixture(build), &fixture("pack"), extra)
-}
-
-fn stdout_of(output: &Output) -> String {
-    assert!(
-        output.status.success(),
-        "mm-cli failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout.clone()).expect("UTF-8 output")
-}
-
-fn stderr_of_failure(output: &Output) -> String {
-    assert!(!output.status.success(), "mm-cli should have failed");
-    String::from_utf8(output.stderr.clone()).expect("UTF-8 output")
 }
 
 /// Writes `contents` to `name` under the scratch directory `dir`, and returns its path.

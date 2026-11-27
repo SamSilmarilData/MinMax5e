@@ -13,4 +13,4 @@ Begin snippet for malformed/unknown-content-id/encodings/test-nobody.ron startin
 snippet line 3: Class((
 snippet line 4:     class: "2024:class/test-nobody|tst",
     label at line 4, columns 12 to 39: here
-snippet line 5:     citation: (tier: Synthetic, reference: "malformed fixture"),
+snippet line 5:     features: [],

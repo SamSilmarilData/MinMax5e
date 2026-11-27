@@ -24,8 +24,6 @@ pub enum Encoding {
 pub struct ClassEncoding {
     /// The class record this encodes.
     pub class: ContentId,
-    /// Where these mechanics come from (ADR-0007).
-    pub citation: Citation,
     pub features: Vec<LevelFeature>,
 }
 
@@ -36,6 +34,8 @@ pub struct LevelFeature {
     /// The class level that grants it, from 1.
     pub level: u8,
     pub name: String,
+    /// Where this feature's mechanics come from (ADR-0007).
+    pub citation: Citation,
     pub riders: Vec<Rider>,
 }
 

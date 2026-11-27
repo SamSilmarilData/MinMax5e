@@ -36,6 +36,14 @@ _Avoid_: script, automation, parsed feature, rule
 Where a content item came from: SRD, the Corpus (with its source book), or project-authored.
 _Avoid_: source (clashes with book source codes), origin (clashes with Origin feats)
 
+**Citation**:
+Where an encoded feature's mechanics come from (a section or page reference, never the rules text), with its Source tier (ADR-0007).
+_Avoid_: reference, attribution
+
+**Source tier**:
+A Citation's place in the order of trust (ADR-0007): errata, SRD, Corpus, or synthetic for fixtures.
+_Avoid_: trust level, priority
+
 **SRD content / Fan content**:
 Material usable under CC-BY-4.0 (SRD 5.2.1 / 5.1), as opposed to other publisher material used only under the Fan Content Policy.
 _Avoid_: open content, official content

@@ -8,7 +8,7 @@
 //! - [`records`]: resolved records, the shape `mm-import` will produce.
 //! - [`effect`]: the closed Effect DSL (ADR-0010, ADR-0011) that encodings are written in.
 //! - [`Build`] and [`AssumptionSet`]: what is evaluated, and against what.
-//! - [`Citation`] and [`SourceTier`]: where an encoding comes from, and how far it is
+//! - [`Citation`] and [`SourceTier`]: where an encoded feature comes from, and how far it is
 //!   trusted (ADR-0007).
 //! - [`Fp`]: the 128-bit fingerprint (ADR-0052).
 //! - [`Sources`]: named RON texts, the input to loading a pack.

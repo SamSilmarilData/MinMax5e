@@ -127,14 +127,14 @@ impl<R> Pack<R> {
     pub fn coverage(&self) -> Coverage {
         let (encoded, missing): (Vec<&ClassDef>, Vec<&ClassDef>) =
             self.classes.iter().partition(|def| def.encoding.is_some());
-        let ids = |defs: Vec<&ClassDef>| {
+        let sorted_ids = |defs: Vec<&ClassDef>| {
             let mut ids: Vec<ContentId> = defs.into_iter().map(|d| d.record.id.clone()).collect();
             ids.sort();
             ids
         };
         Coverage {
-            encoded: ids(encoded),
-            missing: ids(missing),
+            encoded: sorted_ids(encoded),
+            missing: sorted_ids(missing),
         }
     }
 }

@@ -6,8 +6,8 @@ Invented content for tests and the CLI (ADR-0028). Every RON file starts with th
 
 - `pack/`: a pack directory (`mm-cli --pack-dir`). Files under `records/` are resolved
   records, the shape `mm-import` will produce; every other `.ron` file is an encoding,
-  our mechanics for those records in the Effect DSL (ADR-0010, ADR-0035). Each encoding
-  cites its source at tier `Synthetic` (ADR-0007).
+  our mechanics for those records in the Effect DSL (ADR-0010, ADR-0035). Each encoded
+  feature cites its source at tier `Synthetic` (ADR-0007).
 - `malformed/`: one pack directory per mistake, each loaded alongside `pack/` by
   `mm-cli validate-packs`: an unknown Content ID, a wrong Ruleset prefix, a misspelled
   DSL variant, a missing citation, and a record with no encoding.
