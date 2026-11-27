@@ -1,0 +1,8 @@
+// fixture: synthetic
+// A class record with no encoding anywhere: coverage reports it as missing (ADR-0002).
+[
+    Class((
+        id: "2024:class/test-unencoded|tst",
+        name: "Test Unencoded",
+    )),
+]

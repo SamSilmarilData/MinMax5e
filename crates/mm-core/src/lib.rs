@@ -8,6 +8,8 @@
 //! - [`records`]: resolved records, the shape `mm-import` will produce.
 //! - [`effect`]: the closed Effect DSL (ADR-0010, ADR-0011) that encodings are written in.
 //! - [`Build`] and [`AssumptionSet`]: what is evaluated, and against what.
+//! - [`Citation`] and [`SourceTier`]: where an encoded feature comes from, and how far it is
+//!   trusted (ADR-0007).
 //! - [`Fp`]: the 128-bit fingerprint (ADR-0052).
 //! - [`Sources`]: named RON texts, the input to loading a pack.
 //!
@@ -15,6 +17,7 @@
 
 pub mod assumptions;
 pub mod build;
+mod citation;
 pub mod effect;
 mod fp;
 mod id;
@@ -25,6 +28,7 @@ mod sources;
 
 pub use assumptions::{AssumptionSet, EncounterProfile};
 pub use build::{AbilityScores, Build, BuildError, Loadout};
+pub use citation::{Citation, SourceTier};
 pub use fp::{Fp, FpHasher};
 pub use id::{ContentId, ContentIdError, Id};
 pub use ruleset::{ActionEconomy, Refresh, ResourceDecl, Ruleset};

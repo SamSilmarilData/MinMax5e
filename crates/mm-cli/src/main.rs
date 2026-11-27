@@ -1,11 +1,16 @@
-//! `mm-cli`: evaluate a Build from the command line (architecture §11.1).
+//! `mm-cli`: evaluate a Build, or check encodings, from the command line (architecture
+//! §11.1).
 //!
-//! `mm-cli evaluate <build.ron> --ac <AC> [--pack-dir <dir>]… [--format text|ron]`
+//! - `mm-cli evaluate <build.ron> --ac <AC> [--pack-dir <dir>]… [--format text|ron]`
+//! - `mm-cli validate-packs [--pack-dir <dir>]…`
 //!
-//! The Ruleset is inferred from the Build's Content ID prefixes. The pack is the
+//! `evaluate` infers the Ruleset from the Build's Content ID prefixes; `validate-packs`
+//! checks against the 2024 Ruleset, the only one `mm-cli` knows. The pack is the
 //! Ruleset's embedded encodings plus every `.ron` file under each `--pack-dir`: files
-//! under a `records/` directory are records, the rest are encodings. The CLI calls the
-//! `mm-engine` facade directly until the Session protocol arrives (ADR-0051 amendment).
+//! under a `records/` directory are records, the rest are encodings. Load problems are
+//! printed as miette diagnostics naming the file and the offending text. The CLI calls
+//! the `mm-engine` facade directly until the Session protocol arrives (ADR-0051
+//! amendment).
 
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
@@ -17,6 +22,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use miette::NarratableReportHandler;
 use mm_core::{AssumptionSet, Build, Ruleset, Source, SourceRole, Sources};
 use mm_engine::Evaluation;
+use mm_load::Pack;
 use mm_rules_2024::Rules2024;
 
 #[derive(Debug, Parser)]
@@ -33,6 +39,9 @@ struct Cli {
 enum Command {
     /// Evaluate a Build: Nova DPR and its SD at every AC from 10 to 25.
     Evaluate(EvaluateArgs),
+    /// Load every pack and report problems, then list which in-scope records are
+    /// encoded. Fails on any problem or unencoded record (ADR-0002).
+    ValidatePacks(ValidatePacksArgs),
 }
 
 #[derive(Debug, clap::Args)]
@@ -50,6 +59,13 @@ struct EvaluateArgs {
     format: Format,
 }
 
+#[derive(Debug, clap::Args)]
+struct ValidatePacksArgs {
+    /// A directory of records and encodings to load into the pack. Repeatable.
+    #[arg(long = "pack-dir")]
+    pack_dirs: Vec<PathBuf>,
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum Format {
     Text,
@@ -60,6 +76,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let result = match cli.command {
         Command::Evaluate(args) => evaluate(&args),
+        Command::ValidatePacks(args) => validate_packs::<Rules2024>(&args.pack_dirs),
     };
     match result {
         Ok(output) => {
@@ -96,18 +113,51 @@ fn evaluate(args: &EvaluateArgs) -> Result<String> {
 }
 
 fn evaluate_in<R: Ruleset>(build: &Build, args: &EvaluateArgs) -> Result<Evaluation> {
+    let pack = load_pack::<R>(&args.pack_dirs)?;
+    let kit = mm_engine::compile(&pack, build)?;
+    Ok(mm_engine::evaluate(&kit, &AssumptionSet::against(args.ac)))
+}
+
+/// Loads every pack under Ruleset `R` and reports its coverage; an error if any record
+/// in scope has no encoding.
+fn validate_packs<R: Ruleset>(pack_dirs: &[PathBuf]) -> Result<String> {
+    let coverage = load_pack::<R>(pack_dirs)?.coverage();
+    let mut report = String::new();
+    let _ = writeln!(
+        report,
+        "Coverage, Ruleset {}: {} of {} in-scope records encoded",
+        R::PREFIX,
+        coverage.encoded.len(),
+        coverage.encoded.len() + coverage.missing.len()
+    );
+    for id in &coverage.encoded {
+        let _ = writeln!(report, "  encoded  {id}");
+    }
+    for id in &coverage.missing {
+        let _ = writeln!(report, "  missing  {id}");
+    }
+    if coverage.missing.is_empty() {
+        Ok(report)
+    } else {
+        bail!(
+            "{} in-scope record(s) have no encoding (ADR-0002)\n{report}",
+            coverage.missing.len()
+        )
+    }
+}
+
+/// The Ruleset's embedded encodings plus every pack directory, loaded under `R`.
+fn load_pack<R: Ruleset>(pack_dirs: &[PathBuf]) -> Result<Pack<R>> {
     let mut sources = R::encodings();
-    for dir in &args.pack_dirs {
+    for dir in pack_dirs {
         sources = sources.chain(read_pack_dir(dir)?);
     }
-    let pack = mm_load::load::<R>(&sources).map_err(|error| {
+    mm_load::load::<R>(&sources).map_err(|error| {
         let mut rendered = String::new();
         NarratableReportHandler::new()
             .render_report(&mut rendered, &error)
             .map_or_else(|_| anyhow!("{error}"), |()| anyhow!("{rendered}"))
-    })?;
-    let kit = mm_engine::compile(&pack, build)?;
-    Ok(mm_engine::evaluate(&kit, &AssumptionSet::against(args.ac)))
+    })
 }
 
 /// Every `.ron` file under `dir`, in path order.

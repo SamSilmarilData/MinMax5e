@@ -1,0 +1,16 @@
+---
+source: crates/mm-cli/tests/validate_packs.rs
+expression: stderr
+---
+error: the pack has 1 problem(s)
+    Diagnostic severity: error
+
+Error: 2024:class/test-nobody|tst encodes no loaded class record
+    Diagnostic severity: error
+
+Begin snippet for malformed/unknown-content-id/encodings/test-nobody.ron starting at line 3, column 1
+
+snippet line 3: Class((
+snippet line 4:     class: "2024:class/test-nobody|tst",
+    label at line 4, columns 12 to 39: here
+snippet line 5:     features: [],

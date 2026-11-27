@@ -12,5 +12,5 @@ Rules for this directory (ADR-0028):
 - Encodings describe mechanics in our own words. Never paste rules text, and never commit
   anything generated from the 5e.tools corpus.
 - Every Content ID uses the `2024:` prefix (ADR-0008).
-- Each encoding carries a citation and a source tier (ADR-0007).
+- Each encoded feature carries a citation and a source tier (ADR-0007).
 - Real encodings are tested locally, never in CI.

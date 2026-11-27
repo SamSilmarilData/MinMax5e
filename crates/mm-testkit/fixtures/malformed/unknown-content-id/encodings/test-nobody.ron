@@ -1,0 +1,6 @@
+// fixture: synthetic
+// Encodes a class no record defines: an unknown Content ID.
+Class((
+    class: "2024:class/test-nobody|tst",
+    features: [],
+))

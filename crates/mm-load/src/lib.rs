@@ -5,6 +5,8 @@
 //!   [`Diagnostic`] per problem, each naming its file and pointing at the offending text.
 //! - [`Pack`]: the read-only pack, which only `load` can construct. Look items up by
 //!   Content ID to get a typed [`Id`], then index the pack with it.
+//! - [`Pack::coverage`]: which in-scope records have an encoding and which do not, so
+//!   unencoded content is never silently ignored (ADR-0002).
 //!
 //! Every Content ID must carry the Ruleset's prefix, so an ID from another edition can
 //! never load (ADR-0008).
@@ -39,6 +41,17 @@ pub struct ClassDef {
 enum Entry {
     Class(u32),
     Weapon(u32),
+}
+
+/// Which in-scope records a pack encodes (ADR-0002), each list in Content ID order.
+///
+/// A record is in scope when its mechanics live in an encoding: classes, for now. A
+/// weapon's mechanics are its record's imported fields (ADR-0002 amendment), so weapons
+/// need no encoding and are not listed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Coverage {
+    pub encoded: Vec<ContentId>,
+    pub missing: Vec<ContentId>,
 }
 
 /// Loading failed. Each diagnostic is one problem.
@@ -105,6 +118,23 @@ impl<R: Ruleset> Pack<R> {
         match self.by_id.get(id) {
             Some(&Entry::Weapon(i)) => Some(Id::from_index(i)),
             _ => None,
+        }
+    }
+}
+
+impl<R> Pack<R> {
+    /// Which in-scope records have an encoding and which do not.
+    pub fn coverage(&self) -> Coverage {
+        let (encoded, missing): (Vec<&ClassDef>, Vec<&ClassDef>) =
+            self.classes.iter().partition(|def| def.encoding.is_some());
+        let sorted_ids = |defs: Vec<&ClassDef>| {
+            let mut ids: Vec<ContentId> = defs.into_iter().map(|d| d.record.id.clone()).collect();
+            ids.sort();
+            ids
+        };
+        Coverage {
+            encoded: sorted_ids(encoded),
+            missing: sorted_ids(missing),
         }
     }
 }

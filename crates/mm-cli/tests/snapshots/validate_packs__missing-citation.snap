@@ -1,0 +1,16 @@
+---
+source: crates/mm-cli/tests/validate_packs.rs
+expression: stderr
+---
+error: the pack has 1 problem(s)
+    Diagnostic severity: error
+
+Error: Unexpected missing field named `citation` in `LevelFeature`
+    Diagnostic severity: error
+
+Begin snippet for malformed/missing-citation/encodings/test-warrior.ron starting at line 12, column 1
+
+snippet line 12:             ],
+snippet line 13:         ),
+    label at line 13, column 9: here
+snippet line 14:     ],

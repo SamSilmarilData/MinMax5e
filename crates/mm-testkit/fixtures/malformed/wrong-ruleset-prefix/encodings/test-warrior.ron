@@ -1,0 +1,6 @@
+// fixture: synthetic
+// Encodes the warrior under the 2014 prefix: a cross-edition reference (ADR-0008).
+Class((
+    class: "2014:class/test-warrior|tst",
+    features: [],
+))

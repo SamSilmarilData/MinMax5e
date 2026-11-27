@@ -87,6 +87,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo xtask deps
       - run: cargo xtask leak-scan
+      # The 2024 Ruleset's embedded encodings load cleanly. Records stay in the local cache
+      # (ADR-0028), so ADR-0002's coverage check runs locally, not here.
+      - run: cargo run --locked -q -p mm-cli -- validate-packs
       # Accepted ADRs change only by dated amendment: compare with the pull request's base,
       # or with the commit before this push.
       - name: cargo xtask adr-check
