@@ -13,6 +13,7 @@ cargo_metadata.workspace = true
 clap.workspace = true
 regex.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 toml.workspace = true
 
 [lints]

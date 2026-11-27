@@ -64,18 +64,24 @@ impl Drop for TempTree {
     }
 }
 
+/// The repository root: the parent of the xtask crate's directory.
+pub fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
+}
+
 /// Runs the xtask binary with the given arguments.
-pub fn xtask(args: &[&str]) -> Run {
+pub fn xtask(args: &[&str]) -> XtaskRun {
     let output = Command::new(env!("CARGO_BIN_EXE_xtask"))
         .args(args)
         .output()
         .unwrap();
-    Run(output)
+    XtaskRun(output)
 }
 
-pub struct Run(pub Output);
+/// The exit status and output of one `xtask` process.
+pub struct XtaskRun(pub Output);
 
-impl Run {
+impl XtaskRun {
     pub fn stdout(&self) -> String {
         String::from_utf8_lossy(&self.0.stdout).into_owned()
     }

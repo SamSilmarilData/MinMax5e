@@ -8,14 +8,9 @@
 
 mod common;
 
-use std::path::PathBuf;
 use std::process::Command;
 
-use common::TempTree;
-
-fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
-}
+use common::{TempTree, repo_root};
 
 /// Every `disallowed-methods` path in the repository's `clippy.toml`, so a new ban is
 /// tested as soon as it is added.
@@ -93,10 +88,11 @@ fn each_banned_float_operation_fails_clippy() {
 
 #[test]
 fn basic_float_arithmetic_passes_clippy() {
+    // `sqrt` is an IEEE 754 basic operation, correctly rounded on every target (ADR-0050).
     let tree = TempTree::new();
     let output = clippy(
         &tree,
-        "    let y = x * 2.0 + 3.0;\n    if y > x { y } else { x / 2.0 }",
+        "    let y = (x * 2.0 + 3.0).sqrt();\n    if y > x { y } else { x / 2.0 }",
     );
     assert!(
         output.status.success(),

@@ -6,6 +6,15 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-27 (workspace foundation, #13):*
+>
+> - **`mm-core`'s third-party dependencies are limited** to serde, thiserror and blake3 (spec #12), and `mm-dice` has none. `xtask deps` enforces both for normal and build dependencies; dev-dependencies are free.
+> - **`mm-testkit` may not be renamed** in a manifest, so `xtask deps` can find its uses by name. That scan ignores `//` comments.
+> - **cargo-deny bans do apply to workspace path crates,** dev-dependencies and `wrappers` included (checked with cargo-deny 0.22, answering research 09 §7 question 4). `deny.toml` therefore bans the rules crates and `mm-host` outside their allowed users, as the backstop to `xtask deps`.
+> - **`xtask xhash` joins CI with its own ticket (#16).** Until the engine exists there is no evaluation to hash, so CI from commit one runs every other check listed above.
+> - **The workspace lists its members explicitly** until the first crate lands under `crates/`, because Cargo rejects a `crates/*` glob that matches nothing. `[workspace.lints.cargo]` allows `unused_workspace_dependencies` until every workspace dependency has a user.
+> - **2024 encodings live in `data/rules-2024/`,** as in the layout above; the directory starts empty with a README.
+
 > *Amended 2026-11-27 (walking-skeleton lock):*
 >
 > - **Ports are owned by their lowest consumer.** `Storage` lives in `mm-cache`, `Fetcher` in `mm-import`, and `Clock` in `mm-app-core`. `mm-host` implements all three. Defining them all in `mm-app-core` made a cycle, because `mm-cache` and `mm-import` sit below it.

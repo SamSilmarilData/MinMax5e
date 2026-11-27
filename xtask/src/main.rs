@@ -6,6 +6,7 @@
 mod deps;
 mod git;
 mod leak;
+mod report;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -60,9 +61,7 @@ enum Outcome {
     Violations,
 }
 
+/// The repository root: the parent of this crate's directory.
 fn repo_root() -> PathBuf {
-    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    manifest_dir
-        .parent()
-        .map_or(manifest_dir.clone(), std::path::Path::to_path_buf)
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
 }

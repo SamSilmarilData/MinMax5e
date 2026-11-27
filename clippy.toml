@@ -1,7 +1,8 @@
-# Cross-target determinism (ADR-0037, ADR-0050). Scored values use IEEE basic
-# operations only: no fused multiply-add, no transcendentals, and no f64 max/min,
-# whose NaN handling differs from an explicit comparison. A display-only helper
-# may allow one of these locally with `#[expect(clippy::disallowed_methods, reason = "...")]`.
+# Cross-target determinism (ADR-0037, ADR-0050 as amended 2026-11-27). Scored values use
+# IEEE 754 basic operations only, so `sqrt` (correctly rounded everywhere) is allowed.
+# Banned: fused multiply-add, transcendentals, `powi` (Rust documents its precision as
+# non-deterministic), and max/min (NaN-unsafe). A display-only helper
+# may allow one locally with `#[expect(clippy::disallowed_methods, reason = "...")]`.
 disallowed-methods = [
   { path = "f64::mul_add", reason = "fused multiply-add rounds differently across targets (ADR-0050)" },
   { path = "f32::mul_add", reason = "fused multiply-add rounds differently across targets (ADR-0050)" },
@@ -22,8 +23,6 @@ disallowed-methods = [
   { path = "f32::log", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
   { path = "f32::log2", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
   { path = "f32::log10", reason = "transcendental: not bit-identical across targets (ADR-0050)" },
-  { path = "f64::sqrt", reason = "keep out of scored values; only a display helper may use it (ADR-0050)" },
-  { path = "f32::sqrt", reason = "keep out of scored values; only a display helper may use it (ADR-0050)" },
   { path = "f64::max", reason = "NaN-unsafe; compare explicitly or use total_cmp (ADR-0037)" },
   { path = "f64::min", reason = "NaN-unsafe; compare explicitly or use total_cmp (ADR-0037)" },
   { path = "f32::max", reason = "NaN-unsafe; compare explicitly or use total_cmp (ADR-0037)" },

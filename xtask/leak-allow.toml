@@ -16,8 +16,8 @@ reason = "ADR quotes an example of the markup to explain why encodings are hand-
 
 [[file]]
 path = "docs/adr/0028-no-upstream-bytes-in-public-repo.md"
-allow = ["tag-markup"]
-reason = "ADR defines the pattern the leak scan looks for"
+allow = ["tag-markup", "relaxed-simd"]
+reason = "ADR defines the patterns the leak scan looks for"
 
 [[file]]
 path = "docs/adr/0034-cargo-workspace.md"

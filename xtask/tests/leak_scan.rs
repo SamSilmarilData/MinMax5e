@@ -9,7 +9,7 @@ mod common;
 
 use common::{TempTree, tag, xtask};
 
-fn scan(tree: &TempTree) -> common::Run {
+fn scan(tree: &TempTree) -> common::XtaskRun {
     xtask(&["leak-scan", "--root", tree.path().to_str().unwrap()])
 }
 
@@ -132,8 +132,8 @@ fn marked_synthetic_fixtures_with_tst_ids_pass() {
         "{\"_fixture\": \"synthetic\", \"id\": \"2024:feat/test-heavy-hitter|tst\"}\n",
     )
     .track(
-        "xtask/leak-allow.toml",
-        "[[file]]\npath = \"crates/mm-testkit/fixtures/corpus/feats.json\"\nallow = [\"data-file\"]\nreason = \"synthetic corpus fixture\"\n",
+        "crates/mm-testkit/fixtures/README.md",
+        "Builds use `2024:class/test-warrior|tst`.\n",
     );
     scan(&tree).assert_ok();
 }
@@ -154,11 +154,22 @@ fn a_ron_fixture_without_the_marker_fails() {
 #[test]
 fn a_json_fixture_without_the_marker_fails() {
     let tree = TempTree::git();
-    tree.track("fixtures/a.json", "{\"name\": \"x\"}\n").track(
-        "xtask/leak-allow.toml",
-        "[[file]]\npath = \"fixtures/a.json\"\nallow = [\"data-file\"]\nreason = \"r\"\n",
+    tree.track("fixtures/a.json", "{\"name\": \"x\"}\n");
+    scan(&tree).assert_fails_with(&[
+        "fixtures/a.json: [fixture]",
+        "\"_fixture\": \"synthetic\"",
+        "fixtures/a.json: [data-file]",
+    ]);
+}
+
+#[test]
+fn a_json_marker_must_be_a_top_level_field() {
+    let tree = TempTree::git();
+    tree.track(
+        "fixtures/a.json",
+        "{\"feat\": [{\"_fixture\": \"synthetic\"}]}\n",
     );
-    scan(&tree).assert_fails_with(&["fixtures/a.json: [fixture]", "\"_fixture\": \"synthetic\""]);
+    scan(&tree).assert_fails_with(&["fixtures/a.json: [fixture]", "top-level"]);
 }
 
 #[test]
@@ -166,6 +177,16 @@ fn a_fixture_of_another_file_type_fails() {
     let tree = TempTree::git();
     tree.track("fixtures/notes.txt", "hello\n");
     scan(&tree).assert_fails_with(&["fixtures/notes.txt: [fixture]", "RON or JSON"]);
+}
+
+#[test]
+fn a_markdown_note_among_fixtures_is_still_checked_for_content_ids() {
+    let tree = TempTree::git();
+    tree.track(
+        "fixtures/README.md",
+        "Not `2024:feat/great-weapon-master|xphb`.\n",
+    );
+    scan(&tree).assert_fails_with(&["fixtures/README.md:1: [fixture]", "source `xphb`"]);
 }
 
 #[test]
@@ -201,6 +222,24 @@ fn the_nondeterministic_simd_feature_fails_anywhere() {
         format!("rustflags = [\"-C\", \"target-feature=+simd128,+{feature}\"]\n"),
     );
     scan(&tree).assert_fails_with(&[&format!(".cargo/config.toml:1: [{feature}]")]);
+}
+
+#[test]
+fn the_nondeterministic_simd_feature_fails_in_an_untracked_file() {
+    let feature = ["relaxed", "simd"].join("-");
+    let tree = TempTree::git();
+    tree.track("README.md", "hi\n")
+        .write(".cargo/config.toml", format!("target-feature=+{feature}\n"));
+    scan(&tree).assert_fails_with(&[&format!(".cargo/config.toml:1: [{feature}]")]);
+}
+
+#[test]
+fn ignored_files_are_not_scanned() {
+    let feature = ["relaxed", "simd"].join("-");
+    let tree = TempTree::git();
+    tree.track(".gitignore", "/target/\n")
+        .write("target/build.log", format!("+{feature}\n"));
+    scan(&tree).assert_ok();
 }
 
 #[test]

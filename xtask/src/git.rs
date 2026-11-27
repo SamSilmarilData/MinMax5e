@@ -6,9 +6,9 @@ use std::process::{Command, Stdio};
 
 use anyhow::{Context, Result, bail};
 
-/// A tracked file: its path relative to the root, and its staged contents.
+/// A file in the repository: its path relative to the root, and its contents.
 #[derive(Debug)]
-pub struct TrackedFile {
+pub struct RepoFile {
     pub path: String,
     pub contents: Vec<u8>,
 }
@@ -17,7 +17,7 @@ pub struct TrackedFile {
 ///
 /// Staged contents, not the working copy, because they are what a commit records:
 /// the pre-commit hook must see exactly that.
-pub fn tracked_files(root: &Path) -> Result<Vec<TrackedFile>> {
+pub fn tracked_files(root: &Path) -> Result<Vec<RepoFile>> {
     let listing = Command::new("git")
         .args(["ls-files", "--stage", "-z"])
         .current_dir(root)
@@ -53,7 +53,7 @@ pub fn tracked_files(root: &Path) -> Result<Vec<TrackedFile>> {
     Ok(entries
         .into_iter()
         .zip(blobs)
-        .map(|((_, path), contents)| TrackedFile { path, contents })
+        .map(|((_, path), contents)| RepoFile { path, contents })
         .collect())
 }
 
@@ -102,4 +102,29 @@ fn read_blobs<'a>(root: &Path, objects: impl Iterator<Item = &'a str>) -> Result
         bail!("git cat-file failed");
     }
     Ok(blobs)
+}
+
+/// Files in the working tree that git neither tracks nor ignores, with their contents.
+pub fn untracked_files(root: &Path) -> Result<Vec<RepoFile>> {
+    let listing = Command::new("git")
+        .args(["ls-files", "--others", "--exclude-standard", "-z"])
+        .current_dir(root)
+        .output()
+        .context("running git ls-files --others")?;
+    if !listing.status.success() {
+        bail!(
+            "git ls-files --others failed in {}: {}",
+            root.display(),
+            String::from_utf8_lossy(&listing.stderr).trim()
+        );
+    }
+    let mut files = Vec::new();
+    for path in listing.stdout.split(|&b| b == 0).filter(|p| !p.is_empty()) {
+        let path = String::from_utf8_lossy(path).into_owned();
+        // A file can vanish between listing and reading; skip it rather than fail.
+        if let Ok(contents) = std::fs::read(root.join(&path)) {
+            files.push(RepoFile { path, contents });
+        }
+    }
+    Ok(files)
 }

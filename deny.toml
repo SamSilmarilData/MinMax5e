@@ -1,5 +1,8 @@
-# cargo-deny: advisories, licences and bans for the whole dependency graph.
-# The crate dependency rules of ADR-0034 are enforced by `cargo xtask deps`, not here.
+# cargo-deny: advisories, licences, sources and bans for the whole dependency graph.
+# `cargo xtask deps` is the authority for the ADR-0034 crate rules. The rules-crate and
+# mm-host bans below are its backstop: cargo-deny does apply bans and `wrappers` to
+# workspace path crates, dev-dependencies included (checked 2026-11-27 with cargo-deny 0.22).
+# A ban for a crate that does not exist yet only warns.
 
 [graph]
 all-features = true
@@ -36,6 +39,11 @@ allow-wildcard-paths = true
 deny = [
   # The disk cache is postcard (ADR-0038); bincode is unmaintained.
   { crate = "bincode", reason = "ADR-0038: use postcard" },
+  # ADR-0034: only binaries and mm-testkit may depend on a rules crate.
+  { crate = "mm-rules-2024", wrappers = ["mm-testkit", "mm-cli", "mm-gui", "mm-worker"], reason = "ADR-0034: rules crates are used only by binaries and mm-testkit" },
+  { crate = "mm-rules-2014", wrappers = ["mm-testkit", "mm-cli", "mm-gui", "mm-worker"], reason = "ADR-0034: rules crates are used only by binaries and mm-testkit" },
+  # ADR-0034: only binaries depend on mm-host.
+  { crate = "mm-host", wrappers = ["mm-cli", "mm-gui", "mm-worker"], reason = "ADR-0034: mm-host is used only by binaries" },
 ]
 
 [sources]

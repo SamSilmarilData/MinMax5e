@@ -55,7 +55,10 @@ impl Workspace {
         self.tree
             .write(&format!("crates/{name}/Cargo.toml"), manifest);
         self.tree.write(&format!("crates/{name}/src/lib.rs"), "");
-        self.members.push(format!("crates/{name}"));
+        let member = format!("crates/{name}");
+        if !self.members.contains(&member) {
+            self.members.push(member);
+        }
         self
     }
 
@@ -70,7 +73,7 @@ impl Workspace {
         self
     }
 
-    fn check(self) -> common::Run {
+    fn check(self) -> common::XtaskRun {
         let members: Vec<String> = self.members.iter().map(|m| format!("\"{m}\"")).collect();
         self.tree.write(
             "Cargo.toml",
@@ -248,7 +251,7 @@ fn a_crate_outside_the_table_fails() {
     skeleton()
         .krate("mm-extra", &[])
         .check()
-        .assert_fails_with(&["mm-extra", "not in the ADR-0034 crate table"]);
+        .assert_fails_with(&["mm-extra: [crate-table]", "not in the ADR-0034 crate table"]);
 }
 
 #[test]
@@ -277,6 +280,17 @@ fn an_oracle_used_from_a_unit_test_module_fails() {
 }
 
 #[test]
+fn a_comment_naming_the_testkit_is_not_a_use() {
+    skeleton()
+        .file(
+            "crates/mm-engine/src/lib.rs",
+            "//! Tested against the oracles in `mm_testkit`.\npub fn f() {} // see mm_testkit\n",
+        )
+        .check()
+        .assert_ok();
+}
+
+#[test]
 fn an_oracle_used_from_an_integration_test_passes() {
     skeleton()
         .file(
@@ -295,7 +309,7 @@ fn renaming_mm_testkit_fails() {
             "[package]\nname = \"mm-dice\"\nversion = \"0.0.0\"\nedition = \"2024\"\npublish = false\nlicense = \"MIT\"\n\n[dev-dependencies]\nkit = { package = \"mm-testkit\", path = \"../mm-testkit\" }\n",
         )
         .check()
-        .assert_fails_with(&["mm-dice", "renames mm-testkit"]);
+        .assert_fails_with(&["mm-dice -> mm-testkit: [testkit]", "do not rename mm-testkit"]);
 }
 
 #[test]
@@ -306,7 +320,87 @@ fn every_crate_is_unpublished_and_mit() {
             "[package]\nname = \"mm-dice\"\nversion = \"0.0.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n",
         )
         .check()
-        .assert_fails_with(&["mm-dice: must set `publish = false`", "mm-dice: must use the MIT licence"]);
+        .assert_fails_with(&["mm-dice: [package] must set `publish = false`", "mm-dice: [package] must use the MIT licence"]);
+}
+
+/// Every crate in the ADR-0034 table, so any edge between them resolves.
+fn full_graph() -> Workspace {
+    let mut workspace = skeleton();
+    for name in [
+        "mm-import",
+        "mm-solver",
+        "mm-cache",
+        "mm-rules-2014",
+        "mm-app-core",
+        "mm-host",
+        "mm-gui",
+        "mm-worker",
+    ] {
+        workspace = workspace.krate(name, &[]);
+    }
+    workspace
+}
+
+#[test]
+fn each_crate_is_held_to_its_own_allowed_set() {
+    // (crate, a workspace dependency it may not have, the expected explanation)
+    let cases = [
+        (
+            "mm-load",
+            "mm-engine",
+            "mm-load may depend only on mm-core (ADR-0034)",
+        ),
+        (
+            "mm-import",
+            "mm-engine",
+            "mm-import may depend only on mm-core, mm-load (ADR-0034)",
+        ),
+        (
+            "mm-engine",
+            "mm-solver",
+            "mm-engine may depend only on mm-core, mm-load, mm-dice (ADR-0034)",
+        ),
+        (
+            "mm-solver",
+            "mm-cache",
+            "mm-solver may depend only on mm-core, mm-load, mm-dice, mm-engine (ADR-0034)",
+        ),
+        ("mm-cache", "mm-app-core", "mm-cache may depend only on"),
+        (
+            "mm-app-core",
+            "mm-rules-2014",
+            "only binaries and mm-testkit may depend on a rules crate",
+        ),
+        ("mm-testkit", "mm-app-core", "mm-testkit may depend only on"),
+        ("mm-host", "mm-gui", "nothing may depend on a binary"),
+        ("mm-gui", "mm-worker", "nothing may depend on a binary"),
+        ("mm-cli", "xtask", "nothing may depend on a binary"),
+        ("xtask", "mm-core", "xtask may depend on no workspace crate"),
+    ];
+    for (from, to, why) in cases {
+        let edge = format!("{from} -> {to}: [allowed-deps]");
+        full_graph()
+            .krate(from, &[(to, Normal)])
+            .check()
+            .assert_fails_with(&[&edge, why]);
+    }
+}
+
+#[test]
+fn the_full_crate_map_passes_when_every_crate_follows_its_rules() {
+    full_graph()
+        .krate(
+            "mm-app-core",
+            &[
+                ("mm-solver", Normal),
+                ("mm-cache", Normal),
+                ("mm-import", Normal),
+            ],
+        )
+        .krate("mm-host", &[("mm-app-core", Normal)])
+        .krate("mm-gui", &[("mm-host", Normal), ("mm-rules-2014", Normal)])
+        .check()
+        .assert_ok();
 }
 
 #[test]

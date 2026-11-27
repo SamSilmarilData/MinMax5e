@@ -6,6 +6,14 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-27 (workspace foundation, #13): the float bans, with sources.*
+>
+> - **`sqrt` is allowed.** Rust guarantees `f64::sqrt` is "the rounded infinite-precision result … specified by IEEE 754 as `squareRoot` and guaranteed not to change" ([std docs](https://doc.rust-lang.org/std/primitive.f64.html#method.sqrt)), and WebAssembly's `fsqrt` rounds to nearest. It is an IEEE basic operation, so the rule below already allows it. Spec #12's ban on `sqrt` is withdrawn.
+> - **`powi` is banned.** Rust documents its precision as "non-deterministic", varying "by platform, Rust version, and … from one invocation to the next". Multiply explicitly.
+> - **`f64::max`/`min` are banned outright** in `clippy.toml`, not only "where NaN is possible", because a lint can't tell where NaN is possible. Use explicit comparisons or `total_cmp`.
+> - **`mul_add` stays banned** even though Rust guarantees its rounding: a fused result differs from the unfused `a * b + c` used elsewhere, so mixing them changes bits between code paths (research 09 §5, rule 7).
+> - The transcendental ban covers `powf`, `exp`, `exp2`, `exp_m1`, `ln`, `ln_1p`, `log`, `log2` and `log10`, for `f32` and `f64`. `clippy.toml` holds the list, and `xtask/tests/clippy_bans.rs` checks that every entry is rejected.
+
 `mm-solver` has no threads, channels or clocks. It exposes four pure functions:
 
 - `plan(pack, query) -> JobPlan`, ordered by (bound descending, canonical key);

@@ -6,6 +6,14 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-27 (workspace foundation, #13): details of the leak scan.*
+>
+> - It reads **staged contents** from the git index, because that is what a commit records. The allowlist is read from the index too.
+> - **The allowlist is checked as well.** An exemption with no reason, with no checks, or for a path that is no longer tracked fails the scan.
+> - **A JSON fixture that carries the marker passes the data-file check,** because the marker is its proof of being synthetic. The marker must be a top-level field. Any other tracked JSON still needs an allowlist entry.
+> - **Fixture files are RON or JSON** with the marker. Markdown notes about the fixtures are also allowed, and their Content IDs are still checked. Any other file type under `fixtures/` fails.
+> - **The `relaxed-simd` check also covers untracked files that git doesn't ignore,** so a local cargo config can't carry the feature either. It matches the hyphenated feature name only; prose about relaxed SIMD does not trip it.
+
 > *Amended 2026-11-27 (walking-skeleton lock): how enforcement works.*
 >
 > - **Cache location.** The local cache is `directories::ProjectDirs` cache dir (`~/Library/Caches/minmax5e/` on macOS), holding `corpus/<lockhash>/`, `packs/<lockhash>/<ruleset>.pack` and `results/`. `MINMAX5E_CACHE` overrides it, and an override inside a git working tree is refused. The in-repo `.gitignore` entries stay as a second guard.
