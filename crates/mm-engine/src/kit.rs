@@ -108,11 +108,11 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
             }
         }
     }
-    gained.with_features::<R, kind::Species>(pack, &build.species)?;
-    gained.with_features::<R, kind::Background>(pack, &build.background)?;
-    gained.with_features::<R, kind::Feat>(pack, &build.origin_feat)?;
+    gained.add_features_of::<R, kind::Species>(pack, &build.species)?;
+    gained.add_features_of::<R, kind::Background>(pack, &build.background)?;
+    gained.add_features_of::<R, kind::Feat>(pack, &build.origin_feat)?;
     for feat in &build.feats {
-        gained.with_features::<R, kind::Feat>(pack, feat)?;
+        gained.add_features_of::<R, kind::Feat>(pack, feat)?;
     }
 
     let weapon_id = &build.loadout.main_hand;
@@ -126,7 +126,7 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
         .as_ref()
         .filter(|_| gained.weapon_mastery)
     {
-        gained.with_features::<R, kind::MasteryProperty>(pack, property)?;
+        gained.add_features_of::<R, kind::MasteryProperty>(pack, property)?;
     }
 
     // `build.ruleset()` has checked there is at least one level.
@@ -213,13 +213,13 @@ impl Default for Gained {
 
 impl Gained {
     /// Adds the features of the species, background, feat or mastery property `id`.
-    fn with_features<R: Ruleset, K: FeaturesKind>(
+    fn add_features_of<R: Ruleset, K: FeaturesKind>(
         &mut self,
         pack: &Pack<R>,
         id: &ContentId,
     ) -> Result<(), CompileError> {
         let found = pack
-            .with_features::<K>(id)
+            .features_def::<K>(id)
             .ok_or_else(|| not_in_pack::<K>(id))?;
         let encoding = pack[found]
             .encoding

@@ -57,7 +57,7 @@ impl FeaturesKind for kind::MasteryProperty {}
 #[derive(Debug, Clone, Copy)]
 enum Entry {
     Class(u32),
-    WithFeatures(u32),
+    FeaturesDef(u32),
     Weapon(u32),
 }
 
@@ -136,9 +136,9 @@ impl<R: Ruleset> Pack<R> {
 
     /// The species, background, feat or mastery property with this Content ID, if the pack has one
     /// of kind `K`.
-    pub fn with_features<K: FeaturesKind>(&self, id: &ContentId) -> Option<Id<R, K>> {
+    pub fn features_def<K: FeaturesKind>(&self, id: &ContentId) -> Option<Id<R, K>> {
         match self.by_id.get(id) {
-            Some(&Entry::WithFeatures(i)) if id.kind() == K::NAME => Some(Id::from_index(i)),
+            Some(&Entry::FeaturesDef(i)) if id.kind() == K::NAME => Some(Id::from_index(i)),
             _ => None,
         }
     }
@@ -249,13 +249,13 @@ impl<'s, R: Ruleset> Loader<'s, R> {
     }
 
     fn record(&mut self, source: &'s Source, record: Record) {
-        let with_features = Entry::WithFeatures(len(&self.pack.feature_defs));
+        let features_def = Entry::FeaturesDef(len(&self.pack.feature_defs));
         let (entry, wanted) = match &record {
             Record::Class(_) => (Entry::Class(len(&self.pack.classes)), kind::Class::NAME),
-            Record::Species(_) => (with_features, kind::Species::NAME),
-            Record::Background(_) => (with_features, kind::Background::NAME),
-            Record::Feat(_) => (with_features, kind::Feat::NAME),
-            Record::MasteryProperty(_) => (with_features, kind::MasteryProperty::NAME),
+            Record::Species(_) => (features_def, kind::Species::NAME),
+            Record::Background(_) => (features_def, kind::Background::NAME),
+            Record::Feat(_) => (features_def, kind::Feat::NAME),
+            Record::MasteryProperty(_) => (features_def, kind::MasteryProperty::NAME),
             Record::Weapon(_) => (Entry::Weapon(len(&self.pack.weapons)), kind::Item::NAME),
         };
         let id = record.id().clone();
@@ -310,24 +310,24 @@ impl<'s, R: Ruleset> Loader<'s, R> {
                 }
                 def.encoding = Some(encoding);
             }
-            Encoding::Species(encoding) => self.with_features::<kind::Species>(source, encoding),
+            Encoding::Species(encoding) => self.attach_features::<kind::Species>(source, encoding),
             Encoding::Background(encoding) => {
-                self.with_features::<kind::Background>(source, encoding);
+                self.attach_features::<kind::Background>(source, encoding);
             }
-            Encoding::Feat(encoding) => self.with_features::<kind::Feat>(source, encoding),
+            Encoding::Feat(encoding) => self.attach_features::<kind::Feat>(source, encoding),
             Encoding::MasteryProperty(encoding) => {
-                self.with_features::<kind::MasteryProperty>(source, encoding);
+                self.attach_features::<kind::MasteryProperty>(source, encoding);
             }
         }
     }
 
     /// Attaches the encoding of a species, background, feat or mastery property to its record.
-    fn with_features<K: FeaturesKind>(&mut self, source: &Source, encoding: FeaturesEncoding) {
+    fn attach_features<K: FeaturesKind>(&mut self, source: &Source, encoding: FeaturesEncoding) {
         let id = encoding.id.clone();
         if !self.check_id(source, &id, K::NAME) {
             return;
         }
-        let Some(found) = self.pack.with_features::<K>(&id) else {
+        let Some(found) = self.pack.features_def::<K>(&id) else {
             self.report_id(
                 source,
                 &id,
@@ -355,7 +355,7 @@ impl<'s, R: Ruleset> Loader<'s, R> {
             let known = property.ruleset() == R::PREFIX
                 && self
                     .pack
-                    .with_features::<kind::MasteryProperty>(&property)
+                    .features_def::<kind::MasteryProperty>(&property)
                     .is_some();
             if !known {
                 self.report_id(
