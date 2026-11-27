@@ -126,3 +126,43 @@ fn deleting_an_accepted_adr_fails() {
     std::fs::remove_file(tree.path().join(ADR)).unwrap();
     check(&tree).assert_fails_with(&["docs/adr/0042-example.md: [adr-silent-edit]", "deleted"]);
 }
+
+/// `ACCEPTED` with amendments dated `dates`, in that order, under the acceptance line.
+fn amended_on(dates: &[&str]) -> String {
+    let blocks = dates
+        .iter()
+        .map(|date| format!("\n> *Amended {date}:* a change.\n"))
+        .collect::<Vec<_>>()
+        .concat();
+    ACCEPTED.replace(
+        "> *Accepted 2026-11-27.*\n",
+        &format!("> *Accepted 2026-11-27.*\n{blocks}"),
+    )
+}
+
+#[test]
+fn amendments_newest_first_pass() {
+    let tree = repo_with(ACCEPTED);
+    tree.write(ADR, amended_on(&["2026-12-02", "2026-12-01", "2026-12-01"]));
+    check(&tree).assert_ok();
+}
+
+#[test]
+fn an_amendment_below_an_older_one_fails() {
+    let tree = repo_with(ACCEPTED);
+    tree.write(ADR, amended_on(&["2026-12-01", "2026-12-02"]));
+    check(&tree).assert_fails_with(&[
+        "docs/adr/0042-example.md:11: [adr-amendment-order]",
+        "newest first",
+    ]);
+}
+
+#[test]
+fn amendment_order_is_checked_in_a_new_adr_too() {
+    let tree = repo_with(ACCEPTED);
+    tree.write(
+        "docs/adr/0043-next.md",
+        amended_on(&["2026-12-01", "2026-12-02"]),
+    );
+    check(&tree).assert_fails_with(&["docs/adr/0043-next.md:11: [adr-amendment-order]"]);
+}
