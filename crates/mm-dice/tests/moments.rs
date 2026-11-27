@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::assert_close;
+use common::{assert_close, assert_rounds_to};
 use mm_dice::{AttackRoll, Moments, Pmf, RollMode};
 
 #[test]
@@ -25,8 +25,7 @@ fn independent_add_matches_convolution() {
 
 #[test]
 fn two_independent_attacks_match_research_03_no_hew_row() {
-    // Research 03 §7.2, "No Hew": mean 22.00, SD 8.64, from moments alone. The published
-    // figures are rounded to 0.01, so each is checked to within 0.005.
+    // Research 03 §7.2, "No Hew": mean 22.00, SD 8.64, from moments alone.
     let odds = AttackRoll {
         bonus: 7,
         ac: 16,
@@ -41,6 +40,6 @@ fn two_independent_attacks_match_research_03_no_hew_row() {
     let graze = Moments::point(4);
     let attack = Moments::mix(&[(odds.hit, hit), (odds.crit, crit), (odds.miss, graze)]);
     let round = attack.add_independent(attack);
-    assert!((round.mean() - 22.00).abs() <= 0.005, "{round:?}");
-    assert!((round.variance().sqrt() - 8.64).abs() <= 0.005, "{round:?}");
+    assert_rounds_to("mean", round.mean(), 22.00, 0.01);
+    assert_rounds_to("SD", round.variance().sqrt(), 8.64, 0.01);
 }

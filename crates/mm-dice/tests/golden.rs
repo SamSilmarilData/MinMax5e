@@ -11,7 +11,7 @@
 
 mod common;
 
-use common::assert_close;
+use common::{assert_close, assert_rounds_to};
 use mm_dice::{AcLanes, AttackRoll, Pmf, RollMode};
 
 const STR: i32 = 4;
@@ -100,14 +100,6 @@ impl Round {
         };
         Pmf::mix(&[(1.0, &no_crit), (1.0, &after_crit)])
     }
-}
-
-/// `got` rounds to `expected`, whose last stated digit is in the place of `unit`.
-fn assert_rounds_to(what: &str, got: f64, expected: f64, unit: f64) {
-    assert!(
-        (got - expected).abs() <= unit / 2.0,
-        "{what}: got {got}, expected {expected} to the nearest {unit}"
-    );
 }
 
 #[test]
