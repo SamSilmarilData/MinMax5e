@@ -8,9 +8,10 @@
 //!   `rename` or `alias` gives it, in either form, in a `#[serde(…)]` attribute or one inside
 //!   `#[cfg_attr(…)]`, since RON reads a pack in those names.
 //!
-//! A name and a term match when their letters and digits agree, ignoring case and
-//! everything else (spaces, hyphens, underscores, a raw identifier's `r#`), so `MasteryProperty`, `mastery-property` and "mastery property"
-//! match, as do `Dps` and "DPS", and `Level20Snapshot` and "level 20 snapshot".
+//! A name and a term match when their letters and digits agree, ignoring case and everything
+//! else (spaces, hyphens, underscores, a raw identifier's `r#`), so `MasteryProperty`,
+//! `mastery-property` and "mastery property" match, as do `Dps` and "DPS", and
+//! `Level20Snapshot` and "level 20 snapshot".
 //!
 //! Rust files are parsed with `syn`, so comments, strings, attributes and generics cannot hide
 //! a name. What the guard cannot read is a `parse` problem, never a silent pass: a Rust file
