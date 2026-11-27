@@ -10,7 +10,7 @@ mod common;
 
 use std::process::Command;
 
-use common::{TempTree, repo_root};
+use common::{TempTree, package_manifest, repo_root};
 
 /// Every `disallowed-methods` path in the repository's `clippy.toml`, so a new ban is
 /// tested as soon as it is added.
@@ -37,6 +37,31 @@ fn call(path: &str) -> String {
     format!("(x as {ty}).{method}({args})")
 }
 
+/// The bans issue #13 requires by name (`sqrt` was withdrawn by the ADR-0050 amendment).
+/// `clippy.toml` may ban more, never less.
+const REQUIRED: &[&str] = &[
+    "f64::mul_add",
+    "f64::powf",
+    "f64::powi",
+    "f64::exp",
+    "f64::ln",
+    "f64::log",
+    "f64::log2",
+    "f64::log10",
+    "f64::max",
+    "f64::min",
+];
+
+#[test]
+fn the_bans_the_spec_requires_are_all_present() {
+    let banned = banned_paths();
+    let missing: Vec<_> = REQUIRED
+        .iter()
+        .filter(|path| !banned.iter().any(|b| b == *path))
+        .collect();
+    assert!(missing.is_empty(), "clippy.toml no longer bans {missing:?}");
+}
+
 #[test]
 fn every_ban_covers_both_f32_and_f64() {
     let banned = banned_paths();
@@ -61,7 +86,7 @@ fn every_ban_covers_both_f32_and_f64() {
 fn clippy(tree: &TempTree, body: &str) -> std::process::Output {
     tree.write(
         "Cargo.toml",
-        "[package]\nname = \"banned\"\nversion = \"0.0.0\"\nedition = \"2024\"\npublish = false\n\n[workspace]\n",
+        package_manifest("banned", "publish = false\n\n[workspace]\n"),
     );
     tree.write(
         "src/lib.rs",

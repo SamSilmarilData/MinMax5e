@@ -72,6 +72,29 @@ fn an_exemption_without_a_reason_fails() {
 }
 
 #[test]
+fn an_exemption_that_allows_no_checks_fails() {
+    let tree = TempTree::git();
+    tree.track("a.json", "{}\n").track(
+        "xtask/leak-allow.toml",
+        "[[file]]\npath = \"a.json\"\nallow = []\nreason = \"r\"\n",
+    );
+    scan(&tree).assert_fails_with(&[
+        "[allowlist] the exemption for a.json allows no checks",
+        "a.json: [data-file]",
+    ]);
+}
+
+#[test]
+fn the_allowlist_check_itself_cannot_be_exempted() {
+    let tree = TempTree::git();
+    tree.track("a.json", "{}\n").track(
+        "xtask/leak-allow.toml",
+        "[[file]]\npath = \"a.json\"\nallow = [\"allowlist\"]\nreason = \"r\"\n",
+    );
+    scan(&tree).assert_fails_with(&["unknown check `allowlist`"]);
+}
+
+#[test]
 fn an_exemption_for_an_untracked_path_fails() {
     let tree = TempTree::git();
     tree.track("README.md", "hi\n").track(

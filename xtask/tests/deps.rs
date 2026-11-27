@@ -9,7 +9,7 @@ mod common;
 
 use std::fmt::Write as _;
 
-use common::{TempTree, xtask};
+use common::{MEMBER_FIELDS, TempTree, package_manifest, xtask};
 
 /// A temporary Cargo workspace whose crates declare the given dependencies.
 struct Workspace {
@@ -35,9 +35,7 @@ impl Workspace {
     /// Adds a crate at `crates/<name>` with path dependencies on other members
     /// and plain registry dependencies on anything else.
     fn krate(mut self, name: &str, deps: &[(&str, Kind)]) -> Self {
-        let mut manifest = format!(
-            "[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\npublish = false\nlicense = \"MIT\"\n"
-        );
+        let mut manifest = package_manifest(name, MEMBER_FIELDS);
         for (section, kind) in [
             ("dependencies", Kind::Normal),
             ("dev-dependencies", Kind::Dev),
@@ -306,7 +304,10 @@ fn renaming_mm_testkit_fails() {
     skeleton()
         .manifest(
             "mm-dice",
-            "[package]\nname = \"mm-dice\"\nversion = \"0.0.0\"\nedition = \"2024\"\npublish = false\nlicense = \"MIT\"\n\n[dev-dependencies]\nkit = { package = \"mm-testkit\", path = \"../mm-testkit\" }\n",
+            &package_manifest(
+                "mm-dice",
+                &format!("{MEMBER_FIELDS}\n[dev-dependencies]\nkit = {{ package = \"mm-testkit\", path = \"../mm-testkit\" }}\n"),
+            ),
         )
         .check()
         .assert_fails_with(&["mm-dice -> mm-testkit: [testkit]", "do not rename mm-testkit"]);
@@ -317,10 +318,13 @@ fn every_crate_is_unpublished_and_mit() {
     skeleton()
         .manifest(
             "mm-dice",
-            "[package]\nname = \"mm-dice\"\nversion = \"0.0.0\"\nedition = \"2024\"\nlicense = \"Apache-2.0\"\n",
+            &package_manifest("mm-dice", "license = \"Apache-2.0\"\n"),
         )
         .check()
-        .assert_fails_with(&["mm-dice: [package] must set `publish = false`", "mm-dice: [package] must use the MIT licence"]);
+        .assert_fails_with(&[
+            "mm-dice: [package] must set `publish = false`",
+            "mm-dice: [package] must use the MIT licence",
+        ]);
 }
 
 /// Every crate in the ADR-0034 table, so any edge between them resolves.

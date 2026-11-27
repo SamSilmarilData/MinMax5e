@@ -64,6 +64,15 @@ impl Drop for TempTree {
     }
 }
 
+/// A `[package]` section for a throwaway crate, followed by `rest` (more fields or sections).
+/// It is unpublished and MIT unless `rest` says otherwise.
+pub fn package_manifest(name: &str, rest: &str) -> String {
+    format!("[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n{rest}")
+}
+
+/// The usual workspace-member fields: unpublished and MIT.
+pub const MEMBER_FIELDS: &str = "publish = false\nlicense = \"MIT\"\n";
+
 /// The repository root: the parent of the xtask crate's directory.
 pub fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")

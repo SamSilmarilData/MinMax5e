@@ -11,6 +11,7 @@ status: accepted
 > - It reads **staged contents** from the git index, because that is what a commit records. The allowlist is read from the index too.
 > - **The allowlist is checked as well.** An exemption with no reason, with no checks, or for a path that is no longer tracked fails the scan.
 > - **A JSON fixture that carries the marker passes the data-file check,** because the marker is its proof of being synthetic. The marker must be a top-level field. Any other tracked JSON still needs an allowlist entry.
+> - **A fixture Content ID must carry its `|source`,** and the source must be `tst`. An ID without a source fails, because ADR-0008 makes the source part of the identity, and leaving it off would dodge the `tst` check.
 > - **Fixture files are RON or JSON** with the marker. Markdown notes about the fixtures are also allowed, and their Content IDs are still checked. Any other file type under `fixtures/` fails.
 > - **The `relaxed-simd` check also covers untracked files that git doesn't ignore,** so a local cargo config can't carry the feature either. It matches the hyphenated feature name only; prose about relaxed SIMD does not trip it.
 

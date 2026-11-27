@@ -4,40 +4,44 @@ use std::fmt;
 
 use crate::Outcome;
 
-/// One rule broken, at one place.
-#[derive(Debug)]
-pub struct Problem {
-    /// A path, `path:line`, or a dependency edge `from -> to`.
-    pub at: String,
-    /// The name of the check that failed.
-    pub check: &'static str,
-    pub message: String,
-}
+/// A guard's named checks. Each guard has its own enum of them.
+pub trait Check: Copy + fmt::Debug {
+    /// The name shown in reports (and, for the leak scan, used in the allowlist).
+    fn name(self) -> &'static str;
 
-impl Problem {
-    pub fn new(at: impl Into<String>, check: &'static str, message: impl Into<String>) -> Self {
-        Self {
+    /// A problem this check found at `at`.
+    fn problem(self, at: impl Into<String>, message: impl Into<String>) -> Problem<Self> {
+        Problem {
             at: at.into(),
-            check,
+            check: self,
             message: message.into(),
         }
     }
 }
 
-impl fmt::Display for Problem {
+/// One rule broken, at one place.
+#[derive(Debug)]
+pub struct Problem<C> {
+    /// A path, `path:line`, or a dependency edge `from -> to`.
+    pub at: String,
+    pub check: C,
+    pub message: String,
+}
+
+impl<C: Check> fmt::Display for Problem<C> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: [{}] {}", self.at, self.check, self.message)
+        write!(f, "{}: [{}] {}", self.at, self.check.name(), self.message)
     }
 }
 
 /// The problems a guard found, printed together when it finishes.
 #[derive(Debug)]
-pub struct Report {
+pub struct Report<C> {
     guard: &'static str,
-    problems: Vec<Problem>,
+    problems: Vec<Problem<C>>,
 }
 
-impl Report {
+impl<C: Check> Report<C> {
     pub fn new(guard: &'static str) -> Self {
         Self {
             guard,
@@ -45,7 +49,7 @@ impl Report {
         }
     }
 
-    pub fn push(&mut self, problem: Problem) {
+    pub fn push(&mut self, problem: Problem<C>) {
         self.problems.push(problem);
     }
 

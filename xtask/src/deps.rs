@@ -23,7 +23,7 @@ use anyhow::{Context, Result};
 use cargo_metadata::{Dependency, DependencyKind, MetadataCommand, Package};
 
 use crate::Outcome;
-use crate::report::{Problem, Report, at_line};
+use crate::report::{Check as _, Report, at_line};
 
 /// The checks `deps` runs; each names the problems it reports.
 #[derive(Debug, Clone, Copy)]
@@ -40,16 +40,15 @@ enum Check {
     Testkit,
 }
 
-impl Check {
-    fn problem(self, at: impl Into<String>, message: impl Into<String>) -> Problem {
-        let name = match self {
+impl crate::report::Check for Check {
+    fn name(self) -> &'static str {
+        match self {
             Check::Package => "package",
             Check::CrateTable => "crate-table",
             Check::AllowedDeps => "allowed-deps",
             Check::ThirdParty => "third-party",
             Check::Testkit => "testkit",
-        };
-        Problem::new(at, name, message)
+        }
     }
 }
 
@@ -95,6 +94,31 @@ struct CrateRule {
     role: Role,
     may_use: Vec<&'static str>,
     third_party: ThirdParty,
+}
+
+impl CrateRule {
+    /// Why this crate may not depend on the workspace crate `dep`, phrased by the rule broken.
+    fn refusal_of(&self, dep: &str) -> String {
+        match rule_for(dep).map(|r| r.role) {
+            Some(Role::Rules) => {
+                "only binaries and mm-testkit may depend on a rules crate (ADR-0034)".to_owned()
+            }
+            Some(Role::Host) => "only binaries may depend on mm-host (ADR-0034)".to_owned(),
+            Some(Role::Testkit) => {
+                "mm-testkit is used only as a dev-dependency, from integration tests (ADR-0034)"
+                    .to_owned()
+            }
+            Some(Role::Binary) => "nothing may depend on a binary (ADR-0034)".to_owned(),
+            Some(Role::Library) | None if self.may_use.is_empty() => {
+                format!("{} may depend on no workspace crate (ADR-0034)", self.name)
+            }
+            Some(Role::Library) | None => format!(
+                "{} may depend only on {} (ADR-0034)",
+                self.name,
+                self.may_use.join(", ")
+            ),
+        }
+    }
 }
 
 /// ADR-0034 as amended 2026-11-27, and the crate map in architecture §8.
@@ -215,7 +239,7 @@ pub fn run(manifest_path: &Path) -> Result<Outcome> {
 struct Checker<'a> {
     members: BTreeSet<&'a str>,
     root: &'a Path,
-    report: Report,
+    report: Report<Check>,
 }
 
 impl Checker<'_> {
@@ -276,7 +300,7 @@ impl Checker<'_> {
             return;
         }
         self.report
-            .push(Check::AllowedDeps.problem(edge, forbidden_reason(from, &dep.name)));
+            .push(Check::AllowedDeps.problem(edge, from.refusal_of(&dep.name)));
     }
 
     /// In a crate that depends on `mm-testkit`, no `.rs` file outside `tests/` may use it.
@@ -307,29 +331,6 @@ impl Checker<'_> {
             }
         }
         Ok(())
-    }
-}
-
-/// Why `from` may not depend on the workspace crate `dep`, phrased by the rule broken.
-fn forbidden_reason(from: &CrateRule, dep: &str) -> String {
-    match rule_for(dep).map(|r| r.role) {
-        Some(Role::Rules) => {
-            "only binaries and mm-testkit may depend on a rules crate (ADR-0034)".to_owned()
-        }
-        Some(Role::Host) => "only binaries may depend on mm-host (ADR-0034)".to_owned(),
-        Some(Role::Testkit) => {
-            "mm-testkit is used only as a dev-dependency, from integration tests (ADR-0034)"
-                .to_owned()
-        }
-        Some(Role::Binary) => "nothing may depend on a binary (ADR-0034)".to_owned(),
-        Some(Role::Library) | None if from.may_use.is_empty() => {
-            format!("{} may depend on no workspace crate (ADR-0034)", from.name)
-        }
-        Some(Role::Library) | None => format!(
-            "{} may depend only on {} (ADR-0034)",
-            from.name,
-            from.may_use.join(", ")
-        ),
     }
 }
 

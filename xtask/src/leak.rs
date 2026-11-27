@@ -25,16 +25,13 @@ use serde::Deserialize;
 
 use crate::Outcome;
 use crate::git::{RepoFile, tracked_files, untracked_files};
-use crate::report::{Problem, Report, at_line, lines};
+use crate::report::{Check as _, Problem, Report, at_line, lines};
 
 /// The check's name, assembled so this file does not match it.
 const RELAXED_SIMD: &str = concat!("relaxed", "-", "simd");
 
 /// Where the allowlist lives, relative to the scanned root.
 const ALLOWLIST: &str = "xtask/leak-allow.toml";
-
-/// The name allowlist problems are reported under. It is not a check, so it can't be exempted.
-const ALLOWLIST_CHECK: &str = "allowlist";
 
 /// The RON fixture marker: the whole first line.
 const RON_MARKER: &[u8] = b"// fixture: synthetic";
@@ -46,28 +43,29 @@ enum Check {
     DataFile,
     Fixture,
     RelaxedSimd,
+    /// A problem with the allowlist itself. Not in [`Check::EXEMPTABLE`], so no file
+    /// can be exempted from it.
+    Allowlist,
 }
 
 impl Check {
-    const ALL: [Check; 4] = [
+    /// The checks a file may be exempted from, by name, in the allowlist.
+    const EXEMPTABLE: [Check; 4] = [
         Check::TagMarkup,
         Check::DataFile,
         Check::Fixture,
         Check::RelaxedSimd,
     ];
+}
 
-    /// A problem this check found at `at`.
-    fn problem(self, at: impl Into<String>, message: impl Into<String>) -> Problem {
-        Problem::new(at, self.name(), message)
-    }
-
-    /// The name used in reports and in the allowlist.
+impl crate::report::Check for Check {
     fn name(self) -> &'static str {
         match self {
             Check::TagMarkup => "tag-markup",
             Check::DataFile => "data-file",
             Check::Fixture => "fixture",
             Check::RelaxedSimd => RELAXED_SIMD,
+            Check::Allowlist => "allowlist",
         }
     }
 }
@@ -76,11 +74,11 @@ impl TryFrom<String> for Check {
     type Error = String;
 
     fn try_from(name: String) -> Result<Self, Self::Error> {
-        Check::ALL
+        Check::EXEMPTABLE
             .into_iter()
             .find(|check| check.name() == name)
             .ok_or_else(|| {
-                let known: Vec<_> = Check::ALL.iter().map(|c| c.name()).collect();
+                let known: Vec<_> = Check::EXEMPTABLE.iter().map(|c| c.name()).collect();
                 format!(
                     "unknown check `{name}`; expected one of {}",
                     known.join(", ")
@@ -139,9 +137,7 @@ pub fn run(root: &Path) -> Result<Outcome> {
     for file in &files {
         let exempt = exemptions.get(file.path.as_str());
         for problem in scan_tracked(file, &patterns) {
-            let exempted = exempt
-                .is_some_and(|allowed| allowed.iter().any(|check| check.name() == problem.check));
-            if !exempted {
+            if !exempt.is_some_and(|allowed| allowed.contains(&problem.check)) {
                 report.push(problem);
             }
         }
@@ -164,7 +160,7 @@ pub fn run(root: &Path) -> Result<Outcome> {
 
 /// Reads the staged allowlist into path → allowed checks. Malformed entries are reported
 /// alongside everything else, not raised as errors.
-fn load_allowlist(files: &[RepoFile], report: &mut Report) -> Result<Exemptions> {
+fn load_allowlist(files: &[RepoFile], report: &mut Report<Check>) -> Result<Exemptions> {
     let mut exemptions = BTreeMap::new();
     let Some(allowlist) = files.iter().find(|f| f.path == ALLOWLIST) else {
         return Ok(exemptions);
@@ -175,9 +171,8 @@ fn load_allowlist(files: &[RepoFile], report: &mut Report) -> Result<Exemptions>
 
     for entry in list.file {
         let mut problem = |message: &str| {
-            report.push(Problem::new(
+            report.push(Check::Allowlist.problem(
                 ALLOWLIST,
-                ALLOWLIST_CHECK,
                 format!("the exemption for {} {message}", entry.path),
             ));
         };
@@ -198,7 +193,7 @@ fn load_allowlist(files: &[RepoFile], report: &mut Report) -> Result<Exemptions>
     Ok(exemptions)
 }
 
-fn scan_tracked(file: &RepoFile, patterns: &Patterns) -> Vec<Problem> {
+fn scan_tracked(file: &RepoFile, patterns: &Patterns) -> Vec<Problem<Check>> {
     let mut problems = scan_relaxed_simd(file, patterns);
     for (index, line) in lines(&file.contents) {
         if patterns.tag.is_match(line) {
@@ -228,7 +223,7 @@ fn scan_tracked(file: &RepoFile, patterns: &Patterns) -> Vec<Problem> {
     problems
 }
 
-fn scan_relaxed_simd(file: &RepoFile, patterns: &Patterns) -> Vec<Problem> {
+fn scan_relaxed_simd(file: &RepoFile, patterns: &Patterns) -> Vec<Problem<Check>> {
     lines(&file.contents)
         .filter(|(_, line)| patterns.relaxed_simd.is_match(line))
         .map(|(index, _)| {
@@ -246,7 +241,11 @@ fn json_marked(contents: &[u8]) -> bool {
         .is_ok_and(|doc| doc.get("_fixture").and_then(|v| v.as_str()) == Some("synthetic"))
 }
 
-fn scan_fixture(file: &RepoFile, extension: Option<&str>, patterns: &Patterns) -> Vec<Problem> {
+fn scan_fixture(
+    file: &RepoFile,
+    extension: Option<&str>,
+    patterns: &Patterns,
+) -> Vec<Problem<Check>> {
     let mut problems = Vec::new();
     let mut problem = |at: String, message: String| {
         problems.push(Check::Fixture.problem(at, message));
