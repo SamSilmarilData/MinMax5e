@@ -4,6 +4,12 @@ status: proposed
 
 # In the browser, the solver runs on a pool of Web Workers on stable Rust, not on WASM threads
 
+> *Amended 2026-11-27 (measurements, [research 13 §4](../research/13-tape-spike.md)):*
+>
+> - **Per-core cost:** WASM measured at **1.0–1.5× native** for the tape evaluator (wasmtime/Cranelift as a proxy; spike W2 confirms in browsers). SIMD128 adds about 8–10%.
+> - **Bit identity:** results are bit-identical to native.
+> - **Job planning:** the solver itself is a job plan (ADR-0050). Compute workers route jobs by shape affinity so each traces a Tape once. No shared memo is needed, because equal kits merge in the join (ADR-0049).
+
 **Layout in the browser:**
 
 - **Main thread:** the egui UI only (ADR-0043).

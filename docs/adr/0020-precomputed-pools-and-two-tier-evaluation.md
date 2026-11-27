@@ -4,6 +4,12 @@ status: proposed
 
 # Two-tier evaluation: live search where it fits, with an in-memory pool and a local disk cache
 
+> *Amended 2026-11-27 (ADR-0053, ADR-0048, ADR-0057):*
+>
+> - **Pool fill covers the full encounter grid** (16 ACs × advantage × resistance × every horizon), so rounds, advantage and resistance are **lookups**. The interactive worker handles only off-grid inputs.
+> - **The Adventuring Day Model is solved exactly** with resource canonicalisation (0.34 ms per kit for 12 rounds). Lagrangian λ-pricing (research 05 §3.3) was measured slower and keeps a 1–3% gap ([research 13 §2](../research/13-tape-spike.md)).
+> - **Background partitions use certified anytime search** (ADR-0057).
+
 > *Amended 2026-11-27 (web delivery, ADR-0043/0045):*
 >
 > - **Slider re-scores** go to the **interactive worker**, which holds the in-memory pool. They are a message round trip within one frame, and never queue behind a running solve.

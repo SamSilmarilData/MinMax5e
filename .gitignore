@@ -3,6 +3,8 @@
 
 # Rust
 /target/
+/spikes/*/target/
+/spikes/*/target-*/
 **/*.rs.bk
 
 # Rules data and anything derived from it: local only, never committed (ADR-0028)

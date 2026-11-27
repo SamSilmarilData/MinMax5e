@@ -1,0 +1,50 @@
+---
+status: proposed
+---
+
+# A Solve is a deterministic job plan; interchangeable executors run it, and only the final result is promised identical
+
+`mm-solver` has no threads, channels or clocks. It exposes four pure functions:
+
+- `plan(pack, query) -> JobPlan`, ordered by (bound descending, canonical key);
+- `run_job(ctx, job, hint) -> JobOut`;
+- `merge(acc, out, chunk_ix)`, called in chunk order;
+- `snapshot(acc)`.
+
+Jobs are serialisable data: join slices, Screen and PoolFill blocks for one Kit Shape, and Exact finalists. Three **executors** run the same plan:
+
+- `Inline`, for tests and oracles;
+- `Rayon`, for the native owner's build;
+- `WorkerPool`, for the web build (ADR-0045).
+
+Screen jobs are routed by shape affinity, so each worker traces a shape once. Affinity affects speed only. The branch-and-bound incumbent is a monotone **hint**: pruning is strict (`bound < hint`), so a stale hint prunes less but never prunes wrongly.
+
+**Determinism has two levels:**
+
+- **Outcome determinism (guaranteed):** a `Done` result is bit-identical for every executor, thread count and target. [measured: identical at 1–10 threads, and one result hash across native aarch64, `wasm32` and `wasm32`+`simd128`, research 13 §4]
+- **Trajectory determinism (not promised):** `BestSoFar` snapshots, progress counts and the state of a cancelled solve depend on scheduling. Tests compare `Done` results only, and the UI never presents an intermediate snapshot as final.
+
+This is stronger than Gurobi, which guarantees repeatability only on the same machine. It holds because scored values use only IEEE-754 basic operations. Rapier ships a WASM build that is deterministic across browsers on the same basis.
+
+**Rules for scored code, CI-enforced:**
+
+- no WASM `relaxed-simd` target feature (its FMA may round once or twice, depending on the host);
+- no `f64::mul_add`;
+- no transcendentals (`powf`, `exp`, `ln`);
+- no `f64::max`/`min` where NaN is possible;
+- no fast-math;
+- no parallel float sums (ADR-0037);
+- `+simd128` is allowed.
+
+**Budgets and performance gates count work, not time.** Beam budgets (ADR-0057) are counted in kits evaluated, like Gurobi's `WorkLimit`, so a budgeted result doesn't depend on the machine. CI performance gates use deterministic counters: tape nodes × lanes, kits screened, prune ratio. Wall-clock benchmarks are advisory and reported with confidence intervals, not best-of-N (Georges et al., OOPSLA 2007), because timings on the M5's mixed cores varied by up to about 1.8× (research 13).
+
+CI runs a **cross-target result hash**: a fixed synthetic job set must hash to the same value natively and under `wasm32-wasip1` with wasmtime.
+
+## Considered Options
+
+- **Solver-owned threading** (rayon inside `mm-solver`). Rejected: the web has no rayon without nightly Rust (ADR-0045), and the solver would need two code paths.
+- **Promising identical intermediate snapshots.** Rejected: that would force synchronous rounds and cost the parallel speed-up.
+- **Wall-clock budgets.** Rejected: the result would depend on the machine.
+- **Per-machine determinism only** (the Gurobi model). Rejected: Share Links (ADR-0020) must reproduce exactly in a friend's browser.
+
+Extends ADR-0037; ADR-0040 is unchanged. Research: [13](../research/13-tape-spike.md), [14](../research/14-prior-art-and-refinements.md), [15](../research/15-problems-ahead-and-methods.md), [09](../research/09-rust-engine-core.md) §5

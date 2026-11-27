@@ -278,3 +278,43 @@ _Avoid_: progression score, curve mode
 **Peak Target-Level Power**:
 The objective that ranks Builds only by their score at the chosen level.
 _Avoid_: level 20 snapshot
+
+## Evaluation engine
+
+**Kit Shape**:
+The structure of a Combat Kit that determines its rotation state graph (attack sources, Rider slots, resource declarations, swaps, the Rulings it reads), without its numbers.
+_Avoid_: template, archetype
+
+**Kit Params**:
+The numeric part of a Combat Kit (to-hit, damage-term moments, DCs), evaluated over a fixed Kit Shape.
+_Avoid_: stats
+
+**Tape**:
+The recorded rotation state graph of one Kit Shape. It is traced once, reduced, and then read in different algebras (moments, occupancy, distributions).
+_Avoid_: trace (the verb that makes it), bytecode
+
+**Lane**:
+One independent evaluation inside a Tape pass: one kit at one target AC.
+
+**Spend cap**:
+The most units of a resource that can be spent in one turn. Together with the turns remaining, it bounds which resource states can be told apart.
+
+**Factor class**:
+The set of values of one Build factor (species, origin, ability array, …) that project to the same kit contribution. Its members are DPR-neutral alternatives.
+_Avoid_: equivalence group
+
+**Occupancy**:
+The probability of reaching each state, and the expected number of uses of each damage term and resource, under a fixed Policy.
+_Avoid_: visit counts, heat map
+
+**Sensitivity**:
+The exact change in expected damage per unit change of one Kit Param, read from Occupancy.
+_Avoid_: stat weight, scale factor (those are SimulationCraft's simulated estimates)
+
+**Script rule**:
+The simplest play rule within the Combat Script tolerance of the optimal Policy, shown with its DPR cost.
+_Avoid_: priority list, APL
+
+**Optimality gap**:
+The certified bound on how far a Solve's best Build could be from the true optimum: 0 means proven optimal.
+_Avoid_: error, confidence

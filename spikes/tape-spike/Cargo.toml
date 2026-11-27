@@ -1,0 +1,15 @@
+[package]
+name = "tape-spike"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Standalone spike, not a workspace member (no workspace exists yet).
+[workspace]
+
+[dependencies]
+rustc-hash = "2"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"

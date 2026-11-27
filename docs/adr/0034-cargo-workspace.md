@@ -4,6 +4,16 @@ status: proposed
 
 # A Cargo workspace with UI-agnostic core crates and thin GUI and CLI shells
 
+> *Amended 2026-11-27 (ADR-0047–0052):*
+>
+> - **New crate `mm-host`:** native and web adapters for `Storage`, `Fetcher` and `Clock`, plus the WorkerPool executor. Only binaries depend on it.
+> - **New `xtask/`:** the dependency-graph check, the `dist/` check, the leak scan and the cross-target result hash.
+> - **New `spikes/`:** standalone measurement code, not workspace members.
+> - **`mm-core`** gains `ResourceDecl` and `Fp`.
+> - **`mm-engine`** gains the `trace`, `reduce`, `algebra` and `script` modules.
+> - **`mm-solver`** gains `factor`, `join`, `plan` and `job`.
+> - **`mm-app-core`** owns the protocol (ADR-0051) and the `Inline` and `Rayon` executors.
+
 > *Amended 2026-11-27 (ADR-0043, ADR-0045):*
 >
 > - `mm-gui` builds for both native and `wasm32`.

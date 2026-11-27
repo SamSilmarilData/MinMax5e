@@ -4,6 +4,8 @@ status: proposed
 
 # Ambiguous rules become named, versioned Rulings, and every result records which Rulings it used
 
+> *Amended 2026-11-27 (ADR-0052):* fingerprints include only the Rulings that a kit's compile or trace actually read. So "how much DPR flipping this Ruling changes" re-scores only the pool entries that depend on that Ruling, not the whole Solve. Each disputed Ruling also gets a test scenario asserting the DPR delta between its options (ADR-0056).
+
 Every ambiguous or disputed mechanic becomes a **Ruling** with:
 
 - a stable id (e.g. `R-NICK-WEAPON`);
