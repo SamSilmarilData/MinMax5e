@@ -13,6 +13,7 @@ A personal build solver for 5th-edition TTRPG characters (Rust, egui). It runs a
 
 - **Each ticket gets its own branch** (`<issue>-<slug>`), pushed early so CI runs on it. Reviews compare against `main`.
 - **Repo guards:** `cargo xtask deps`, `cargo xtask leak-scan` (exemptions in `xtask/leak-allow.toml`), `cargo xtask adr-check` and `cargo xtask xhash` (needs wasmtime; the hashed Builds are in `xtask/xhash.toml`). CI runs them with fmt, clippy, tests, the wasm32 check and `cargo deny`; `xhash` runs on macOS only.
+- **Keep the issues current.** As work lands, comment on every issue it affects: the ticket's own issue (what was built, and any deviation, as `CODING_STANDARDS.md` requires), the parent spec (progress on its gates), and any open ticket that now has to do something differently.
 - **Reviews** use `CODING_STANDARDS.md`. The loop ends on a clean round: one that reviewed the latest commit and found no standards breaches and no spec gaps. A fix commit always gets a fresh round, except one that only corrects comments or docs a clean round flagged; smells alone don't call for one.
 
 ## Agent skills
