@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Rust
+/target/
+**/*.rs.bk
+
+# Rules data and anything derived from it: local only, never committed (ADR-0028)
+/.cache/
+/data/upstream/
+*.pack
+*.postcard
+*.rkyv
+**/5etools*/
+
+# Local tool settings
+.claude/settings.local.json
