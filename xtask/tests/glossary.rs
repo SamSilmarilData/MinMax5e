@@ -166,30 +166,17 @@ fn every_serde_name_form_is_read() {
 #[test]
 fn names_match_terms_whatever_their_case_and_separators() {
     let cases = [
-        (
-            "src/effect.rs",
-            "pub enum Encoding {\n    OffHandAttack,\n}\n",
-            "\"OffHandAttack\"",
-        ),
-        (
-            "src/effect.rs",
-            "pub enum Encoding {\n    Dps,\n}\n",
-            "\"Dps\"",
-        ),
-        (
-            "src/effect.rs",
-            "pub enum Encoding {\n    Level20Snapshot,\n}\n",
-            "\"Level20Snapshot\"",
-        ),
-        (
-            "src/effect.rs",
-            "pub enum Encoding {\n    #[serde(rename = \"DPS\")]\n    Damage,\n}\n",
-            "\"DPS\"",
-        ),
+        ("OffHandAttack", "\"OffHandAttack\""),
+        ("Dps", "\"Dps\""),
+        ("Level20Snapshot", "\"Level20Snapshot\""),
+        ("#[serde(rename = \"DPS\")]\n    Damage", "\"DPS\""),
     ];
-    for (path, text, needle) in cases {
+    for (variant, needle) in cases {
         let tree = tree_with_glossary();
-        tree.track(path, text);
+        tree.track(
+            "src/effect.rs",
+            format!("pub enum Encoding {{\n    {variant},\n}}\n"),
+        );
         check(&tree).assert_fails_with(&["[variant]", needle]);
     }
     let tree = tree_with_glossary();
@@ -218,6 +205,29 @@ fn a_kind_trait_imported_under_another_name_is_read() {
 }
 
 #[test]
+fn raw_identifiers_are_read_as_their_names() {
+    let tree = tree_with_glossary();
+    tree.track(
+        "src/records.rs",
+        "pub enum r#Record {\n    r#Mastery,\n}\n\nimpl r#Kind for T {\n    const r#NAME: &str = \"weapon-trait\";\n}\n",
+    );
+    check(&tree).assert_fails_with(&[
+        "src/records.rs:2: [variant] the variant \"Mastery\"",
+        "src/records.rs:6: [kind-name] the kind \"weapon-trait\"",
+    ]);
+}
+
+#[test]
+fn only_kind_impls_give_kind_names() {
+    let tree = tree_with_glossary();
+    tree.track(
+        "src/lens.rs",
+        "impl Lens for X {\n    const NAME: &str = \"mastery\";\n}\n\nimpl Other for Y {\n    const NAME: u8 = 1;\n}\n",
+    );
+    check(&tree).assert_ok();
+}
+
+#[test]
 fn a_name_the_guard_cannot_read_fails() {
     let tree = tree_with_glossary();
     tree.track(
@@ -229,7 +239,7 @@ fn a_name_the_guard_cannot_read_fails() {
         "pub enum Record {\n    #[serde(rename = 3)]\n    A,\n}\n",
     );
     check(&tree).assert_fails_with(&[
-        "src/kind.rs:2: [parse] cannot check a `const NAME` that is not a string literal",
+        "src/kind.rs:2: [parse] cannot check a Kind::NAME that is not a string literal",
         "src/records.rs:2: [parse] cannot check the serde attribute on A",
     ]);
 }

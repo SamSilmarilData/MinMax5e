@@ -2,19 +2,19 @@
 //!
 //! The names checked, against every term on an `_Avoid_:` line of the staged GLOSSARY.md:
 //! - `kind`: the `<kind>` segment of a Content ID (`<ruleset>:<kind>/…`) in any file;
-//! - `kind-name`: the string literal a `const NAME` in a Rust trait impl gives: the `Kind`
-//!   impls, under whatever name the trait is imported as;
+//! - `kind-name`: the string literal `const NAME` gives in a Rust `impl Kind for …`, the trait
+//!   named as `Kind` or as a `use … Kind as …` rename in the same file;
 //! - `variant`: a variant of a Rust `enum Record` or `enum Encoding`, and every string a
 //!   `rename` or `alias` gives it, in either form, in a `#[serde(…)]` attribute or one inside
 //!   `#[cfg_attr(…)]`, since RON reads a pack in those names.
 //!
-//! A name and a term match when their letters and digits agree, ignoring case, spaces,
-//! hyphens and underscores, so `MasteryProperty`, `mastery-property` and "mastery property"
+//! A name and a term match when their letters and digits agree, ignoring case and
+//! everything else (spaces, hyphens, underscores, a raw identifier's `r#`), so `MasteryProperty`, `mastery-property` and "mastery property"
 //! match, as do `Dps` and "DPS", and `Level20Snapshot` and "level 20 snapshot".
 //!
 //! Rust files are parsed with `syn`, so comments, strings, attributes and generics cannot hide
 //! a name. What the guard cannot read is a `parse` problem, never a silent pass: a Rust file
-//! that does not parse, a `const NAME` in a trait impl that is not a string literal, or a serde
+//! that does not parse, a `Kind` impl's `const NAME` that is not a string literal, or a serde
 //! attribute on a content variant that does not parse. Items a macro generates are not seen;
 //! today every `Kind` impl is written out, and a repository test fails if fewer are found.
 //!
@@ -29,6 +29,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use regex::Regex;
+use syn::ext::IdentExt as _;
 use syn::punctuated::Punctuated;
 use syn::visit::Visit;
 
@@ -45,11 +46,14 @@ const RESEARCH_DIR: &str = "docs/research/";
 /// The enums whose variant names a pack's RON is written in.
 const CONTENT_ENUMS: [&str; 2] = ["Record", "Encoding"];
 
+/// The trait whose `NAME` is a Content ID kind.
+const KIND_TRAIT: &str = "Kind";
+
 #[derive(Debug, Clone, Copy)]
 enum Check {
     /// A Content ID kind.
     Kind,
-    /// A `const NAME` in a trait impl.
+    /// A `Kind` impl's `const NAME`.
     KindName,
     /// A content enum variant, or a serde name on it.
     Variant,
@@ -200,9 +204,11 @@ pub fn run(root: &Path) -> Result<Outcome> {
 
 /// What a name and a term are compared by: their letters and digits, lowercase.
 fn key(name: &str) -> String {
-    name.chars()
-        .filter(char::is_ascii_alphanumeric)
-        .map(|c| c.to_ascii_lowercase())
+    name.strip_prefix("r#")
+        .unwrap_or(name)
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
         .collect()
 }
 
@@ -223,21 +229,40 @@ fn content_id_kinds(content_id: &Regex, text: &str) -> Vec<Found> {
         .collect()
 }
 
-/// Every `const NAME` in a trait impl and content enum variant in Rust `text`, and what
-/// could not be read.
+/// Every `Kind::NAME` and content enum variant in Rust `text`, and what could not be read.
 #[derive(Debug, Default)]
 struct RustNames {
+    /// The names `Kind` goes by in this file: itself, and any `use … Kind as …` rename.
+    kind_trait: Vec<String>,
     found: Vec<Found>,
     unreadable: Vec<Unreadable>,
 }
 
 fn rust_names(text: &str) -> RustNames {
-    let mut names = RustNames::default();
+    let mut names = RustNames {
+        kind_trait: vec![KIND_TRAIT.to_owned()],
+        ..RustNames::default()
+    };
     match syn::parse_file(text) {
-        Ok(file) => names.visit_file(&file),
+        Ok(file) => {
+            let mut renames = KindRenames(&mut names.kind_trait);
+            renames.visit_file(&file);
+            names.visit_file(&file);
+        }
         Err(err) => names.unreadable(err.span(), &format!("cannot parse the file: {err}")),
     }
     names
+}
+
+/// Collects the names a file imports `Kind` under, before any impl is read.
+struct KindRenames<'a>(&'a mut Vec<String>);
+
+impl<'ast> Visit<'ast> for KindRenames<'_> {
+    fn visit_use_rename(&mut self, rename: &'ast syn::UseRename) {
+        if rename.ident.unraw() == KIND_TRAIT {
+            self.0.push(rename.rename.unraw().to_string());
+        }
+    }
 }
 
 /// The line index of a span's start.
@@ -264,12 +289,17 @@ impl RustNames {
 
 impl<'ast> Visit<'ast> for RustNames {
     fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
-        if item.trait_.is_some() {
+        let is_kind = item
+            .trait_
+            .as_ref()
+            .and_then(|(_, path, _)| path.segments.last())
+            .is_some_and(|segment| self.kind_trait.iter().any(|k| segment.ident.unraw() == k));
+        if is_kind {
             for member in &item.items {
                 let syn::ImplItem::Const(constant) = member else {
                     continue;
                 };
-                if constant.ident != "NAME" {
+                if constant.ident.unraw() != "NAME" {
                     continue;
                 }
                 match &constant.expr {
@@ -279,7 +309,7 @@ impl<'ast> Visit<'ast> for RustNames {
                     }) => self.push(name.span(), Named::KindName, name.value()),
                     _ => self.unreadable(
                         constant.ident.span(),
-                        "cannot check a `const NAME` that is not a string literal",
+                        "cannot check a Kind::NAME that is not a string literal",
                     ),
                 }
             }
@@ -288,12 +318,12 @@ impl<'ast> Visit<'ast> for RustNames {
     }
 
     fn visit_item_enum(&mut self, item: &'ast syn::ItemEnum) {
-        if CONTENT_ENUMS.iter().any(|name| item.ident == name) {
+        if CONTENT_ENUMS.iter().any(|name| item.ident.unraw() == name) {
             for variant in &item.variants {
                 self.push(
                     variant.ident.span(),
                     Named::Variant,
-                    variant.ident.to_string(),
+                    variant.ident.unraw().to_string(),
                 );
                 for attr in &variant.attrs {
                     match serde_names(&attr.meta) {
@@ -332,16 +362,16 @@ fn serde_names(meta: &syn::Meta) -> syn::Result<Vec<syn::LitStr>> {
         }
     } else if meta.path().is_ident("serde") {
         meta.require_list()?.parse_nested_meta(|entry| {
-            let names_it = entry.path.is_ident("rename") || entry.path.is_ident("alias");
+            let gives_name = entry.path.is_ident("rename") || entry.path.is_ident("alias");
             if entry.input.peek(syn::Token![=]) {
                 let value = entry.value()?;
-                if names_it {
+                if gives_name {
                     names.push(value.parse()?);
                 } else {
                     let _: syn::Expr = value.parse()?;
                 }
             } else if entry.input.peek(syn::token::Paren) {
-                if names_it {
+                if gives_name {
                     entry.parse_nested_meta(|side| {
                         names.push(side.value()?.parse()?);
                         Ok(())
