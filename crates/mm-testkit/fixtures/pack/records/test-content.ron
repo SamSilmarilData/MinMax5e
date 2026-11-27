@@ -1,0 +1,15 @@
+// fixture: synthetic
+// Resolved records in the shape mm-import will produce (architecture §8): what an item
+// or class *is*. Mechanics live in ../encodings/.
+[
+    Class((
+        id: "2024:class/test-warrior|tst",
+        name: "Test Warrior",
+    )),
+    Weapon((
+        id: "2024:item/test-greatblade|tst",
+        name: "Test Greatblade",
+        damage: (count: 2, sides: 6),
+        properties: [Heavy, TwoHanded],
+    )),
+]

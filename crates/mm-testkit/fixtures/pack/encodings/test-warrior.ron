@@ -1,0 +1,7 @@
+// fixture: synthetic
+// The synthetic warrior's mechanics. Level 1 grants nothing beyond the Attack action;
+// Extra Attack, Weapon Mastery and the style arrive with #18.
+Class((
+    class: "2024:class/test-warrior|tst",
+    features: [],
+))

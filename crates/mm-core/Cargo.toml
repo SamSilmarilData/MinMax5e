@@ -1,0 +1,17 @@
+[package]
+name = "mm-core"
+version = "0.0.0"
+description = "The shared vocabulary: Rulesets, Content IDs, the Effect DSL, records, Builds and fingerprints."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# serde, thiserror and blake3 only (ADR-0034 as amended; `cargo xtask deps`).
+[dependencies]
+blake3.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
