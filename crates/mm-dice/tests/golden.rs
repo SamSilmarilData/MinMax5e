@@ -9,10 +9,8 @@
 //! The published figures are rounded, so each is checked to within half a unit of its
 //! last stated digit.
 
-mod common;
-
-use common::{assert_close, assert_rounds_to};
 use mm_dice::{AcLanes, AttackRoll, Pmf, RollMode};
+use mm_testkit::tolerance::{assert_close, assert_rounds_to};
 
 const STR: i32 = 4;
 const PB: i32 = 3;

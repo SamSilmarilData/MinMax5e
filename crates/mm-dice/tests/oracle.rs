@@ -1,11 +1,9 @@
 //! `mm-dice` against exact `BigRational` arithmetic (ADR-0023, spec #12): generated dice and
 //! attacks give the same distribution, statistics and moments to within 1e-12 relative.
 
-mod common;
-
-use common::RELATIVE;
 use mm_dice::{AttackRoll, Moments, Pmf, RollMode};
 use mm_testkit::rational::{ExactPmf, Ratio, exact_odds, within_relative};
+use mm_testkit::tolerance::RELATIVE;
 use proptest::prelude::*;
 
 /// The quantiles the Reliability Band reads, and a few more.

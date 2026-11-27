@@ -1,9 +1,7 @@
 //! Moments (E and E²) without the full distribution.
 
-mod common;
-
-use common::{assert_close, assert_rounds_to};
 use mm_dice::{AttackRoll, Moments, Pmf, RollMode};
+use mm_testkit::tolerance::{assert_close, assert_rounds_to};
 
 #[test]
 fn moments_of_a_die_are_its_mean_and_second_moment() {

@@ -3,11 +3,8 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+use mm_testkit::tolerance::assert_close;
 use serde::Deserialize;
-
-/// The bound spec #12 sets for float results against exact arithmetic (as in `mm-dice`'s
-/// tests). The hand-derived values below are exact fractions, so it applies to them.
-const RELATIVE: f64 = 1e-12;
 
 fn fixture(path: &str) -> PathBuf {
     mm_testkit::fixtures::dir().join(path)
@@ -82,14 +79,7 @@ fn evaluation(output: &Output) -> Evaluation {
     ron::from_str(&stdout_of(output)).expect("the RON output is an Evaluation")
 }
 
-#[track_caller]
-fn assert_close(what: &str, got: f64, expected: f64) {
-    assert!(
-        (got - expected).abs() <= RELATIVE * expected.abs(),
-        "{what}: got {got}, expected {expected}"
-    );
-}
-
+// Exact fractions, so `assert_close` (spec #12's 1e-12 relative bound) applies.
 // By hand, for the level-1 warrior (one 2d6 + 3 attack at +5) against AC 16:
 // it needs an 11, so miss 10/20, hit 9/20, crit 1/20. A hit deals 2d6 + 3 (mean 10,
 // E[X²] = 35/6 + 100 = 635/6); a crit doubles the dice, 4d6 + 3 (mean 17,
@@ -110,12 +100,8 @@ fn evaluate_matches_the_hand_derived_nova_dpr_and_sd_at_ac_16() {
         .iter()
         .find(|lane| lane.ac == 16)
         .expect("an AC 16 lane");
-    assert_close("DPR", lane.dpr, WARRIOR_1_DPR_AC16);
-    assert_close(
-        "SD",
-        lane.sd,
-        (2.0 * WARRIOR_1_VAR_PER_ROUND_AC16).sqrt() / 2.0,
-    );
+    assert_close(lane.dpr, WARRIOR_1_DPR_AC16);
+    assert_close(lane.sd, (2.0 * WARRIOR_1_VAR_PER_ROUND_AC16).sqrt() / 2.0);
     let acs: Vec<i32> = evaluation.nova.lanes.iter().map(|lane| lane.ac).collect();
     assert_eq!(acs, (10..=25).collect::<Vec<_>>(), "one lane per AC 10–25");
 }

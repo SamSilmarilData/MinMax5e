@@ -62,6 +62,8 @@ The repo guards, which CI also runs on every push:
 | `cargo xtask adr-check` | Accepted ADRs change only by dated amendment, compared with `main` |
 | `cargo deny check` | Advisories, licences and banned crates (needs [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)) |
 
+Snapshot tests use [insta](https://insta.rs). After a deliberate change in output, `INSTA_UPDATE=always cargo test` rewrites the snapshots in place. Review them with `git diff`; `cargo-insta` isn't needed.
+
 ### Planned architecture
 
 ```
