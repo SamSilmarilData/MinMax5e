@@ -459,7 +459,7 @@ crates/
   mm-testkit      synthetic fixtures ★, TestRules ★, Rational + Sample oracles, proptest strategies,
                   metamorphic relations (used only from integration tests)
 xtask/ ★          dep-graph check (ADR-0034 via cargo metadata), dist/ content check, leak scan,
-                  cross-target result hash (native vs wasm32-wasip1 under wasmtime)
+                  glossary check of content kind names, cross-target result hash (native vs wasm32-wasip1 under wasmtime)
 spikes/ ★         standalone measurement code (tape-spike), not workspace members
 data/rules-2024/**.ron, data/rules-2014/**.ron
 web/              index.html, manifest, service worker, _headers, gate Worker (JS), wrangler.jsonc
@@ -577,14 +577,12 @@ Locked 2026-11-27. The tape spike is **frozen** as evidence, not promoted: the c
 
 **Crates:** `mm-dice`, `mm-core`, `mm-load`, `mm-engine`, `mm-rules-2024` (economy and `ResourceDecl`s only), `mm-testkit`, `mm-cli`, `xtask`. No hook machinery yet (ADR-0036 is implemented with the first encoding that needs it).
 
-**Synthetic content** (source `tst`, in `crates/mm-testkit/fixtures/`):
+**Synthetic content** (source `tst`, in `crates/mm-testkit/fixtures/`) must express the following, as requirements, built or not. Which fixtures are built, and what each holds, is listed only in [the fixtures README](../crates/mm-testkit/fixtures/README.md), by directory: `pack/`, `malformed/` and `builds/`.
 
-- one species, background and Origin feat with no combat effect, so a Build is complete;
-- `test-warrior`: Extra Attack and Weapon Mastery; its fighting style is the feat `test-great-style`, which counts 1s and 2s as 3 (#18);
-- `test-crusader`: half-caster slots, Extra Attack, and the optional `test-smite` Rider (Bonus Action, one slot, once per turn, dice doubled on a crit);
-- `test-heavy-hitter`: +PB on Attack-action hits with a Heavy weapon, and a crit-gated Bonus Action attack;
-- `test-greatblade` (2d6, Heavy, the Graze-like mastery property `test-graze`) and `test-sideblade` (1d6, Light, Vex-like mastery property);
-- for research 03 §7.2's variants (#18): `test-plainblade`, the greatblade with no mastery property, and `test-heavy-striker`, `test-heavy-hitter` without the crit-gated attack;
+- a complete Build: a species, background and Origin feat with no combat effect;
+- research 03 §7.2's level-5 warrior: Extra Attack, Weapon Mastery, a style that counts 1s and 2s as 3, a 2d6 Heavy weapon with a Graze-like mastery property, and a heavy-weapon feat (+PB on Attack-action hits with a Heavy weapon, and a crit-gated Bonus Action attack), with a Build per row of the note's variant table;
+- a half-caster crusader with Extra Attack and an optional smite Rider (Bonus Action, one slot, once per turn, dice doubled on a crit);
+- a 1d6 Light weapon with a Vex-like mastery property;
 - one Ruling, `R-TST-HEW-BONUS`: whether the crit-gated attack gets the +PB.
 
 The level-5 warrior reproduces research 03 §7.2 end to end; the crusader mirrors the spike's smite model.
@@ -593,7 +591,7 @@ The level-5 warrior reproduces research 03 §7.2 end to end; the crusader mirror
 
 **CLI:** `mm-cli evaluate <build.ron> [--assumptions] [--ac] [--hp] [--nova-rounds] [--mode nova|sustained|both] [--rulings] [--pack-dir]… [--format text|ron]` and `mm-cli validate-packs`. `compile` already emits `(KitShape, KitParams)` with `ShapeKey`/`ParamsFp` over the Rulings read, so the tape drops in behind the same call at step 4.
 
-**Done** when CI is green (fmt, clippy, tests, the wasm32 check, `xtask deps`, `xtask leak-scan`, `cargo deny`, `xtask xhash`) and these pass:
+**Done** when CI is green (fmt, clippy, tests, the wasm32 check, `xtask deps`, `xtask leak-scan`, `xtask glossary`, `cargo deny`, `xtask xhash`) and these pass:
 
 1. golden: research 03 §7.2's mean, SD, percentiles and variant table, first in `mm-dice` alone, then through the pipeline;
 2. `mm-dice` against BigRational to within 1e-12 relative;

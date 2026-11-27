@@ -1,7 +1,7 @@
 [package]
 name = "xtask"
 version = "0.0.0"
-description = "Repository guards: the crate dependency rules, the leak scan, ADR immutability and the cross-target result hash (ADR-0028, ADR-0034, ADR-0050)."
+description = "Repository guards: the crate dependency rules, the leak scan, the glossary check, ADR immutability and the cross-target result hash (ADR-0028, ADR-0034, ADR-0050)."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -15,6 +15,9 @@ clap.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+syn.workspace = true
+# Line numbers for syn's spans outside a proc macro, for the glossary guard.
+proc-macro2 = { workspace = true, features = ["span-locations"] }
 toml.workspace = true
 
 [lints]

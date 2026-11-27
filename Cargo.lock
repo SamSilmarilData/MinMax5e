@@ -998,9 +998,11 @@ dependencies = [
  "blake3",
  "cargo_metadata",
  "clap",
+ "proc-macro2",
  "regex",
  "serde",
  "serde_json",
+ "syn 2.0.119",
  "toml",
 ]
 

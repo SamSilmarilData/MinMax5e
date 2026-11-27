@@ -78,8 +78,11 @@ The repo guards, which CI also runs on every push:
 | `cargo xtask deps` | The crate dependency rules of [ADR-0034](docs/adr/0034-cargo-workspace.md), against `cargo metadata` |
 | `cargo xtask leak-scan` | No upstream rules data in tracked files ([ADR-0028](docs/adr/0028-no-upstream-bytes-in-public-repo.md)). Exemptions, each with a reason, live in `xtask/leak-allow.toml` |
 | `cargo xtask adr-check` | Accepted ADRs change only by dated amendment, compared with `main` |
+| `cargo xtask glossary` | No content kind name (Content ID kind, `Kind::NAME`, `Record` or `Encoding` variant) is a term [`GLOSSARY.md`](GLOSSARY.md) says to avoid |
 | `cargo xtask xhash` | Evaluation gives the same bits natively and in WebAssembly ([ADR-0050](docs/adr/0050-solve-as-deterministic-job-plan.md)). Needs [wasmtime](https://wasmtime.dev) on PATH; CI runs it on macOS. The hashed fixture Builds are listed in `xtask/xhash.toml`, which says how to add one |
 | `cargo deny check` | Advisories, licences and banned crates (needs [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)) |
+
+The `leak-scan` and `glossary` guards read tracked files' staged contents, as a commit records them: stage a change (`git add`) before running them. (The leak scan's check for the banned WASM target feature also reads untracked files.) The other guards read the working tree.
 
 `cargo test --workspace` runs the tests. The `xhash` process tests build two targets and need wasmtime, so they are ignored by default; run them with `cargo test -p xtask --test xhash -- --ignored`.
 

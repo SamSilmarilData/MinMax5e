@@ -16,7 +16,8 @@ Invented content for tests and the CLI (ADR-0028). Every RON file starts with th
   `mm-cli validate-packs`: an unknown Content ID, a wrong Ruleset prefix, a misspelled
   DSL variant, a missing citation, a record with no encoding, and a weapon naming an
   unknown mastery property.
-- `builds/`: Build files. `warrior-5` is research 03 §7.2's level-5 warrior, and each
+- `builds/`: Build files. `warrior-1` is #15's level-1 warrior, wielding the plainblade.
+  `warrior-5` is research 03 §7.2's level-5 warrior, and each
   `warrior-5-no-*` drops one component for the note's variant table. Each Build is
   listed in `xtask/xhash.toml`, the set `cargo xtask xhash` checks for
   native/WebAssembly bit identity (ADR-0050); a test fails until a new Build is added
