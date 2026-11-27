@@ -62,7 +62,7 @@ fn an_avoided_term_as_a_kind_name_in_rust_fails() {
         "src/kind.rs",
         "impl Kind for A {\n    const NAME: &'static str = \"class\";\n}\n\nimpl crate::Kind for T {\n    const NAME: &str =\n        \"weapon-trait\";\n}\n",
     );
-    check(&tree).assert_fails_with(&["src/kind.rs:7", "[kind] the kind \"weapon-trait\""]);
+    check(&tree).assert_fails_with(&["src/kind.rs:7", "[kind-name] the kind \"weapon-trait\""]);
 }
 
 #[test]
@@ -137,6 +137,47 @@ fn a_serde_rename_is_the_name_ron_sees() {
         "pub enum Record {\n    #[serde(rename = \"mastery\")]\n    MasteryProperty,\n}\n",
     );
     check(&tree).assert_fails_with(&["src/records.rs:2", "[variant] the variant \"mastery\""]);
+}
+
+#[test]
+fn every_serde_name_form_is_read() {
+    let attrs = [
+        "#[serde(rename = \"mastery\")]",
+        "#[serde(bound(serialize = \"T: X\"), rename = \"mastery\")]",
+        "#[serde(rename(serialize = \"plain\", deserialize = \"mastery\"))]",
+        "#[serde(alias = \"mastery\")]",
+        "#[serde(default)] #[serde(skip_serializing_if = \"x\", alias = \"mastery\")]",
+    ];
+    for attr in attrs {
+        let tree = tree_with_glossary();
+        tree.track(
+            "src/records.rs",
+            format!("pub enum Record {{\n    {attr}\n    MasteryProperty,\n}}\n"),
+        );
+        let run = check(&tree);
+        assert!(
+            run.stdout().contains("[variant] the variant \"mastery\""),
+            "{attr:?} hid the name\n{}",
+            run.stdout()
+        );
+    }
+}
+
+#[test]
+fn a_name_the_guard_cannot_read_fails() {
+    let tree = tree_with_glossary();
+    tree.track(
+        "src/kind.rs",
+        "impl Kind for T {\n    const NAME: &str = OTHER;\n}\n",
+    )
+    .track(
+        "src/records.rs",
+        "pub enum Record {\n    #[serde(rename = 3)]\n    A,\n}\n",
+    );
+    check(&tree).assert_fails_with(&[
+        "src/kind.rs:2: [parse] cannot check a Kind::NAME that is not a string literal",
+        "src/records.rs:2: [parse] cannot check the serde attribute on A",
+    ]);
 }
 
 #[test]

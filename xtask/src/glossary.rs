@@ -2,14 +2,17 @@
 //!
 //! The names checked, each read as lowercase words, against every term on an `_Avoid_:`
 //! line of the staged GLOSSARY.md:
-//! - `kind`: the `<kind>` segment of a Content ID (`<ruleset>:<kind>/…`) in any file, and the
-//!   string a Rust `impl Kind for … { const NAME … }` gives, hyphens read as spaces;
+//! - `kind`: the `<kind>` segment of a Content ID (`<ruleset>:<kind>/…`) in any file, hyphens
+//!   read as spaces;
+//! - `kind-name`: the string literal a Rust `impl Kind for … { const NAME … }` gives;
 //! - `variant`: a variant of a Rust `enum Record` or `enum Encoding`, split at its capitals
-//!   (`MasteryProperty` is "mastery property"), and the string a `#[serde(rename = "…")]` on
-//!   it gives, since a pack's RON is written in those names.
+//!   (`MasteryProperty` is "mastery property"), and every string a `#[serde(rename …)]` or
+//!   `#[serde(alias …)]` on it gives, in either form, since RON reads a pack in those names.
 //!
 //! Rust files are parsed with `syn`, so comments, strings, attributes and generics cannot hide
-//! a name; a file that does not parse is a `parse` problem rather than a silent pass.
+//! a name. What the guard cannot read is a `parse` problem, never a silent pass: a Rust file
+//! that does not parse, a `Kind::NAME` that is not a string literal, or a serde attribute on a
+//! content variant that does not parse.
 //!
 //! Prose and other identifiers are left to review: the avoid lists hold common words
 //! ("source", "version"), and terms one entry avoids that another defines ("corpus", "errata"),
@@ -55,9 +58,21 @@ enum Check {
 impl crate::report::Check for Check {
     fn name(self) -> &'static str {
         match self {
-            Check::Kind | Check::KindName => "kind",
+            Check::Kind => "kind",
+            Check::KindName => "kind-name",
             Check::Variant => "variant",
             Check::Parse => "parse",
+        }
+    }
+}
+
+impl Check {
+    /// What a name this check reads is, in a report.
+    fn noun(self) -> &'static str {
+        match self {
+            Check::Kind | Check::KindName => "kind",
+            Check::Variant => "variant",
+            Check::Parse => "name",
         }
     }
 }
@@ -101,6 +116,17 @@ struct Counts {
     variants: usize,
 }
 
+impl Counts {
+    fn add(&mut self, check: Check) {
+        match check {
+            Check::Kind => self.kinds += 1,
+            Check::KindName => self.kind_names += 1,
+            Check::Variant => self.variants += 1,
+            Check::Parse => {}
+        }
+    }
+}
+
 pub fn run(root: &Path) -> Result<Outcome> {
     let files = tracked_files(root)?;
     let glossary = files
@@ -130,18 +156,20 @@ pub fn run(root: &Path) -> Result<Outcome> {
             }
         }
         for name in found {
-            match name.check {
-                Check::Kind => counts.kinds += 1,
-                Check::KindName => counts.kind_names += 1,
-                Check::Variant => counts.variants += 1,
-                Check::Parse => {}
+            counts.add(name.check);
+            if name.check == Check::Parse {
+                report.push(
+                    name.check
+                        .problem(at_line(&file.path, name.line), name.name),
+                );
+                continue;
             }
             if let Some(hit) = avoided.iter().find(|a| a.term == name.words) {
                 report.push(name.check.problem(
                     at_line(&file.path, name.line),
                     format!(
                         "the {} \"{}\" is a term {GLOSSARY} avoids (see **{}**)",
-                        name.check.name(),
+                        name.check.noun(),
                         name.name,
                         hit.entry
                     ),
@@ -196,6 +224,11 @@ impl RustNames {
         let line = at.start().line.saturating_sub(1);
         self.found.push(Found::new(line, check, name));
     }
+
+    /// A name this cannot read, so cannot check: a `parse` problem, never a silent pass.
+    fn unreadable(&mut self, at: proc_macro2::Span, what: &str) {
+        self.push(at, Check::Parse, format!("cannot check {what}"));
+    }
 }
 
 impl<'ast> Visit<'ast> for RustNames {
@@ -207,14 +240,21 @@ impl<'ast> Visit<'ast> for RustNames {
             .is_some_and(|segment| segment.ident == KIND_TRAIT);
         if is_kind {
             for member in &item.items {
-                if let syn::ImplItem::Const(constant) = member
-                    && constant.ident == "NAME"
-                    && let syn::Expr::Lit(syn::ExprLit {
+                let syn::ImplItem::Const(constant) = member else {
+                    continue;
+                };
+                if constant.ident != "NAME" {
+                    continue;
+                }
+                match &constant.expr {
+                    syn::Expr::Lit(syn::ExprLit {
                         lit: syn::Lit::Str(name),
                         ..
-                    }) = &constant.expr
-                {
-                    self.push(name.span(), Check::KindName, name.value());
+                    }) => self.push(name.span(), Check::KindName, name.value()),
+                    _ => self.unreadable(
+                        constant.ident.span(),
+                        "a Kind::NAME that is not a string literal",
+                    ),
                 }
             }
         }
@@ -230,21 +270,53 @@ impl<'ast> Visit<'ast> for RustNames {
                     variant.ident.to_string(),
                 );
                 for attr in variant.attrs.iter().filter(|a| a.path().is_ident("serde")) {
-                    // A serde attribute this cannot read names nothing RON sees here.
-                    let _ = attr.parse_nested_meta(|meta| {
-                        if meta.path.is_ident("rename") {
-                            let renamed: syn::LitStr = meta.value()?.parse()?;
-                            self.push(renamed.span(), Check::Variant, renamed.value());
-                        } else if meta.input.peek(syn::Token![=]) {
-                            let _: syn::Expr = meta.value()?.parse()?;
+                    match serde_names(attr) {
+                        Ok(names) => {
+                            for name in names {
+                                self.push(name.span(), Check::Variant, name.value());
+                            }
                         }
-                        Ok(())
-                    });
+                        Err(err) => self.unreadable(
+                            err.span(),
+                            &format!("the serde attribute on {}: {err}", variant.ident),
+                        ),
+                    }
                 }
             }
         }
         syn::visit::visit_item_enum(self, item);
     }
+}
+
+/// The names a `#[serde(…)]` attribute gives a variant in RON: `rename` and `alias`, in
+/// their `= "…"` and `(serialize = "…", deserialize = "…")` forms. Every other entry is read
+/// past, so one cannot hide a later name.
+fn serde_names(attr: &syn::Attribute) -> syn::Result<Vec<syn::LitStr>> {
+    let mut names = Vec::new();
+    attr.parse_nested_meta(|meta| {
+        let names_it = meta.path.is_ident("rename") || meta.path.is_ident("alias");
+        if meta.input.peek(syn::Token![=]) {
+            let value = meta.value()?;
+            if names_it {
+                names.push(value.parse()?);
+            } else {
+                let _: syn::Expr = value.parse()?;
+            }
+        } else if meta.input.peek(syn::token::Paren) {
+            if names_it {
+                meta.parse_nested_meta(|side| {
+                    names.push(side.value()?.parse()?);
+                    Ok(())
+                })?;
+            } else {
+                let content;
+                syn::parenthesized!(content in meta.input);
+                let _: proc_macro2::TokenStream = content.parse()?;
+            }
+        }
+        Ok(())
+    })?;
+    Ok(names)
 }
 
 /// A name as lowercase words: `MasteryProperty`, `mastery-property` and `mastery_property`
