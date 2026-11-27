@@ -1,20 +1,13 @@
 //! Moments (E and E²) without the full distribution.
 
+mod common;
+
+use common::assert_close;
 use mm_dice::{AttackRoll, Moments, Pmf, RollMode};
-
-/// The bound the spec sets for float results against exact arithmetic (spec #12).
-const RELATIVE: f64 = 1e-12;
-
-fn assert_close(got: f64, expected: f64) {
-    assert!(
-        (got - expected).abs() <= RELATIVE * expected.abs(),
-        "got {got}, expected {expected}"
-    );
-}
 
 #[test]
 fn moments_of_a_die_are_its_mean_and_second_moment() {
-    let m = Moments::of(&Pmf::die(6));
+    let m = Pmf::die(6).moments();
     // E = 7/2, E² = 91/6.
     assert_close(m.mean(), 3.5);
     assert_close(m.second(), 91.0 / 6.0);
@@ -24,7 +17,7 @@ fn moments_of_a_die_are_its_mean_and_second_moment() {
 #[test]
 fn independent_add_matches_convolution() {
     // 2d6 + 3: E = 10, Var = 35/6, so E² = 100 + 35/6.
-    let d6 = Moments::of(&Pmf::die(6));
+    let d6 = Pmf::die(6).moments();
     let m = d6.add_independent(d6).add_independent(Moments::point(3));
     assert_close(m.mean(), 10.0);
     assert_close(m.second(), 100.0 + 35.0 / 6.0);
@@ -41,7 +34,7 @@ fn two_independent_attacks_match_research_03_no_hew_row() {
         mode: RollMode::Normal,
     }
     .odds();
-    let style_d6 = Moments::of(&Pmf::die(6).floor_at(3));
+    let style_d6 = Pmf::die(6).at_least(3).moments();
     let dice = |n: usize| (0..n).fold(Moments::point(0), |acc, _| acc.add_independent(style_d6));
     let hit = dice(2).add_independent(Moments::point(7));
     let crit = dice(4).add_independent(Moments::point(7));

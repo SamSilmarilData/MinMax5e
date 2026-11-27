@@ -1,8 +1,7 @@
 //! The first two moments of a damage total, for when the full distribution is not needed.
 
-use crate::Pmf;
-
-/// The mean `E[X]` and second moment `E[X²]` of a damage total.
+/// The mean `E[X]` and second moment `E[X²]` of a damage total. Get them from
+/// `Pmf::moments` or `Moments::point`, then combine with `add_independent` and `mix`.
 ///
 /// Like `Pmf`, the moments may describe a partial distribution: `mix` with weight 1 adds
 /// branches. `add_independent` is for independent totals of full distributions.
@@ -13,8 +12,8 @@ pub struct Moments {
 }
 
 impl Moments {
-    /// The moments `E[X] = mean` and `E[X²] = second`.
-    pub fn new(mean: f64, second: f64) -> Moments {
+    /// The moments `E[X] = mean` and `E[X²] = second`; `Pmf::moments` keeps them consistent.
+    pub(crate) fn new(mean: f64, second: f64) -> Moments {
         Moments { mean, second }
     }
 
@@ -22,11 +21,6 @@ impl Moments {
     pub fn point(value: i32) -> Moments {
         let x = f64::from(value);
         Moments::new(x, x * x)
-    }
-
-    /// The moments of a distribution.
-    pub fn of(pmf: &Pmf) -> Moments {
-        pmf.moments()
     }
 
     /// The moments of the sum of two independent totals:

@@ -1,12 +1,12 @@
 //! `mm-dice` against exact `BigRational` arithmetic (ADR-0023, spec #12): generated dice and
 //! attacks give the same distribution, statistics and moments to within 1e-12 relative.
 
+mod common;
+
+use common::RELATIVE;
 use mm_dice::{AttackRoll, Moments, Pmf, RollMode};
 use mm_testkit::rational::{ExactPmf, Ratio, exact_odds, within_relative};
 use proptest::prelude::*;
-
-/// The bound the spec sets (spec #12, ticket #14).
-const RELATIVE: f64 = 1e-12;
 
 /// The quantiles the Reliability Band reads, and a few more.
 const QUANTILES: [f64; 5] = [0.10, 0.25, 0.50, 0.75, 0.90];
@@ -86,7 +86,7 @@ fn float_turn(recipe: &TurnRecipe) -> (Pmf, Moments) {
         let dice = |times: u32| {
             a.dice.iter().fold(Pmf::point(0), |acc, &(count, sides)| {
                 let die = match a.low_face {
-                    Some(low) => Pmf::die(sides).floor_at(low),
+                    Some(low) => Pmf::die(sides).at_least(low),
                     None => Pmf::die(sides),
                 };
                 acc.convolve(&die.sum_of(count * times))
@@ -98,18 +98,18 @@ fn float_turn(recipe: &TurnRecipe) -> (Pmf, Moments) {
         let odds = a.roll.odds();
         let attack = Pmf::mix(&[(odds.miss, &miss), (odds.hit, &hit), (odds.crit, &crit)]);
         let attack_moments = Moments::mix(&[
-            (odds.miss, Moments::of(&miss)),
-            (odds.hit, Moments::of(&hit)),
-            (odds.crit, Moments::of(&crit)),
+            (odds.miss, miss.moments()),
+            (odds.hit, hit.moments()),
+            (odds.crit, crit.moments()),
         ]);
         pmf = pmf.convolve(&attack);
         moments = moments.add_independent(attack_moments);
     }
     if let Some(floor) = recipe.floor {
-        pmf = pmf.floor_at(floor);
+        pmf = pmf.at_least(floor);
     }
     if let Some(cap) = recipe.cap {
-        pmf = pmf.cap_at(cap);
+        pmf = pmf.at_most(cap);
     }
     (pmf, moments)
 }
@@ -124,7 +124,7 @@ fn exact_turn(recipe: &TurnRecipe) -> (ExactPmf, ExactPmf) {
                 .iter()
                 .fold(ExactPmf::point(0), |acc, &(count, sides)| {
                     let die = match a.low_face {
-                        Some(low) => ExactPmf::die(sides).floor_at(low),
+                        Some(low) => ExactPmf::die(sides).at_least(low),
                         None => ExactPmf::die(sides),
                     };
                     acc.convolve(&die.sum_of(count * times))
@@ -139,10 +139,10 @@ fn exact_turn(recipe: &TurnRecipe) -> (ExactPmf, ExactPmf) {
     }
     let unbounded = pmf.clone();
     if let Some(floor) = recipe.floor {
-        pmf = pmf.floor_at(floor);
+        pmf = pmf.at_least(floor);
     }
     if let Some(cap) = recipe.cap {
-        pmf = pmf.cap_at(cap);
+        pmf = pmf.at_most(cap);
     }
     (pmf, unbounded)
 }

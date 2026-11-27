@@ -1,17 +1,9 @@
 //! Damage distributions on dice small enough to count by hand.
 
+mod common;
+
+use common::assert_close;
 use mm_dice::Pmf;
-
-/// The bound the spec sets for float results against exact arithmetic (spec #12).
-const RELATIVE: f64 = 1e-12;
-
-fn assert_close(got: f64, expected: f64) {
-    let scale = expected.abs();
-    assert!(
-        (got - expected).abs() <= RELATIVE * scale,
-        "got {got}, expected {expected}"
-    );
-}
 
 fn two_d6() -> Pmf {
     Pmf::die(6).sum_of(2)
@@ -48,7 +40,7 @@ fn two_d6_has_the_triangular_distribution() {
 #[test]
 fn counting_low_faces_as_three_gives_a_d6_mean_of_four() {
     // Research 03 §7.2: "1s and 2s count as 3, so E[d6] = 4".
-    let d = Pmf::die(6).floor_at(3);
+    let d = Pmf::die(6).at_least(3);
     assert_eq!(d.support(), (3, 6));
     assert_close(d.prob(3), 0.5);
     assert_close(d.mean(), 4.0);
@@ -64,7 +56,7 @@ fn shift_adds_a_flat_modifier() {
 
 #[test]
 fn cap_at_piles_the_excess_on_the_cap() {
-    let d = two_d6().cap_at(10);
+    let d = two_d6().at_most(10);
     assert_eq!(d.support(), (2, 10));
     assert_close(d.prob(10), 6.0 / 36.0);
     assert_close(d.mass(), 1.0);

@@ -1,12 +1,12 @@
-//! The Distribution Kernel: exact damage arithmetic below the engine (architecture §8,
+//! The distribution kernel: exact damage arithmetic below the engine (architecture §8,
 //! build-order step 1).
 //!
 //! The public seam:
 //! - [`Pmf`]: an exact Damage Distribution over integer totals. Build one from dice and
-//!   flat modifiers (`die`, `point`, `sum_of`, `convolve`, `shift`, `floor_at`, `cap_at`),
+//!   flat modifiers (`die`, `point`, `sum_of`, `convolve`, `shift`, `at_least`, `at_most`),
 //!   combine branches with `mix`, and read `mass`, `mean`, `variance`, `quantile` and
 //!   `tail`.
-//! - [`Moments`]: `E[X]` and `E[X²]` alone, with `add_independent` and `mix`.
+//! - [`Moments`] (from `Pmf::moments`): `E[X]` and `E[X²]` alone, with `add_independent` and `mix`.
 //! - [`AttackRoll::odds`]: the miss, hit and crit odds of a d20 attack roll, counted
 //!   exactly in integers and divided once.
 //! - [`AcLanes`]: one value per target AC from 10 to 25 ([`LANE_ACS`]).

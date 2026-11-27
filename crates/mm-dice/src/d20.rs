@@ -17,7 +17,7 @@ pub struct AttackRoll {
     pub bonus: i32,
     /// The target's Armor Class.
     pub ac: i32,
-    /// The lowest natural roll that is a Critical Hit (20 normally, 19 with a widened range).
+    /// The lowest natural roll that crits (20 normally, 19 with a widened range).
     pub crit_on: i32,
     pub mode: RollMode,
 }

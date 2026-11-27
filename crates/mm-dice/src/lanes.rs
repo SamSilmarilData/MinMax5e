@@ -5,8 +5,8 @@ use std::ops::{Index, RangeInclusive};
 /// The target ACs that get a lane.
 pub const LANE_ACS: RangeInclusive<i32> = 10..=25;
 
-/// The number of lanes.
-pub const LANES: usize = 16;
+/// The number of lanes: one per AC in `LANE_ACS`.
+pub const LANES: usize = (*LANE_ACS.end() - *LANE_ACS.start() + 1).unsigned_abs() as usize;
 
 /// One value per target AC in `LANE_ACS`: a value at each Lane of one kit.
 #[derive(Debug, Clone, Copy, PartialEq)]

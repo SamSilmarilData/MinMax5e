@@ -57,7 +57,7 @@ impl Pmf {
                 mass[i + j] += a * b;
             }
         }
-        Pmf::from_parts(self.offset + other.offset, &mass)
+        Pmf::trimmed(self.offset + other.offset, &mass)
     }
 
     /// The weighted sum of the branches: `Σ weight · branch`.
@@ -80,7 +80,7 @@ impl Pmf {
                 *slot += weight * p;
             }
         }
-        Pmf::from_parts(lo, &mass)
+        Pmf::trimmed(lo, &mass)
     }
 
     /// Every total moved by the flat modifier `by`.
@@ -92,15 +92,15 @@ impl Pmf {
         }
     }
 
-    /// Every total below `min` counted as `min`.
+    /// Every total below `min` counted as `min`, as when 1s and 2s on a die count as 3.
     #[must_use]
-    pub fn floor_at(&self, min: i32) -> Pmf {
+    pub fn at_least(&self, min: i32) -> Pmf {
         self.clamp(min, self.max().max(min))
     }
 
     /// Every total above `max` counted as `max`, as when damage is capped at a target's HP.
     #[must_use]
-    pub fn cap_at(&self, max: i32) -> Pmf {
+    pub fn at_most(&self, max: i32) -> Pmf {
         self.clamp(self.offset.min(max), max)
     }
 
@@ -193,11 +193,12 @@ impl Pmf {
         for (x, p) in self.values() {
             mass[to_index(x.clamp(lo, hi) - lo)] += p;
         }
-        Pmf::from_parts(lo, &mass)
+        Pmf::trimmed(lo, &mass)
     }
 
-    /// Trims zero mass from both ends, keeping at least one entry.
-    fn from_parts(offset: i32, mass: &[f64]) -> Pmf {
+    /// The distribution with `mass` starting at `offset`, less any zero mass at either
+    /// end (at least one entry is kept).
+    fn trimmed(offset: i32, mass: &[f64]) -> Pmf {
         let first = mass.iter().position(|&p| p != 0.0);
         let Some(first) = first else {
             return Pmf {

@@ -144,13 +144,13 @@ impl ExactPmf {
 
     /// Totals below `min` counted as `min`.
     #[must_use]
-    pub fn floor_at(&self, min: i32) -> ExactPmf {
+    pub fn at_least(&self, min: i32) -> ExactPmf {
         self.map_totals(|x| x.max(min))
     }
 
     /// Totals above `max` counted as `max`.
     #[must_use]
-    pub fn cap_at(&self, max: i32) -> ExactPmf {
+    pub fn at_most(&self, max: i32) -> ExactPmf {
         self.map_totals(|x| x.min(max))
     }
 

@@ -9,6 +9,9 @@
 //! The published figures are rounded, so each is checked to within half a unit of its
 //! last stated digit.
 
+mod common;
+
+use common::assert_close;
 use mm_dice::{AcLanes, AttackRoll, Pmf, RollMode};
 
 const STR: i32 = 4;
@@ -42,10 +45,17 @@ struct Attack {
     crit: Pmf,
 }
 
+impl Attack {
+    /// Both branches together.
+    fn whole(&self) -> Pmf {
+        Pmf::mix(&[(1.0, &self.no_crit), (1.0, &self.crit)])
+    }
+}
+
 impl Round {
     fn weapon_die(self) -> Pmf {
         if self.style {
-            Pmf::die(6).floor_at(3)
+            Pmf::die(6).at_least(3)
         } else {
             Pmf::die(6)
         }
@@ -71,10 +81,9 @@ impl Round {
     fn damage(self, ac: i32) -> Pmf {
         let main = self.attack(ac, STR + PB);
         let no_crit = main.no_crit.convolve(&main.no_crit);
-        let whole = Pmf::mix(&[(1.0, &main.no_crit), (1.0, &main.crit)]);
         // At least one crit: the first attack crits, or the first does not and the second does.
         let some_crit = Pmf::mix(&[
-            (1.0, &main.crit.convolve(&whole)),
+            (1.0, &main.crit.convolve(&main.whole())),
             (1.0, &main.no_crit.convolve(&main.crit)),
         ]);
         let hew_flat = match self.hew {
@@ -85,7 +94,7 @@ impl Round {
         let after_crit = match hew_flat {
             Some(flat) => {
                 let hew = self.attack(ac, flat);
-                some_crit.convolve(&Pmf::mix(&[(1.0, &hew.no_crit), (1.0, &hew.crit)]))
+                some_crit.convolve(&hew.whole())
             }
             None => some_crit,
         };
@@ -104,7 +113,7 @@ fn assert_rounds_to(what: &str, got: f64, expected: f64, unit: f64) {
 #[test]
 fn base_round_matches_research_03_worked_example() {
     let d = BASE.damage(16);
-    assert_rounds_to("mass", d.mass(), 1.0, 1e-12);
+    assert_close(d.mass(), 1.0);
     assert_rounds_to("mean", d.mean(), 22.897, 0.001);
     assert_rounds_to("SD", d.variance().sqrt(), 10.26, 0.01);
     assert_eq!(d.support(), (8, 90), "min and max");
@@ -115,7 +124,7 @@ fn base_round_matches_research_03_worked_example() {
     assert_eq!(d.quantile(0.90), 34, "p90");
     assert_eq!(d.quantile(0.95), 42, "p95");
     // Both attacks graze: exactly 8 with probability 0.40².
-    assert_rounds_to("P(8)", d.prob(8), 0.16, 1e-12);
+    assert_close(d.prob(8), 0.16);
     for (at_least, p) in [
         (10, 0.840),
         (20, 0.571),
