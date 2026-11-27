@@ -2,7 +2,9 @@
 //!
 //! - `deps`: the crate dependency rules of ADR-0034, checked against `cargo metadata`.
 //! - `leak-scan`: no upstream rules data in tracked files (ADR-0028).
+//! - `adr-check`: accepted ADRs change only by dated amendment.
 
+mod adr;
 mod deps;
 mod git;
 mod leak;
@@ -28,6 +30,15 @@ enum Command {
         #[arg(long)]
         manifest_path: Option<PathBuf>,
     },
+    /// Check that accepted ADRs changed only by dated amendment since `base`.
+    AdrCheck {
+        /// The repository to check; defaults to this one.
+        #[arg(long)]
+        root: Option<PathBuf>,
+        /// Compare against the merge base of this revision and HEAD.
+        #[arg(long, default_value = "main")]
+        base: String,
+    },
     /// Scan tracked files for upstream rules data (ADR-0028).
     LeakScan {
         /// The git working tree to scan; defaults to this repository.
@@ -43,6 +54,7 @@ fn main() -> ExitCode {
             deps::run(&manifest_path.unwrap_or_else(|| repo_root().join("Cargo.toml")))
         }
         Command::LeakScan { root } => leak::run(&root.unwrap_or_else(repo_root)),
+        Command::AdrCheck { root, base } => adr::run(&root.unwrap_or_else(repo_root), &base),
     };
     match result {
         Ok(Outcome::Clean) => ExitCode::SUCCESS,

@@ -6,6 +6,8 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-27 (environment retro after #13):* **`cargo xtask adr-check`** joins the repo guards and CI. An ADR accepted at the base commit may gain dated amendment blocks and change its `status:` line; any other edit, or deleting it, fails. It enforces CLAUDE.md's rule that decisions change by amendment or a superseding ADR, never by a silent edit.
+
 > *Amended 2026-11-27 (workspace foundation, #13):*
 >
 > - **`mm-core`'s third-party dependencies are limited** to serde, thiserror and blake3 (spec #12), and `mm-dice` has none. `xtask deps` enforces both for normal and build dependencies; dev-dependencies are free.

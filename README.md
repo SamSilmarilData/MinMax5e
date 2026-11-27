@@ -59,6 +59,7 @@ The repo guards, which CI also runs on every push:
 |---|---|
 | `cargo xtask deps` | The crate dependency rules of [ADR-0034](docs/adr/0034-cargo-workspace.md), against `cargo metadata` |
 | `cargo xtask leak-scan` | No upstream rules data in tracked files ([ADR-0028](docs/adr/0028-no-upstream-bytes-in-public-repo.md)). Exemptions, each with a reason, live in `xtask/leak-allow.toml` |
+| `cargo xtask adr-check` | Accepted ADRs change only by dated amendment, compared with `main` |
 | `cargo deny check` | Advisories, licences and banned crates (needs [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)) |
 
 ### Planned architecture

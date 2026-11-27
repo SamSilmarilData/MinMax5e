@@ -126,3 +126,15 @@ fn ls_files(root: &Path, args: &[&str]) -> Result<Vec<String>> {
         .map(|entry| String::from_utf8_lossy(entry).into_owned())
         .collect())
 }
+
+/// The repository's `core.hooksPath` setting, if any.
+pub fn hooks_path(root: &Path) -> Result<Option<String>> {
+    let output = Command::new("git")
+        .args(["config", "--get", "core.hooksPath"])
+        .current_dir(root)
+        .output()
+        .context("running git config")?;
+    // `git config --get` exits 1 when the key is unset.
+    let value = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    Ok((output.status.success() && !value.is_empty()).then_some(value))
+}
