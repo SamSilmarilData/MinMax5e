@@ -6,9 +6,44 @@
         id: "2024:class/test-warrior|tst",
         name: "Test Warrior",
     )),
+    Species((
+        id: "2024:species/test-folk|tst",
+        name: "Test Folk",
+    )),
+    Background((
+        id: "2024:background/test-drillhand|tst",
+        name: "Test Drillhand",
+    )),
+    Feat((
+        id: "2024:feat/test-steady|tst",
+        name: "Test Steady",
+    )),
+    Feat((
+        id: "2024:feat/test-great-style|tst",
+        name: "Test Great Style",
+    )),
+    Feat((
+        id: "2024:feat/test-heavy-hitter|tst",
+        name: "Test Heavy Hitter",
+    )),
+    Feat((
+        id: "2024:feat/test-heavy-striker|tst",
+        name: "Test Heavy Striker",
+    )),
+    MasteryProperty((
+        id: "2024:mastery-property/test-graze|tst",
+        name: "Test Graze",
+    )),
     Weapon((
         id: "2024:item/test-greatblade|tst",
         name: "Test Greatblade",
+        damage: (count: 2, sides: 6),
+        properties: [Heavy, TwoHanded],
+        mastery_property: Some("2024:mastery-property/test-graze|tst"),
+    )),
+    Weapon((
+        id: "2024:item/test-plainblade|tst",
+        name: "Test Plainblade",
         damage: (count: 2, sides: 6),
         properties: [Heavy, TwoHanded],
     )),

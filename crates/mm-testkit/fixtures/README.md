@@ -7,10 +7,17 @@ Invented content for tests and the CLI (ADR-0028). Every RON file starts with th
 - `pack/`: a pack directory (`mm-cli --pack-dir`). Files under `records/` are resolved
   records, the shape `mm-import` will produce; every other `.ron` file is an encoding,
   our mechanics for those records in the Effect DSL (ADR-0010, ADR-0035). Each encoded
-  feature cites its source at tier `Synthetic` (ADR-0007).
+  feature cites its source at tier `Synthetic` (ADR-0007). The content is research 03
+  §7.2's: the warrior class, a species, background and Origin feat with no combat effect,
+  the style and heavy-weapon feats, a Graze-like mastery property, and two 2d6 Heavy weapons, one
+  with that mastery property and one without. `test-heavy-striker` is the heavy-weapon feat
+  without its crit-gated attack, so a variant can drop that attack alone.
 - `malformed/`: one pack directory per mistake, each loaded alongside `pack/` by
   `mm-cli validate-packs`: an unknown Content ID, a wrong Ruleset prefix, a misspelled
-  DSL variant, a missing citation, and a record with no encoding.
-- `builds/`: Build files. Each one is listed in `xtask/xhash.toml`, the set
-  `cargo xtask xhash` checks for native/WebAssembly bit identity (ADR-0050); a test
-  fails until a new Build is added there.
+  DSL variant, a missing citation, a record with no encoding, and a weapon naming an
+  unknown mastery property.
+- `builds/`: Build files. `warrior-5` is research 03 §7.2's level-5 warrior, and each
+  `warrior-5-no-*` drops one component for the note's variant table. Each Build is
+  listed in `xtask/xhash.toml`, the set `cargo xtask xhash` checks for
+  native/WebAssembly bit identity (ADR-0050); a test fails until a new Build is added
+  there.

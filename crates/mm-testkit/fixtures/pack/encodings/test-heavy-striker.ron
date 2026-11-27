@@ -1,0 +1,19 @@
+// fixture: synthetic
+// `test-heavy-hitter` without the crit-gated Bonus Action attack, so a Build can drop
+// that attack alone (research 03 §7.2, "No Hew").
+Feat((
+    id: "2024:feat/test-heavy-striker|tst",
+    features: [
+        (
+            name: "Test Heavy Striker",
+            citation: (tier: Synthetic, reference: "research 03 §7.2, the heavy-weapon feat"),
+            riders: [
+                (
+                    on: AttackHit,
+                    when: Some(All([Fact(AttackAction), Fact(WeaponProperty(Heavy))])),
+                    effect: ProficiencyBonusDamage,
+                ),
+            ],
+        ),
+    ],
+))

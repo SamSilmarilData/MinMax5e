@@ -8,14 +8,21 @@ use crate::ContentId;
 
 /// A character, by the Content IDs of its choices.
 ///
-/// Species, background, Origin feat and feats join with the fixtures that need them (#18).
+/// Subclasses and spells join with the fixtures that need them. Whether the choices are
+/// legal together (a feat for each feat a level grants, say) is not checked yet.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Build {
-    /// Final ability scores.
+    pub species: ContentId,
+    pub background: ContentId,
+    /// The Origin feat the background grants.
+    pub origin_feat: ContentId,
+    /// Final ability scores, every increase included.
     pub abilities: AbilityScores,
     /// The class taken at each character level, in order: entry 0 is level 1.
     pub levels: Vec<ContentId>,
+    /// Every feat taken after the Origin feat, fighting styles included.
+    pub feats: Vec<ContentId>,
     pub loadout: Loadout,
 }
 
@@ -70,7 +77,11 @@ impl Build {
 
     /// Every Content ID the Build names.
     pub fn content_ids(&self) -> impl Iterator<Item = &ContentId> {
-        self.levels.iter().chain([&self.loadout.main_hand])
+        [&self.species, &self.background, &self.origin_feat]
+            .into_iter()
+            .chain(&self.levels)
+            .chain(&self.feats)
+            .chain([&self.loadout.main_hand])
     }
 
     /// The Ruleset prefix all its Content IDs share: the Ruleset it is evaluated under.

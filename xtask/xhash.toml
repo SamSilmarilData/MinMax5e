@@ -15,3 +15,19 @@
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-1.ron"
 ac = 16
+
+[[build]]
+path = "crates/mm-testkit/fixtures/builds/warrior-5.ron"
+ac = 16
+
+[[build]]
+path = "crates/mm-testkit/fixtures/builds/warrior-5-no-hew.ron"
+ac = 16
+
+[[build]]
+path = "crates/mm-testkit/fixtures/builds/warrior-5-no-graze.ron"
+ac = 16
+
+[[build]]
+path = "crates/mm-testkit/fixtures/builds/warrior-5-no-style.ron"
+ac = 16

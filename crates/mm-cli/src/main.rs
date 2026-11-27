@@ -1,7 +1,7 @@
 //! `mm-cli`: evaluate a Build, or check encodings, from the command line (architecture
 //! §11.1).
 //!
-//! - `mm-cli evaluate <build.ron> --ac <AC> [--pack-dir <dir>]… [--format text|ron]`
+//! - `mm-cli evaluate <build.ron> --ac <AC> [--nova-rounds <N>] [--pack-dir <dir>]… [--format text|ron]`
 //! - `mm-cli validate-packs [--pack-dir <dir>]…`
 //!
 //! `evaluate` infers the Ruleset from the Build's Content ID prefixes; `validate-packs`
@@ -51,6 +51,10 @@ struct EvaluateArgs {
     /// The target's Armor Class; its row is highlighted.
     #[arg(long)]
     ac: i32,
+    /// The Nova horizon: rounds 1 to this. 1 gives a single round's DPR and SD.
+    #[arg(long, default_value_t = AssumptionSet::against(0).nova_rounds,
+          value_parser = clap::value_parser!(u32).range(1..))]
+    nova_rounds: u32,
     /// A directory of records and encodings to load into the pack. Repeatable.
     #[arg(long = "pack-dir")]
     pack_dirs: Vec<PathBuf>,
@@ -115,7 +119,11 @@ fn evaluate(args: &EvaluateArgs) -> Result<String> {
 fn evaluate_in<R: Ruleset>(build: &Build, args: &EvaluateArgs) -> Result<Evaluation> {
     let pack = load_pack::<R>(&args.pack_dirs)?;
     let kit = mm_engine::compile(&pack, build)?;
-    Ok(mm_engine::evaluate(&kit, &AssumptionSet::against(args.ac)))
+    let assumptions = AssumptionSet {
+        nova_rounds: args.nova_rounds,
+        ..AssumptionSet::against(args.ac)
+    };
+    Ok(mm_engine::evaluate(&kit, &assumptions))
 }
 
 /// Loads every pack under Ruleset `R` and reports its coverage; an error if any record
@@ -202,10 +210,14 @@ fn collect_ron(dir: &Path, paths: &mut Vec<PathBuf>) -> io::Result<()> {
 fn render_text(evaluation: &Evaluation) -> String {
     let nova = &evaluation.nova;
     let mut out = String::new();
+    let rounds = match nova.rounds {
+        1 => "round 1".to_owned(),
+        rounds => format!("rounds 1–{rounds}"),
+    };
     let _ = writeln!(
         out,
-        "Nova DPR, rounds 1–{}, target AC {} (marked >)",
-        nova.rounds, evaluation.target_ac
+        "Nova DPR, {rounds}, target AC {} (marked >)",
+        evaluation.target_ac
     );
     let _ = writeln!(out, "     AC      DPR       SD");
     for lane in &nova.lanes {

@@ -3,8 +3,8 @@ source: crates/mm-cli/tests/evaluate.rs
 expression: ron
 ---
 (
-    shape_key: "d5ef14bbc6147879a3e1fa151279234a",
-    params_fp: "9ce937fdd0a82c23454b8a432dcde32b",
+    shape_key: "115a129669fce08c1dfef2fdb5496c64",
+    params_fp: "f68e3f042ed7f0d4b4f0bcd98f0ce132",
     target_ac: 16,
     nova: (
         rounds: 2,

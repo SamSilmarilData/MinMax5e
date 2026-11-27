@@ -1,0 +1,6 @@
+// fixture: synthetic
+// A species with no combat effect, so a Build is complete.
+Species((
+    id: "2024:species/test-folk|tst",
+    features: [],
+))

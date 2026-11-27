@@ -16,6 +16,12 @@ use crate::{Citation, ContentId};
 #[serde(deny_unknown_fields)]
 pub enum Encoding {
     Class(ClassEncoding),
+    Species(FeaturesEncoding),
+    Background(FeaturesEncoding),
+    /// A feat, Origin feats and fighting styles included.
+    Feat(FeaturesEncoding),
+    /// A weapon's mastery property, which Weapon Mastery unlocks.
+    MasteryProperty(FeaturesEncoding),
 }
 
 /// What a class grants at each level.
@@ -37,6 +43,38 @@ pub struct LevelFeature {
     /// Where this feature's mechanics come from (ADR-0007).
     pub citation: Citation,
     pub riders: Vec<Rider>,
+    #[serde(default)]
+    pub grants: Vec<Grant>,
+}
+
+/// What a record without levels grants: its features, all at once.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FeaturesEncoding {
+    /// The record this encodes; its kind matches the encoding's variant.
+    pub id: ContentId,
+    pub features: Vec<Feature>,
+}
+
+/// A feature of a record without levels: a species trait, a feat, a mastery property.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Feature {
+    pub name: String,
+    /// Where this feature's mechanics come from (ADR-0007).
+    pub citation: Citation,
+    pub riders: Vec<Rider>,
+    #[serde(default)]
+    pub grants: Vec<Grant>,
+}
+
+/// A standing change to how the character attacks, rather than an effect at a stage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Grant {
+    /// The Attack action makes this many attacks; the highest grant wins.
+    ExtraAttack(u8),
+    /// The mastery property of each weapon in the Loadout applies to its attacks.
+    WeaponMastery,
 }
 
 /// An effect that applies at a stage of resolving an attack, when its predicate holds.
@@ -57,7 +95,9 @@ pub struct Rider {
 /// The fixed resolution stages of an attack (ADR-0011).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Stage {
+    /// The attack hits, crit or not: a crit is a hit.
     AttackHit,
+    /// The attack crits.
     AttackCrit,
     AttackMiss,
 }
@@ -74,7 +114,10 @@ pub enum Pred {
 /// A fact about an attack.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Fact {
+    /// The attack's weapon has this property.
     WeaponProperty(WeaponProperty),
+    /// The attack is made as part of the Attack action.
+    AttackAction,
 }
 
 /// How often a rider may apply.
@@ -88,4 +131,13 @@ pub enum Limit {
 pub enum Op {
     /// Flat damage added to the attack's damage.
     FlatDamage(i32),
+    /// Damage equal to the character's proficiency bonus.
+    ProficiencyBonusDamage,
+    /// Damage equal to the attack's ability modifier.
+    AbilityModifierDamage,
+    /// Each weapon damage die that rolls lower than this counts as this.
+    MinimumDieRoll(u32),
+    /// One attack with the same weapon as a Bonus Action, taken immediately after this
+    /// stage or not at all.
+    BonusActionAttack,
 }

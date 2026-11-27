@@ -12,6 +12,10 @@ use crate::ContentId;
 #[serde(deny_unknown_fields)]
 pub enum Record {
     Class(ClassRecord),
+    Species(NamedRecord),
+    Background(NamedRecord),
+    Feat(NamedRecord),
+    MasteryProperty(NamedRecord),
     Weapon(WeaponRecord),
 }
 
@@ -19,9 +23,22 @@ impl Record {
     pub fn id(&self) -> &ContentId {
         match self {
             Record::Class(r) => &r.id,
+            Record::Species(r)
+            | Record::Background(r)
+            | Record::Feat(r)
+            | Record::MasteryProperty(r) => &r.id,
             Record::Weapon(r) => &r.id,
         }
     }
+}
+
+/// A record whose only fields are its identity: all its mechanics are in its encoding. A
+/// kind gets its own record type when it needs more fields.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NamedRecord {
+    pub id: ContentId,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -39,6 +56,9 @@ pub struct WeaponRecord {
     /// The weapon's damage dice; the wielder's ability modifier is added on a hit.
     pub damage: DiceTerm,
     pub properties: Vec<WeaponProperty>,
+    /// The mastery property Weapon Mastery unlocks for it, if it has one.
+    #[serde(default)]
+    pub mastery_property: Option<ContentId>,
 }
 
 /// `count` dice of `sides` sides, e.g. 2d6.

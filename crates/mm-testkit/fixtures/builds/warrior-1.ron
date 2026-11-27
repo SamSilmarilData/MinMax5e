@@ -1,8 +1,13 @@
 // fixture: synthetic
-// A level-1 synthetic warrior with a two-handed greatblade: one 2d6 + 3 attack at +5
-// (Str 16 gives +3, proficiency bonus +2).
+// A level-1 synthetic warrior with a two-handed plainblade (no mastery property) and no
+// feats beyond its Origin feat: one 2d6 + 3 attack at +5 (Str 16 gives +3, proficiency
+// bonus +2).
 Build(
+    species: "2024:species/test-folk|tst",
+    background: "2024:background/test-drillhand|tst",
+    origin_feat: "2024:feat/test-steady|tst",
     abilities: (str: 16, dex: 10, con: 14, int: 8, wis: 12, cha: 10),
     levels: ["2024:class/test-warrior|tst"],
-    loadout: (main_hand: "2024:item/test-greatblade|tst"),
+    feats: [],
+    loadout: (main_hand: "2024:item/test-plainblade|tst"),
 )

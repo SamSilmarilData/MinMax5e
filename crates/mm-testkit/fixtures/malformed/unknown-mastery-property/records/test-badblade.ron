@@ -1,0 +1,11 @@
+// fixture: synthetic
+// A weapon whose mastery property names no mastery property record: an unknown Content ID.
+[
+    Weapon((
+        id: "2024:item/test-badblade|tst",
+        name: "Test Badblade",
+        damage: (count: 1, sides: 8),
+        properties: [],
+        mastery_property: Some("2024:mastery-property/test-nothing|tst"),
+    )),
+]
