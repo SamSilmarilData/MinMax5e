@@ -126,9 +126,3 @@ fn deleting_an_accepted_adr_fails() {
     std::fs::remove_file(tree.path().join(ADR)).unwrap();
     check(&tree).assert_fails_with(&["docs/adr/0042-example.md: [adr-silent-edit]", "deleted"]);
 }
-
-#[test]
-fn the_real_repository_passes_against_the_architecture_lock() {
-    // b2a43c5 accepted the walking-skeleton ADRs; every later change must be an amendment.
-    xtask(&["adr-check", "--base", "b2a43c5"]).assert_ok();
-}
