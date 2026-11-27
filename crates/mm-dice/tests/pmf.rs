@@ -55,7 +55,7 @@ fn shift_adds_a_flat_modifier() {
 }
 
 #[test]
-fn cap_at_piles_the_excess_on_the_cap() {
+fn at_most_piles_the_excess_on_the_cap() {
     let d = two_d6().at_most(10);
     assert_eq!(d.support(), (2, 10));
     assert_close(d.prob(10), 6.0 / 36.0);
