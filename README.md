@@ -4,7 +4,7 @@
 
 **A build solver for 5th-edition characters. It searches the space of legal builds and ranks them by exact, probability-grounded damage, not white-room guesses.**
 
-![status: design phase](https://img.shields.io/badge/status-design%20phase-orange)
+![status: walking skeleton](https://img.shields.io/badge/status-walking%20skeleton-orange)
 ![language: Rust](https://img.shields.io/badge/language-Rust-b7410e?logo=rust)
 ![UI: egui](https://img.shields.io/badge/UI-egui-4b8bbe)
 ![runs in: browser + native](https://img.shields.io/badge/runs%20in-browser%20%2B%20native-0a7bbb)
@@ -35,12 +35,29 @@ Character builders record the choices you make. Optimization guides rate options
 
 ## Status
 
-**Design phase.** The Cargo workspace and its repo guards are in place; the product crates come next. The research and the architecture decisions are written up:
+**Building the walking skeleton:** build-order steps 1–3 of [`docs/architecture.md`](docs/architecture.md) §11, specified in [#12](https://github.com/SamSilmarilData/MinMax5e/issues/12). There is no solver or UI yet. What works today:
+
+- the Cargo workspace, its CI and its repo guards ([#13](https://github.com/SamSilmarilData/MinMax5e/issues/13));
+- `mm-dice`, exact damage distributions checked against a `BigRational` oracle ([#14](https://github.com/SamSilmarilData/MinMax5e/issues/14));
+- `mm-cli evaluate`, which gives exact Nova DPR and its SD at every AC from 10 to 25 for the simplest synthetic Build ([#15](https://github.com/SamSilmarilData/MinMax5e/issues/15));
+- the cross-target result hash, which shows that evaluation gives the same bits natively and in WebAssembly ([#16](https://github.com/SamSilmarilData/MinMax5e/issues/16)).
+
+Try it on the synthetic fixtures:
+
+```sh
+cargo run -p mm-cli -- evaluate crates/mm-testkit/fixtures/builds/warrior-1.ron \
+  --ac 16 --pack-dir crates/mm-testkit/fixtures/pack
+```
+
+Next come the rest of the skeleton's tickets (#17–#27): diagnostics, the full level-5 warrior, distributions, Assumption Sets, Rulings, resources, Sustained mode, Turn Plans and the independent oracles. Then the Tape (step 4) and the solver (step 5).
+
+The design is written up:
 
 | | |
 |---|---|
-| [`docs/research/`](docs/research/README.md) | Twelve research notes: rules mechanics, probability maths, solver design, rules-engine prior art, the Rust stack, data ingestion, web delivery, and open access |
-| [`docs/adr/`](docs/adr/) | 46 Architecture Decision Records (38 proposed; superseded and deprecated ones kept for history) |
+| [`docs/architecture.md`](docs/architecture.md) | The map: the pipeline, the crates, and the build order |
+| [`docs/adr/`](docs/adr/) | 57 Architecture Decision Records: 26 accepted, 23 proposed (each to be accepted at the build-order step that needs it), and 8 superseded or deprecated, kept for history |
+| [`docs/research/`](docs/research/README.md) | Fifteen research notes: rules mechanics, probability maths, solver design, rules-engine prior art, the Rust stack, data ingestion and web delivery, plus three with measurements (the tape spike, prior art, and the problems ahead) |
 | [`GLOSSARY.md`](GLOSSARY.md) | Project vocabulary |
 
 ### Working on the code
@@ -63,7 +80,24 @@ The repo guards, which CI also runs on every push:
 | `cargo xtask xhash` | Evaluation gives the same bits natively and in WebAssembly ([ADR-0050](docs/adr/0050-solve-as-deterministic-job-plan.md)). Needs [wasmtime](https://wasmtime.dev) on PATH; CI runs it on macOS. The hashed fixture Builds are listed in `xtask/xhash.toml`, which says how to add one |
 | `cargo deny check` | Advisories, licences and banned crates (needs [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)) |
 
+`cargo test --workspace` runs the tests. The `xhash` process tests build two targets and need wasmtime, so they are ignored by default; run them with `cargo test -p xtask --test xhash -- --ignored`.
+
 Snapshot tests use [insta](https://insta.rs). After a deliberate change in output, `INSTA_UPDATE=always cargo test` rewrites the snapshots in place. Review them with `git diff`; `cargo-insta` isn't needed.
+
+### Crates
+
+| Crate | Role |
+|---|---|
+| `mm-dice` | The distribution kernel: exact damage distributions, moments, d20 outcomes and AC lanes |
+| `mm-core` | The shared vocabulary: Rulesets, Content IDs, the Effect DSL, records, Builds and fingerprints |
+| `mm-load` | Loads records and RON encodings into a Rules Pack for one Ruleset |
+| `mm-engine` | Compiles a Build into a Combat Kit and evaluates it exactly over AC lanes |
+| `mm-rules-2024` | The 2024 Ruleset: its economy and its embedded encodings |
+| `mm-cli` | The command-line shell |
+| `mm-testkit` | Test oracles and synthetic fixtures, used only from integration tests |
+| `xtask` | The repo guards and the cross-target hash |
+
+The rest of the crate map (`mm-solver`, `mm-import`, `mm-app-core`, `mm-gui`, `mm-worker` and others) arrives with the build-order step that needs it.
 
 ### Planned architecture
 
@@ -83,7 +117,7 @@ The UI is egui with egui_plot charts. Everything is computed on your own device;
 
 ## Rules data
 
-This repository, and the deployed web app, contain **no rules content**. On first launch, the app downloads a pinned version of the community 5e.tools data from its public mirror and builds its rule packs on your device. Mechanics are encoded by hand, in our own words. Quoted rules text comes only from the System Reference Documents, under CC-BY-4.0.
+This repository, and the web app once it is deployed, contain **no rules content**. The tests use invented, synthetic fixtures. On first launch, the app will download a pinned version of the community 5e.tools data from its public mirror and build its rule packs on your device. Mechanics are encoded by hand, in our own words. Quoted rules text comes only from the System Reference Documents, under CC-BY-4.0.
 
 ## License
 
