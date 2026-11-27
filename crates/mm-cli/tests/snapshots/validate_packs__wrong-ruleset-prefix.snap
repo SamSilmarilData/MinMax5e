@@ -1,0 +1,16 @@
+---
+source: crates/mm-cli/tests/validate_packs.rs
+expression: stderr
+---
+error: the pack has 1 problem(s)
+    Diagnostic severity: error
+
+Error: 2014:class/test-warrior|tst belongs to Ruleset `2014`, but this pack is `2024` (ADR-0008)
+    Diagnostic severity: error
+
+Begin snippet for malformed/wrong-ruleset-prefix/encodings/test-warrior.ron starting at line 3, column 1
+
+snippet line 3: Class((
+snippet line 4:     class: "2014:class/test-warrior|tst",
+    label at line 4, columns 12 to 40: here
+snippet line 5:     citation: (tier: Synthetic, reference: "malformed fixture"),

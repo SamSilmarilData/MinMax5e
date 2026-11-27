@@ -1,0 +1,16 @@
+// fixture: synthetic
+// A rider on the stage `AttackHt`, a misspelling of `AttackHit`: the closed DSL
+// (ADR-0010) rejects it.
+Class((
+    class: "2024:class/test-warrior|tst",
+    citation: (tier: Synthetic, reference: "malformed fixture"),
+    features: [
+        (
+            level: 1,
+            name: "Test Edge",
+            riders: [
+                (on: AttackHt, effect: FlatDamage(1)),
+            ],
+        ),
+    ],
+))

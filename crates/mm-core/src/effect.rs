@@ -8,8 +8,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ContentId;
 use crate::records::WeaponProperty;
+use crate::{Citation, ContentId};
 
 /// One encoding file: our mechanics for one record.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -24,6 +24,8 @@ pub enum Encoding {
 pub struct ClassEncoding {
     /// The class record this encodes.
     pub class: ContentId,
+    /// Where these mechanics come from (ADR-0007).
+    pub citation: Citation,
     pub features: Vec<LevelFeature>,
 }
 

@@ -3,5 +3,6 @@
 // Extra Attack, Weapon Mastery and the style arrive with #18.
 Class((
     class: "2024:class/test-warrior|tst",
+    citation: (tier: Synthetic, reference: "invented for the walking skeleton (#12)"),
     features: [],
 ))

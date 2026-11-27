@@ -1,0 +1,7 @@
+// fixture: synthetic
+// An encoding with no citation: every encoding must say where its mechanics come from
+// and at which source tier (ADR-0007).
+Class((
+    class: "2024:class/test-warrior|tst",
+    features: [],
+))
