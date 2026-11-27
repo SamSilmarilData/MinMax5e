@@ -258,3 +258,16 @@ fn a_directory_that_is_not_a_git_repository_is_an_error() {
     let run = scan(&tree);
     assert_eq!(run.0.status.code(), Some(2), "{}", run.stderr());
 }
+
+#[test]
+fn a_fixture_content_id_without_a_source_fails() {
+    let tree = TempTree::git();
+    tree.track(
+        "crates/mm-testkit/fixtures/build.ron",
+        "// fixture: synthetic\n(feat: \"2024:feat/great-weapon-master\")\n",
+    );
+    scan(&tree).assert_fails_with(&[
+        "fixtures/build.ron:2: [fixture]",
+        "2024:feat/great-weapon-master has no `|source`",
+    ]);
+}

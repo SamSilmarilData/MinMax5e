@@ -18,23 +18,9 @@ pub struct RepoFile {
 /// Staged contents, not the working copy, because they are what a commit records:
 /// the pre-commit hook must see exactly that.
 pub fn tracked_files(root: &Path) -> Result<Vec<RepoFile>> {
-    let listing = Command::new("git")
-        .args(["ls-files", "--stage", "-z"])
-        .current_dir(root)
-        .output()
-        .context("running git ls-files")?;
-    if !listing.status.success() {
-        bail!(
-            "git ls-files failed in {}: {}",
-            root.display(),
-            String::from_utf8_lossy(&listing.stderr).trim()
-        );
-    }
-
-    // Each entry is "<mode> <object> <stage>\t<path>\0".
+    // Each entry is "<mode> <object> <stage>\t<path>".
     let mut entries = Vec::new();
-    for entry in listing.stdout.split(|&b| b == 0).filter(|e| !e.is_empty()) {
-        let entry = String::from_utf8_lossy(entry);
+    for entry in ls_files(root, &["--stage"])? {
         let (meta, path) = entry
             .split_once('\t')
             .context("unexpected git ls-files output")?;
@@ -106,25 +92,37 @@ fn read_blobs<'a>(root: &Path, objects: impl Iterator<Item = &'a str>) -> Result
 
 /// Files in the working tree that git neither tracks nor ignores, with their contents.
 pub fn untracked_files(root: &Path) -> Result<Vec<RepoFile>> {
-    let listing = Command::new("git")
-        .args(["ls-files", "--others", "--exclude-standard", "-z"])
-        .current_dir(root)
-        .output()
-        .context("running git ls-files --others")?;
-    if !listing.status.success() {
-        bail!(
-            "git ls-files --others failed in {}: {}",
-            root.display(),
-            String::from_utf8_lossy(&listing.stderr).trim()
-        );
-    }
     let mut files = Vec::new();
-    for path in listing.stdout.split(|&b| b == 0).filter(|p| !p.is_empty()) {
-        let path = String::from_utf8_lossy(path).into_owned();
+    for path in ls_files(root, &["--others", "--exclude-standard"])? {
         // A file can vanish between listing and reading; skip it rather than fail.
         if let Ok(contents) = std::fs::read(root.join(&path)) {
             files.push(RepoFile { path, contents });
         }
     }
     Ok(files)
+}
+
+/// Runs `git ls-files -z` with `args` in `root` and returns its entries.
+fn ls_files(root: &Path, args: &[&str]) -> Result<Vec<String>> {
+    let output = Command::new("git")
+        .arg("ls-files")
+        .args(args)
+        .arg("-z")
+        .current_dir(root)
+        .output()
+        .context("running git ls-files")?;
+    if !output.status.success() {
+        bail!(
+            "git ls-files {} failed in {}: {}",
+            args.join(" "),
+            root.display(),
+            String::from_utf8_lossy(&output.stderr).trim()
+        );
+    }
+    Ok(output
+        .stdout
+        .split(|&b| b == 0)
+        .filter(|entry| !entry.is_empty())
+        .map(|entry| String::from_utf8_lossy(entry).into_owned())
+        .collect())
 }

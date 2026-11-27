@@ -56,6 +56,11 @@ impl Check {
         Check::RelaxedSimd,
     ];
 
+    /// A problem this check found at `at`.
+    fn problem(self, at: impl Into<String>, message: impl Into<String>) -> Problem {
+        Problem::new(at, self.name(), message)
+    }
+
     /// The name used in reports and in the allowlist.
     fn name(self) -> &'static str {
         match self {
@@ -114,36 +119,12 @@ impl Patterns {
             // ADR-0028: an opening brace and `@`, a lowercase tag name, then a space, pipe or brace.
             tag: Regex::new(&format!(r"\{{{}[a-z]+[ |}}]", '@')).expect("valid regex"),
             relaxed_simd: Regex::new(&format!("(?i){RELAXED_SIMD}")).expect("valid regex"),
-            // `<ruleset>:<kind>/<slug>|<source>` (ADR-0008); the source is captured.
+            // `<ruleset>:<kind>/<slug>|<source>` (ADR-0008). The source is captured, and
+            // optional here so an ID written without one is caught too.
             content_id: Regex::new(
-                r"\b[0-9a-z]+:[a-z][a-z0-9-]*(?:/[a-z0-9][a-z0-9-]*)+\|([A-Za-z0-9]+)",
+                r"\b[0-9a-z]+:[a-z][a-z0-9-]*(?:/[a-z0-9][a-z0-9-]*)+(?:\|([A-Za-z0-9]+))?",
             )
             .expect("valid regex"),
-        }
-    }
-}
-
-/// A finding before exemptions are applied.
-struct Finding {
-    check: Check,
-    at: String,
-    message: String,
-}
-
-impl Finding {
-    fn new(check: Check, at: impl Into<String>, message: impl Into<String>) -> Self {
-        Self {
-            check,
-            at: at.into(),
-            message: message.into(),
-        }
-    }
-
-    fn into_problem(self) -> Problem {
-        Problem {
-            at: self.at,
-            check: self.check.name(),
-            message: self.message,
         }
     }
 }
@@ -157,15 +138,17 @@ pub fn run(root: &Path) -> Result<Outcome> {
 
     for file in &files {
         let exempt = exemptions.get(file.path.as_str());
-        for finding in scan_tracked(file, &patterns) {
-            if !exempt.is_some_and(|allowed| allowed.contains(&finding.check)) {
-                report.push(finding.into_problem());
+        for problem in scan_tracked(file, &patterns) {
+            let exempted = exempt
+                .is_some_and(|allowed| allowed.iter().any(|check| check.name() == problem.check));
+            if !exempted {
+                report.push(problem);
             }
         }
     }
     for file in &untracked {
-        for finding in scan_relaxed_simd(file, &patterns) {
-            report.push(finding.into_problem());
+        for problem in scan_relaxed_simd(file, &patterns) {
+            report.push(problem);
         }
     }
 
@@ -192,11 +175,11 @@ fn load_allowlist(files: &[RepoFile], report: &mut Report) -> Result<Exemptions>
 
     for entry in list.file {
         let mut problem = |message: &str| {
-            report.add(
+            report.push(Problem::new(
                 ALLOWLIST,
                 ALLOWLIST_CHECK,
                 format!("the exemption for {} {message}", entry.path),
-            );
+            ));
         };
         if entry.reason.trim().is_empty() {
             problem("has no reason");
@@ -215,12 +198,11 @@ fn load_allowlist(files: &[RepoFile], report: &mut Report) -> Result<Exemptions>
     Ok(exemptions)
 }
 
-fn scan_tracked(file: &RepoFile, patterns: &Patterns) -> Vec<Finding> {
-    let mut findings = scan_relaxed_simd(file, patterns);
+fn scan_tracked(file: &RepoFile, patterns: &Patterns) -> Vec<Problem> {
+    let mut problems = scan_relaxed_simd(file, patterns);
     for (index, line) in lines(&file.contents) {
         if patterns.tag.is_match(line) {
-            findings.push(Finding::new(
-                Check::TagMarkup,
+            problems.push(Check::TagMarkup.problem(
                 at_line(&file.path, index),
                 "5e.tools tag markup; upstream rules text must not be committed",
             ));
@@ -235,24 +217,22 @@ fn scan_tracked(file: &RepoFile, patterns: &Patterns) -> Vec<Finding> {
         fixture && extension.as_deref() == Some("json") && json_marked(&file.contents);
 
     if matches!(extension.as_deref(), Some("json" | "pack" | "postcard")) && !marked_json_fixture {
-        findings.push(Finding::new(
-            Check::DataFile,
+        problems.push(Check::DataFile.problem(
             &file.path,
             "tracked JSON, pack or postcard file; rules data and anything derived from it stays in the local cache",
         ));
     }
     if fixture {
-        findings.extend(scan_fixture(file, extension.as_deref(), patterns));
+        problems.extend(scan_fixture(file, extension.as_deref(), patterns));
     }
-    findings
+    problems
 }
 
-fn scan_relaxed_simd(file: &RepoFile, patterns: &Patterns) -> Vec<Finding> {
+fn scan_relaxed_simd(file: &RepoFile, patterns: &Patterns) -> Vec<Problem> {
     lines(&file.contents)
         .filter(|(_, line)| patterns.relaxed_simd.is_match(line))
         .map(|(index, _)| {
-            Finding::new(
-                Check::RelaxedSimd,
+            Check::RelaxedSimd.problem(
                 at_line(&file.path, index),
                 "this SIMD variant is not deterministic across hosts (ADR-0050)",
             )
@@ -266,10 +246,10 @@ fn json_marked(contents: &[u8]) -> bool {
         .is_ok_and(|doc| doc.get("_fixture").and_then(|v| v.as_str()) == Some("synthetic"))
 }
 
-fn scan_fixture(file: &RepoFile, extension: Option<&str>, patterns: &Patterns) -> Vec<Finding> {
-    let mut findings = Vec::new();
+fn scan_fixture(file: &RepoFile, extension: Option<&str>, patterns: &Patterns) -> Vec<Problem> {
+    let mut problems = Vec::new();
     let mut problem = |at: String, message: String| {
-        findings.push(Finding::new(Check::Fixture, at, message));
+        problems.push(Check::Fixture.problem(at, message));
     };
 
     match extension {
@@ -303,17 +283,19 @@ fn scan_fixture(file: &RepoFile, extension: Option<&str>, patterns: &Patterns) -
 
     for (index, line) in lines(&file.contents) {
         for caps in patterns.content_id.captures_iter(line) {
-            let source = String::from_utf8_lossy(&caps[1]);
-            if source != "tst" {
-                problem(
+            let id = String::from_utf8_lossy(&caps[0]);
+            match caps.get(1).map(|m| String::from_utf8_lossy(m.as_bytes())) {
+                Some(source) if source == "tst" => {}
+                Some(source) => problem(
                     at_line(&file.path, index),
-                    format!(
-                        "Content ID {} has source `{source}`; fixtures use source `tst`",
-                        String::from_utf8_lossy(&caps[0])
-                    ),
-                );
+                    format!("Content ID {id} has source `{source}`; fixtures use source `tst`"),
+                ),
+                None => problem(
+                    at_line(&file.path, index),
+                    format!("Content ID {id} has no `|source`; fixtures use `|tst` (ADR-0008)"),
+                ),
             }
         }
     }
-    findings
+    problems
 }

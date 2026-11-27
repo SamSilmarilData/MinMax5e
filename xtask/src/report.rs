@@ -14,6 +14,16 @@ pub struct Problem {
     pub message: String,
 }
 
+impl Problem {
+    pub fn new(at: impl Into<String>, check: &'static str, message: impl Into<String>) -> Self {
+        Self {
+            at: at.into(),
+            check,
+            message: message.into(),
+        }
+    }
+}
+
 impl fmt::Display for Problem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: [{}] {}", self.at, self.check, self.message)
@@ -35,29 +45,25 @@ impl Report {
         }
     }
 
-    pub fn add(&mut self, at: impl Into<String>, check: &'static str, message: impl Into<String>) {
-        self.problems.push(Problem {
-            at: at.into(),
-            check,
-            message: message.into(),
-        });
-    }
-
     pub fn push(&mut self, problem: Problem) {
         self.problems.push(problem);
     }
 
-    /// Prints the problems, or `clean` if there are none, and returns the outcome.
-    /// `fix` tells the reader what to do about a failure.
-    pub fn finish(self, clean: &str, fix: &str) -> Outcome {
+    /// Prints the problems, or `clean_summary` if there are none, and returns the outcome.
+    /// `fix_hint` tells the reader what to do about a failure.
+    pub fn finish(self, clean_summary: &str, fix_hint: &str) -> Outcome {
         if self.problems.is_empty() {
-            println!("{}: {clean}", self.guard);
+            println!("{}: {clean_summary}", self.guard);
             return Outcome::Clean;
         }
         for problem in &self.problems {
             println!("{problem}");
         }
-        println!("{}: {} problem(s). {fix}", self.guard, self.problems.len());
+        println!(
+            "{}: {} problem(s). {fix_hint}",
+            self.guard,
+            self.problems.len()
+        );
         Outcome::Violations
     }
 }

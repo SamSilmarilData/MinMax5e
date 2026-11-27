@@ -36,7 +36,7 @@ serde_json = "1"
 [workspace.lints.cargo]
 unused_workspace_dependencies = "allow"
 
-# Research 09 §6, with float_cmp and dbg_macro denied (ADR-0050).
+# Research 09 §6.
 [workspace.lints.rust]
 unsafe_code = "forbid"
 missing_debug_implementations = "warn"

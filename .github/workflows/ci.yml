@@ -42,16 +42,28 @@ jobs:
       - uses: actions/checkout@v4
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
-      # Every crate except the native shells must build for the browser (ADR-0034, ADR-0042).
+      # Every crate except the native CLI and the xtask dev tool must build for the
+      # browser (ADR-0034, ADR-0042).
       - name: cargo check --target wasm32-unknown-unknown
         run: |
           packages=$(cargo metadata --no-deps --format-version 1 \
             | jq -r '.packages[].name | select(. != "mm-cli" and . != "xtask") | "--package=" + .')
-          if [ -z "$packages" ]; then
-            echo "No crates to check for wasm32 yet."
-            exit 0
+          if [ -n "$packages" ]; then
+            cargo check --locked --target wasm32-unknown-unknown $packages
+          else
+            echo "No library crates yet; only the canary below runs."
           fi
-          cargo check --locked --target wasm32-unknown-unknown $packages
+      # A canary that compiles only if .cargo/config.toml's +simd128 reaches wasm builds.
+      - name: wasm32 simd128 canary
+        run: |
+          mkdir -p target/wasm-canary/src
+          printf '[package]\nname = "wasm-canary"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[workspace]\n' \
+            > target/wasm-canary/Cargo.toml
+          printf '#![no_std]\n#[cfg(not(target_feature = "simd128"))]\ncompile_error!("simd128 is not enabled for wasm32: check .cargo/config.toml");\n' \
+            > target/wasm-canary/src/lib.rs
+          for target in wasm32-unknown-unknown wasm32-wasip1; do
+            cargo check --manifest-path target/wasm-canary/Cargo.toml --target "$target"
+          done
 
   guards:
     name: repo guards

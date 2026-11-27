@@ -6,6 +6,8 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-27 (workspace foundation, #13):* `f64::max`/`min` are banned in all scored code, not only "where NaN is possible", because a lint can't tell where NaN is possible. Use explicit comparisons or `total_cmp`. The full list of banned operations, with sources, is in ADR-0050's amendment of the same date.
+
 > *Amended 2026-11-27 (ADR-0050):*
 >
 > - **Two levels.** Determinism is split into *outcome* determinism (the `Done` result: guaranteed across executors, thread counts **and targets**) and *trajectory* determinism (snapshots, progress, cancel points: not promised).

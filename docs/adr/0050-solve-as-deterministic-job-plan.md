@@ -12,7 +12,7 @@ status: accepted
 > - **`powi` is banned.** Rust documents its precision as "non-deterministic", varying "by platform, Rust version, and … from one invocation to the next". Multiply explicitly.
 > - **`f64::max`/`min` are banned outright** in `clippy.toml`, not only "where NaN is possible", because a lint can't tell where NaN is possible. Use explicit comparisons or `total_cmp`.
 > - **`mul_add` stays banned** even though Rust guarantees its rounding: a fused result differs from the unfused `a * b + c` used elsewhere, so mixing them changes bits between code paths (research 09 §5, rule 7).
-> - The transcendental ban covers `powf`, `exp`, `exp2`, `exp_m1`, `ln`, `ln_1p`, `log`, `log2` and `log10`, for `f32` and `f64`. `clippy.toml` holds the list, and `xtask/tests/clippy_bans.rs` checks that every entry is rejected.
+> - **"Transcendentals" means every `f32`/`f64` method whose precision Rust leaves unspecified,** not only the three examples in the rule above: `powf`, `exp`, `exp2`, `exp_m1`, `ln`, `ln_1p`, `log`, `log2`, `log10`, the trigonometric and hyperbolic functions and their inverses (`sin`, `cos`, `tan`, `sin_cos`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`), `cbrt` and `hypot`. `clippy.toml` holds the list. `xtask/tests/clippy_bans.rs` checks that every entry is rejected, and that each method is banned for both `f32` and `f64`.
 
 `mm-solver` has no threads, channels or clocks. It exposes four pure functions:
 

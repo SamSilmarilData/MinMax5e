@@ -23,7 +23,35 @@ use anyhow::{Context, Result};
 use cargo_metadata::{Dependency, DependencyKind, MetadataCommand, Package};
 
 use crate::Outcome;
-use crate::report::{Report, at_line};
+use crate::report::{Problem, Report, at_line};
+
+/// The checks `deps` runs; each names the problems it reports.
+#[derive(Debug, Clone, Copy)]
+enum Check {
+    /// `publish = false` and the MIT licence.
+    Package,
+    /// Every workspace crate is in the table.
+    CrateTable,
+    /// Workspace dependencies are in the crate's allowed set.
+    AllowedDeps,
+    /// Third-party dependencies, where the table limits them.
+    ThirdParty,
+    /// `mm-testkit` is used only from integration tests.
+    Testkit,
+}
+
+impl Check {
+    fn problem(self, at: impl Into<String>, message: impl Into<String>) -> Problem {
+        let name = match self {
+            Check::Package => "package",
+            Check::CrateTable => "crate-table",
+            Check::AllowedDeps => "allowed-deps",
+            Check::ThirdParty => "third-party",
+            Check::Testkit => "testkit",
+        };
+        Problem::new(at, name, message)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Role {
@@ -73,7 +101,7 @@ struct CrateRule {
 static TABLE: LazyLock<Vec<CrateRule>> = LazyLock::new(|| {
     use Role::{Binary, Host, Library, Rules, Testkit};
 
-    let with = |base: &[&'static str], more: &[&'static str]| -> Vec<&'static str> {
+    let layered = |base: &[&'static str], more: &[&'static str]| -> Vec<&'static str> {
         base.iter().chain(more).copied().collect()
     };
     // Each layer may use everything below it.
@@ -86,53 +114,53 @@ static TABLE: LazyLock<Vec<CrateRule>> = LazyLock::new(|| {
         "mm-solver",
         "mm-cache",
     ];
-    let below_host = with(&below_app, &["mm-app-core"]);
-    let shell = with(&below_host, &["mm-host", "mm-rules-2024", "mm-rules-2014"]);
+    let below_host = layered(&below_app, &["mm-app-core"]);
+    let shell = layered(&below_host, &["mm-host", "mm-rules-2024", "mm-rules-2014"]);
 
-    let rule = |name, role, may_use: &[&'static str], third_party| CrateRule {
+    let row = |name, role, may_use: &[&'static str], third_party| CrateRule {
         name,
         role,
         may_use: may_use.to_vec(),
         third_party,
     };
     vec![
-        rule("mm-dice", Library, &[], ThirdParty::None),
-        rule(
+        row("mm-dice", Library, &[], ThirdParty::None),
+        row(
             "mm-core",
             Library,
             &[],
             ThirdParty::Only(&["blake3", "serde", "thiserror"]),
         ),
-        rule("mm-load", Library, &["mm-core"], ThirdParty::Any),
-        rule(
+        row("mm-load", Library, &["mm-core"], ThirdParty::Any),
+        row(
             "mm-import",
             Library,
             &["mm-core", "mm-load"],
             ThirdParty::Any,
         ),
-        rule(
+        row(
             "mm-engine",
             Library,
             &["mm-core", "mm-load", "mm-dice"],
             ThirdParty::Any,
         ),
-        rule(
+        row(
             "mm-solver",
             Library,
             &["mm-core", "mm-load", "mm-dice", "mm-engine"],
             ThirdParty::Any,
         ),
-        rule(
+        row(
             "mm-cache",
             Library,
             &["mm-core", "mm-load", "mm-dice", "mm-engine", "mm-solver"],
             ThirdParty::Any,
         ),
-        rule("mm-rules-2024", Rules, &["mm-core"], ThirdParty::Any),
-        rule("mm-rules-2014", Rules, &["mm-core"], ThirdParty::Any),
-        rule("mm-app-core", Library, &below_app, ThirdParty::Any),
-        rule("mm-host", Host, &below_host, ThirdParty::Any),
-        rule(
+        row("mm-rules-2024", Rules, &["mm-core"], ThirdParty::Any),
+        row("mm-rules-2014", Rules, &["mm-core"], ThirdParty::Any),
+        row("mm-app-core", Library, &below_app, ThirdParty::Any),
+        row("mm-host", Host, &below_host, ThirdParty::Any),
+        row(
             "mm-testkit",
             Testkit,
             &[
@@ -146,16 +174,16 @@ static TABLE: LazyLock<Vec<CrateRule>> = LazyLock::new(|| {
             ],
             ThirdParty::Any,
         ),
-        rule("mm-gui", Binary, &shell, ThirdParty::Any),
-        rule("mm-worker", Binary, &shell, ThirdParty::Any),
-        rule("mm-cli", Binary, &shell, ThirdParty::Any),
-        rule("xtask", Binary, &[], ThirdParty::Any),
+        row("mm-gui", Binary, &shell, ThirdParty::Any),
+        row("mm-worker", Binary, &shell, ThirdParty::Any),
+        row("mm-cli", Binary, &shell, ThirdParty::Any),
+        row("xtask", Binary, &[], ThirdParty::Any),
     ]
 });
 
 const TESTKIT: &str = "mm-testkit";
 
-fn rule(name: &str) -> Option<&'static CrateRule> {
+fn rule_for(name: &str) -> Option<&'static CrateRule> {
     TABLE.iter().find(|r| r.name == name)
 }
 
@@ -199,18 +227,17 @@ impl Checker<'_> {
             .is_none_or(|registries| !registries.is_empty())
         {
             self.report
-                .add(name, "package", "must set `publish = false` (ADR-0028)");
+                .push(Check::Package.problem(name, "must set `publish = false` (ADR-0028)"));
         }
         if package.license.as_deref() != Some("MIT") {
-            self.report.add(name, "package", "must use the MIT licence");
+            self.report
+                .push(Check::Package.problem(name, "must use the MIT licence"));
         }
 
-        let Some(rule) = rule(name) else {
-            self.report.add(
-                name,
-                "crate-table",
+        let Some(rule) = rule_for(name) else {
+            self.report.push(Check::CrateTable.problem(name,
                 "not in the ADR-0034 crate table; add it to xtask/src/deps.rs with its allowed dependencies, after amending ADR-0034",
-            );
+            ));
             return Ok(());
         };
 
@@ -229,20 +256,17 @@ impl Checker<'_> {
         let dev = dep.kind == DependencyKind::Development;
 
         if dep.name == TESTKIT && dep.rename.is_some() {
-            self.report.add(
+            self.report.push(Check::Testkit.problem(
                 edge.as_str(),
-                "testkit",
                 "do not rename mm-testkit; `xtask deps` finds its uses by name",
-            );
+            ));
         }
 
         let is_member = dep.path.is_some() && self.members.contains(dep.name.as_str());
         if !is_member {
             if !dev && let Some(why) = from.third_party.refusal(&dep.name) {
-                self.report.add(
-                    edge,
-                    "third-party",
-                    format!("{} {why} (ADR-0034)", from.name),
+                self.report.push(
+                    Check::ThirdParty.problem(edge, format!("{} {why} (ADR-0034)", from.name)),
                 );
             }
             return;
@@ -252,7 +276,7 @@ impl Checker<'_> {
             return;
         }
         self.report
-            .add(edge, "allowed-deps", forbidden_reason(from, &dep.name));
+            .push(Check::AllowedDeps.problem(edge, forbidden_reason(from, &dep.name)));
     }
 
     /// In a crate that depends on `mm-testkit`, no `.rs` file outside `tests/` may use it.
@@ -276,11 +300,9 @@ impl Checker<'_> {
                 .to_string();
             for (index, line) in text.lines().enumerate() {
                 if contains_word(code_part(line), "mm_testkit") {
-                    self.report.add(
-                        at_line(&shown, index),
-                        "testkit",
+                    self.report.push(Check::Testkit.problem(at_line(&shown, index),
                         "uses mm_testkit outside tests/; oracles are used only from integration tests (ADR-0034)",
-                    );
+                    ));
                 }
             }
         }
@@ -290,7 +312,7 @@ impl Checker<'_> {
 
 /// Why `from` may not depend on the workspace crate `dep`, phrased by the rule broken.
 fn forbidden_reason(from: &CrateRule, dep: &str) -> String {
-    match rule(dep).map(|r| r.role) {
+    match rule_for(dep).map(|r| r.role) {
         Some(Role::Rules) => {
             "only binaries and mm-testkit may depend on a rules crate (ADR-0034)".to_owned()
         }

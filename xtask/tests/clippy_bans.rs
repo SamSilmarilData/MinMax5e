@@ -31,10 +31,31 @@ fn call(path: &str) -> String {
     let args = match method {
         "mul_add" => "2.0, 3.0",
         "powi" => "2",
-        "powf" | "log" | "max" | "min" => "2.0",
+        "powf" | "log" | "max" | "min" | "atan2" | "hypot" => "2.0",
         _ => "",
     };
-    format!("f64::from((x as {ty}).{method}({args}))")
+    format!("(x as {ty}).{method}({args})")
+}
+
+#[test]
+fn every_ban_covers_both_f32_and_f64() {
+    let banned = banned_paths();
+    let methods = |ty: &str| -> std::collections::BTreeSet<String> {
+        banned
+            .iter()
+            .filter_map(|path| path.strip_prefix(&format!("{ty}::")).map(str::to_owned))
+            .collect()
+    };
+    assert_eq!(
+        methods("f64"),
+        methods("f32"),
+        "clippy.toml bans differ between f64 and f32"
+    );
+    assert_eq!(
+        banned.len(),
+        methods("f64").len() * 2,
+        "clippy.toml bans something other than f32/f64 methods: {banned:?}"
+    );
 }
 
 fn clippy(tree: &TempTree, body: &str) -> std::process::Output {
