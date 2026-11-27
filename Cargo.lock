@@ -995,6 +995,7 @@ name = "xtask"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "blake3",
  "cargo_metadata",
  "clap",
  "regex",

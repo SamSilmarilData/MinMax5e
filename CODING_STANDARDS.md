@@ -1,6 +1,6 @@
 # Coding standards
 
-Read during review. Tooling already enforces fmt, clippy (`all` and `pedantic`, the float bans in `clippy.toml`), the crate dependency rules (`cargo xtask deps`), the leak scan and ADR immutability (`cargo xtask adr-check`), so review spends its attention on the judgement calls below.
+Read during review. Tooling already enforces fmt, clippy (`all` and `pedantic`, the float bans in `clippy.toml`), the crate dependency rules (`cargo xtask deps`), the leak scan, ADR immutability (`cargo xtask adr-check`) and native/WebAssembly bit identity of the hashed fixture Builds (`cargo xtask xhash`), so review spends its attention on the judgement calls below.
 
 ## Where the conventions live
 

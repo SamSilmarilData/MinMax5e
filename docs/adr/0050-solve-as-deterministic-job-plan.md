@@ -6,6 +6,8 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-28 (cross-target result hash, #16):* **Until `mm-solver` exists, the hashed set is fixture Builds, not jobs.** `cargo xtask xhash` builds `mm-cli` for the host and for `wasm32-wasip1`, evaluates every Build listed in `xtask/xhash.toml` with each (the WebAssembly build under wasmtime), and hashes the `--format ron` output with BLAKE3. RON writes floats in Rust's shortest round-trip form, so the text carries every bit of every finite result; NaN payloads are not covered, and scored code should not produce NaN anyway. It exits 1 when the hashes differ, and `--mismatch` changes one digit of a WebAssembly result to show that it does. CI runs it in the macOS leg of the test job with wasmtime 51.0.0, the version research 13 §4 measured with. Each ticket that adds a fixture Build adds it to the set. The synthetic job set in the rule below joins the hash when `mm-solver` arrives (architecture §11, step 5).
+
 > *Amended 2026-11-27 (workspace foundation, #13): the float bans, with sources.*
 >
 > - **`sqrt` is allowed.** Rust guarantees `f64::sqrt` is "the rounded infinite-precision result … specified by IEEE 754 as `squareRoot` and guaranteed not to change" ([std docs](https://doc.rust-lang.org/std/primitive.f64.html#method.sqrt)), and WebAssembly's `fsqrt` rounds to nearest. It is an IEEE basic operation, so the rule below already allows it. Spec #12's ban on `sqrt` is withdrawn.

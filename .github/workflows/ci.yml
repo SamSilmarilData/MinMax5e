@@ -34,6 +34,16 @@ jobs:
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --locked
+      # The cross-target result hash (ADR-0050): evaluation must give the same bits
+      # natively and under wasmtime. The ignored tests show that a mismatch fails.
+      - if: runner.os == 'macOS'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasmtime@51.0.0
+      - if: runner.os == 'macOS'
+        run: cargo xtask xhash
+      - if: runner.os == 'macOS'
+        run: cargo test --locked --package xtask --test xhash -- --ignored
 
   wasm:
     name: wasm32 check
