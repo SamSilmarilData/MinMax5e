@@ -25,8 +25,10 @@ struct AttackRecipe {
 #[derive(Debug, Clone)]
 struct TurnRecipe {
     attacks: Vec<AttackRecipe>,
-    floor: Option<i32>,
-    cap: Option<i32>,
+    /// Totals below this count as this.
+    at_least: Option<i32>,
+    /// Totals above this count as this.
+    at_most: Option<i32>,
 }
 
 fn roll_mode() -> impl Strategy<Value = RollMode> {
@@ -70,15 +72,15 @@ fn turn() -> impl Strategy<Value = TurnRecipe> {
         prop::option::of(0..=12_i32),
         prop::option::of(5..=60_i32),
     )
-        .prop_map(|(attacks, floor, cap)| TurnRecipe {
+        .prop_map(|(attacks, at_least, at_most)| TurnRecipe {
             attacks,
-            floor,
-            cap,
+            at_least,
+            at_most,
         })
 }
 
 /// The recipe built with `mm-dice`: the turn's distribution and its moments before any
-/// floor or cap.
+/// `at_least` or `at_most`.
 fn float_turn(recipe: &TurnRecipe) -> (Pmf, Moments) {
     let mut pmf = Pmf::point(0);
     let mut moments = Moments::point(0);
@@ -105,17 +107,17 @@ fn float_turn(recipe: &TurnRecipe) -> (Pmf, Moments) {
         pmf = pmf.convolve(&attack);
         moments = moments.add_independent(attack_moments);
     }
-    if let Some(floor) = recipe.floor {
-        pmf = pmf.at_least(floor);
+    if let Some(min) = recipe.at_least {
+        pmf = pmf.at_least(min);
     }
-    if let Some(cap) = recipe.cap {
-        pmf = pmf.at_most(cap);
+    if let Some(max) = recipe.at_most {
+        pmf = pmf.at_most(max);
     }
     (pmf, moments)
 }
 
 /// The same recipe in exact arithmetic: the turn's distribution, and the distribution
-/// before any floor or cap.
+/// before any `at_least` or `at_most`.
 fn exact_turn(recipe: &TurnRecipe) -> (ExactPmf, ExactPmf) {
     let mut pmf = ExactPmf::point(0);
     for a in &recipe.attacks {
@@ -138,11 +140,11 @@ fn exact_turn(recipe: &TurnRecipe) -> (ExactPmf, ExactPmf) {
         pmf = pmf.convolve(&attack);
     }
     let unbounded = pmf.clone();
-    if let Some(floor) = recipe.floor {
-        pmf = pmf.at_least(floor);
+    if let Some(min) = recipe.at_least {
+        pmf = pmf.at_least(min);
     }
-    if let Some(cap) = recipe.cap {
-        pmf = pmf.at_most(cap);
+    if let Some(max) = recipe.at_most {
+        pmf = pmf.at_most(max);
     }
     (pmf, unbounded)
 }
