@@ -3,10 +3,11 @@
 //! - `deps`: the crate dependency rules of ADR-0034, checked against `cargo metadata`.
 //! - `leak-scan`: no upstream rules data in tracked files (ADR-0028).
 //! - `adr-check`: accepted ADRs change only by dated amendment.
-//! - `glossary`: Content ID kinds use no term GLOSSARY.md avoids.
+//! - `glossary`: content kind names use no term GLOSSARY.md avoids.
 //! - `xhash`: evaluation gives the same bits natively and in WebAssembly (ADR-0050).
 
 mod adr;
+mod content_id;
 mod deps;
 mod git;
 mod glossary;
@@ -49,7 +50,7 @@ enum Command {
         #[arg(long)]
         root: Option<PathBuf>,
     },
-    /// Check that no Content ID kind is a term GLOSSARY.md says to avoid.
+    /// Check that no content kind name is a term GLOSSARY.md says to avoid.
     Glossary {
         /// The git working tree to check; defaults to this repository.
         #[arg(long)]

@@ -76,3 +76,42 @@ fn research_notes_stay_as_written() {
 fn the_repository_passes() {
     xtask(&["glossary"]).assert_ok();
 }
+
+#[test]
+fn an_avoided_term_as_a_content_enum_variant_fails() {
+    let tree = tree_with_glossary();
+    tree.track(
+        "src/records.rs",
+        "pub enum Record {\n    /// A class.\n    Class(NamedRecord),\n    Mastery {\n        id: Id,\n    },\n}\n\npub enum Other {\n    WeaponTrait,\n}\n",
+    );
+    let run = check(&tree);
+    run.assert_fails_with(&["src/records.rs:4", "[variant]", "\"Mastery\""]);
+    assert!(
+        !run.stdout().contains("WeaponTrait") && !run.stdout().contains(":5"),
+        "only a content enum's own variants are checked\n{}",
+        run.stdout()
+    );
+}
+
+#[test]
+fn a_variant_is_read_as_words() {
+    let tree = tree_with_glossary();
+    tree.track(
+        "src/effect.rs",
+        "pub enum Encoding {\n    WeaponTrait(FeaturesEncoding),\n}\n",
+    );
+    check(&tree).assert_fails_with(&["src/effect.rs:2", "\"WeaponTrait\""]);
+}
+
+#[test]
+fn a_repository_without_a_glossary_is_an_error() {
+    let tree = TempTree::git();
+    tree.track("README.md", "# Hello\n");
+    let run = check(&tree);
+    assert_eq!(run.0.status.code(), Some(2), "{}", run.stderr());
+    assert!(
+        run.stderr().contains("GLOSSARY.md is not tracked"),
+        "{}",
+        run.stderr()
+    );
+}

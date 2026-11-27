@@ -24,6 +24,7 @@ use regex::bytes::Regex;
 use serde::Deserialize;
 
 use crate::Outcome;
+use crate::content_id;
 use crate::git::{RepoFile, hooks_path, tracked_files, untracked_files};
 use crate::report::{Check as _, Problem, Report, at_line, lines};
 
@@ -117,12 +118,7 @@ impl Patterns {
             // ADR-0028: an opening brace and `@`, a lowercase tag name, then a space, pipe or brace.
             tag: Regex::new(&format!(r"\{{{}[a-z]+[ |}}]", '@')).expect("valid regex"),
             relaxed_simd: Regex::new(&format!("(?i){RELAXED_SIMD}")).expect("valid regex"),
-            // `<ruleset>:<kind>/<slug>|<source>` (ADR-0008). The source is captured, and
-            // optional here so an ID written without one is caught too.
-            content_id: Regex::new(
-                r"\b[0-9a-z]+:[a-z][a-z0-9-]*(?:/[a-z0-9][a-z0-9-]*)+(?:\|([A-Za-z0-9]+))?",
-            )
-            .expect("valid regex"),
+            content_id: Regex::new(content_id::PATTERN).expect("valid regex"),
         }
     }
 }
@@ -319,7 +315,10 @@ fn scan_fixture(file: &RepoFile, kind: FileKind, patterns: &Patterns) -> Vec<Pro
     for (index, line) in lines(&file.contents) {
         for caps in patterns.content_id.captures_iter(line) {
             let id = String::from_utf8_lossy(&caps[0]);
-            match caps.get(1).map(|m| String::from_utf8_lossy(m.as_bytes())) {
+            match caps
+                .name("source")
+                .map(|m| String::from_utf8_lossy(m.as_bytes()))
+            {
                 Some(source) if source == "tst" => {}
                 Some(source) => problem(
                     at_line(&file.path, index),
