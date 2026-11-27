@@ -577,7 +577,7 @@ Locked 2026-11-27. The tape spike is **frozen** as evidence, not promoted: the c
 
 **Crates:** `mm-dice`, `mm-core`, `mm-load`, `mm-engine`, `mm-rules-2024` (economy and `ResourceDecl`s only), `mm-testkit`, `mm-cli`, `xtask`. No hook machinery yet (ADR-0036 is implemented with the first encoding that needs it).
 
-**Synthetic content** (source `tst`, in `crates/mm-testkit/fixtures/`) must express the following, as requirements, built or not. Which fixtures are built, and what each holds, is listed only in [the fixtures README](../crates/mm-testkit/fixtures/README.md).
+**Synthetic content** (source `tst`, in `crates/mm-testkit/fixtures/`) must express the following, as requirements, built or not. Which fixtures are built, and what each holds, is listed only in [the fixtures README](../crates/mm-testkit/fixtures/README.md), by directory: `pack/`, `malformed/` and `builds/`.
 
 - a complete Build: a species, background and Origin feat with no combat effect;
 - research 03 §7.2's level-5 warrior: Extra Attack, Weapon Mastery, a style that counts 1s and 2s as 3, a 2d6 Heavy weapon with a Graze-like mastery property, and a heavy-weapon feat (+PB on Attack-action hits with a Heavy weapon, and a crit-gated Bonus Action attack), with a Build per row of the note's variant table;

@@ -16,6 +16,11 @@ fn content_id(ruleset: &str, kind: &str) -> String {
     format!("id: \"{ruleset}:{kind}/test-graze|tst\",\n")
 }
 
+/// A Rust enum, assembled so this file does not match the guard itself.
+fn rust_enum(name: &str, body: &str) -> String {
+    format!("pub {} {name} {body}", "enum")
+}
+
 fn check(tree: &TempTree) -> common::XtaskRun {
     xtask(&["glossary", "--root", tree.path().to_str().unwrap()])
 }
@@ -73,8 +78,39 @@ fn research_notes_stay_as_written() {
 }
 
 #[test]
-fn the_repository_passes() {
-    xtask(&["glossary"]).assert_ok();
+fn the_repository_passes_and_its_content_enums_are_read() {
+    let run = xtask(&["glossary"]);
+    run.assert_ok();
+    // mm-core's `Record` and `Encoding` have at least these variants between them, so a
+    // rename that stops the scan finding them fails here.
+    let variants: usize = run
+        .stdout()
+        .split(" content enum variant(s)")
+        .next()
+        .and_then(|head| head.rsplit(' ').next())
+        .and_then(|n| n.parse().ok())
+        .unwrap();
+    assert!(variants >= 10, "{}", run.stdout());
+}
+
+#[test]
+fn brackets_in_comments_and_one_line_enums_do_not_hide_variants() {
+    let tree = tree_with_glossary();
+    tree.track(
+        "src/records.rs",
+        format!(
+            "{}\n\n{}\n",
+            rust_enum(
+                "Record",
+                "{\n    /// Options: a) one, b) two.\n    Class(A), // (see ADR-0008\n    Mastery(A),\n}"
+            ),
+            rust_enum("Encoding", "{ Plain, WeaponTrait(B) }")
+        ),
+    );
+    check(&tree).assert_fails_with(&[
+        "src/records.rs:4: [variant] the variant \"Mastery\"",
+        "src/records.rs:7: [variant] the variant \"WeaponTrait\"",
+    ]);
 }
 
 #[test]
@@ -82,7 +118,14 @@ fn an_avoided_term_as_a_content_enum_variant_fails() {
     let tree = tree_with_glossary();
     tree.track(
         "src/records.rs",
-        "pub enum Record {\n    /// A class.\n    Class(NamedRecord),\n    Mastery {\n        id: Id,\n    },\n}\n\npub enum Other {\n    WeaponTrait,\n}\n",
+        format!(
+            "{}\n\n{}\n",
+            rust_enum(
+                "Record",
+                "{\n    /// A class.\n    Class(NamedRecord),\n    Mastery {\n        id: Id,\n    },\n}"
+            ),
+            rust_enum("Other", "{\n    WeaponTrait,\n}")
+        ),
     );
     let run = check(&tree);
     run.assert_fails_with(&["src/records.rs:4", "[variant]", "\"Mastery\""]);
@@ -98,7 +141,7 @@ fn a_variant_is_read_as_words() {
     let tree = tree_with_glossary();
     tree.track(
         "src/effect.rs",
-        "pub enum Encoding {\n    WeaponTrait(FeaturesEncoding),\n}\n",
+        rust_enum("Encoding", "{\n    WeaponTrait(FeaturesEncoding),\n}\n"),
     );
     check(&tree).assert_fails_with(&["src/effect.rs:2", "\"WeaponTrait\""]);
 }
