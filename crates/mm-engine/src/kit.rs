@@ -120,9 +120,13 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
         .weapon(weapon_id)
         .ok_or_else(|| not_in_pack::<kind::Item>(weapon_id))?];
     // With Weapon Mastery, the weapon's mastery property joins its attacks. The Loadout
-    // holds one weapon, so what the mastery grants is the Build's.
-    if let Some(mastery) = weapon.mastery.as_ref().filter(|_| gained.weapon_mastery) {
-        gained.featured::<R, kind::Mastery>(pack, mastery)?;
+    // holds one weapon, so what the property grants is the Build's.
+    if let Some(mastery) = weapon
+        .mastery_property
+        .as_ref()
+        .filter(|_| gained.weapon_mastery)
+    {
+        gained.featured::<R, kind::MasteryProperty>(pack, mastery)?;
     }
 
     // `build.ruleset()` has checked there is at least one level.
@@ -137,15 +141,18 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
 
     // Row 0 is the Attack action. A crit-gated Bonus Action attack, if any rider offers
     // one, is row `BONUS_ROW`, with the same weapon.
-    let main = attack(AttackSource::AttackAction);
     let offers_bonus = gained
         .riders
         .iter()
         .any(|rider| rider.effect == Op::BonusActionAttack);
-    let mut attacks = vec![main];
-    if offers_bonus {
-        attacks.push(attack(AttackSource::BonusActionAfterCrit));
-    }
+    let attacks = if offers_bonus {
+        vec![
+            attack(AttackSource::AttackAction),
+            attack(AttackSource::BonusActionAfterCrit),
+        ]
+    } else {
+        vec![attack(AttackSource::AttackAction)]
+    };
 
     let mut shape_rows = Vec::new();
     let mut param_rows = Vec::new();
@@ -175,7 +182,8 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
     })
 }
 
-/// The row of the crit-gated Bonus Action attack, when the kit has one.
+/// The row of the crit-gated Bonus Action attack, when the kit has one: the second, after
+/// the Attack action's.
 const BONUS_ROW: u8 = 1;
 
 fn not_in_pack<K: Kind>(id: &ContentId) -> CompileError {
@@ -204,7 +212,7 @@ impl Default for Gained {
 }
 
 impl Gained {
-    /// Adds the features of the species, background, feat or mastery `id`.
+    /// Adds the features of the species, background, feat or mastery property `id`.
     fn featured<R: Ruleset, K: FeaturesKind>(
         &mut self,
         pack: &Pack<R>,
@@ -263,7 +271,7 @@ fn supported(rider: &Rider) -> Result<(), &'static str> {
         Op::MinimumDieRoll(_) => match rider.on {
             Stage::AttackHit => Ok(()),
             Stage::AttackCrit | Stage::AttackMiss => {
-                Err("a minimum die roll applies to every hit, so it is written on AttackHit")
+                Err("a minimum die roll runs on AttackHit only, which covers crits")
             }
         },
         Op::BonusActionAttack => match (rider.on, rider.optional) {
@@ -303,7 +311,11 @@ impl Attack<'_> {
     fn params(&self, riders: &[&Rider]) -> RowParams {
         // The weapon's dice plus the ability modifier on a hit; a crit doubles the dice,
         // not the flat damage.
-        let mut flat = [0, self.ability, self.ability];
+        let mut flat = FlatDamage {
+            miss: 0,
+            hit: self.ability,
+            crit: self.ability,
+        };
         let mut minimum_roll = 1;
         for rider in riders {
             let amount = match rider.effect {
@@ -317,12 +329,12 @@ impl Attack<'_> {
                 Op::BonusActionAttack => continue,
             };
             match rider.on {
-                Stage::AttackMiss => flat[0] += amount,
+                Stage::AttackMiss => flat.miss += amount,
                 Stage::AttackHit => {
-                    flat[1] += amount;
-                    flat[2] += amount;
+                    flat.hit += amount;
+                    flat.crit += amount;
                 }
-                Stage::AttackCrit => flat[2] += amount,
+                Stage::AttackCrit => flat.crit += amount,
             }
         }
         let die = Pmf::die(self.weapon.damage.sides)
@@ -331,11 +343,19 @@ impl Attack<'_> {
         RowParams {
             to_hit: self.ability + self.proficiency,
             crit_on: 20,
-            miss: Moments::point(flat[0]),
-            hit: die.sum_of(count).shift(flat[1]).moments(),
-            crit: die.sum_of(count * 2).shift(flat[2]).moments(),
+            miss: Moments::point(flat.miss),
+            hit: die.sum_of(count).shift(flat.hit).moments(),
+            crit: die.sum_of(count * 2).shift(flat.crit).moments(),
         }
     }
+}
+
+/// The flat damage each attack outcome adds to its dice.
+#[derive(Debug, Clone, Copy)]
+struct FlatDamage {
+    miss: i32,
+    hit: i32,
+    crit: i32,
 }
 
 impl KitShape {

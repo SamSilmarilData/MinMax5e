@@ -166,19 +166,11 @@ fn the_level_5_warrior_prints_research_03_mean_and_sd_for_nova_round_1() {
     assert!(text.starts_with("Nova DPR, round 1,"), "{text}");
     let (highlighted, dpr, sd) = table_row(&text, 16);
     assert!(highlighted, "{text}");
-    // The table prints three decimals.
+    // The table prints three decimals. The crit-gated Bonus Action attack is its own
+    // Attack source, so the feat's +PB on Attack-action hits does not reach it: 22.897,
+    // not the 23.07 of the alternative reading (research 03 §7.2, "Hew counted with +PB").
     assert_rounds_to("mean", dpr, 22.897, 0.001);
     assert_rounds_to("SD", sd, 10.26, 0.01);
-}
-
-#[test]
-fn the_crit_gated_bonus_action_attack_gets_no_attack_action_bonus() {
-    // The Bonus Action attack is its own Attack source, so the feat's +PB on Attack-action
-    // hits does not reach it: 22.897, not the 23.07 of the alternative reading (research
-    // 03 §7.2, "Hew counted with +PB").
-    let lane = round_1_at_ac_16("builds/warrior-5.ron");
-    assert_rounds_to("mean", lane.dpr, 22.897, 0.001);
-    assert_rounds_to("SD", lane.sd, 10.26, 0.01);
 }
 
 #[test]

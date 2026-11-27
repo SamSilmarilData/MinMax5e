@@ -1,6 +1,6 @@
 // fixture: synthetic
 // The level-5 synthetic warrior of research 03 §7.2: Str 18 (+4) and proficiency +3, so
-// two 2d6 attacks at +7 with the style, the heavy-weapon feat and a Graze-like mastery.
+// two 2d6 attacks at +7 with the style, the heavy-weapon feat and a Graze-like mastery property.
 Build(
     species: "2024:species/test-folk|tst",
     background: "2024:background/test-drillhand|tst",

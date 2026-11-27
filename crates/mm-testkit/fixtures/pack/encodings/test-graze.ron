@@ -1,8 +1,8 @@
 // fixture: synthetic
 // A Graze-like mastery property: a miss still deals damage equal to the attack's
 // ability modifier.
-Mastery((
-    id: "2024:mastery/test-graze|tst",
+MasteryProperty((
+    id: "2024:mastery-property/test-graze|tst",
     features: [
         (
             name: "Test Graze",

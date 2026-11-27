@@ -27,7 +27,7 @@ fn the_good_fixtures_validate_with_every_in_scope_id_encoded() {
         "2024:species/test-folk|tst",
         "2024:background/test-drillhand|tst",
         "2024:feat/test-heavy-hitter|tst",
-        "2024:mastery/test-graze|tst",
+        "2024:mastery-property/test-graze|tst",
     ] {
         assert!(stdout.contains(&format!("encoded  {id}")), "{stdout}");
     }
@@ -101,11 +101,11 @@ fn a_feature_without_a_citation_is_a_diagnostic() {
 }
 
 #[test]
-fn a_weapon_naming_an_unknown_mastery_is_a_diagnostic() {
+fn a_weapon_naming_an_unknown_mastery_property_is_a_diagnostic() {
     let stderr = diagnostic_for(
-        "unknown-mastery",
+        "unknown-mastery-property",
         "records/test-badblade.ron",
-        "\"2024:mastery/test-nothing|tst\"",
+        "\"2024:mastery-property/test-nothing|tst\"",
     );
-    insta::assert_snapshot!("unknown-mastery", stderr);
+    insta::assert_snapshot!("unknown-mastery-property", stderr);
 }

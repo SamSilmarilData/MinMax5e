@@ -33,9 +33,9 @@ pub enum Background {}
 #[derive(Debug, Clone, Copy)]
 pub enum Feat {}
 
-/// A weapon mastery property (`mastery/…`).
+/// A weapon mastery property (`mastery-property/…`).
 #[derive(Debug, Clone, Copy)]
-pub enum Mastery {}
+pub enum MasteryProperty {}
 
 impl Kind for Species {
     const NAME: &'static str = "species";
@@ -49,6 +49,6 @@ impl Kind for Feat {
     const NAME: &'static str = "feat";
 }
 
-impl Kind for Mastery {
-    const NAME: &'static str = "mastery";
+impl Kind for MasteryProperty {
+    const NAME: &'static str = "mastery-property";
 }

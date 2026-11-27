@@ -39,7 +39,7 @@ pub struct ClassDef {
     pub encoding: Option<ClassEncoding>,
 }
 
-/// A species, background, feat or mastery: its record and, once encoded, its mechanics.
+/// A species, background, feat or mastery property: its record and, once encoded, its mechanics.
 #[derive(Debug, Clone)]
 pub struct FeaturesDef {
     pub record: NamedRecord,
@@ -52,7 +52,7 @@ pub trait FeaturesKind: Kind {}
 impl FeaturesKind for kind::Species {}
 impl FeaturesKind for kind::Background {}
 impl FeaturesKind for kind::Feat {}
-impl FeaturesKind for kind::Mastery {}
+impl FeaturesKind for kind::MasteryProperty {}
 
 #[derive(Debug, Clone, Copy)]
 enum Entry {
@@ -96,9 +96,9 @@ pub struct Diagnostic {
 /// # Errors
 /// If any source fails to parse, any Content ID lacks `R`'s prefix or names the wrong
 /// kind, an ID is defined twice, an encoding names no loaded record, or a weapon names a
-/// mastery the pack lacks. Every problem found is reported, not just the first.
+/// mastery property the pack lacks. Every problem found is reported, not just the first.
 pub fn load<R: Ruleset>(sources: &Sources) -> Result<Pack<R>, LoadError> {
-    let mut loader = Loader::<R> {
+    let mut loader = Loader::<'_, R> {
         pack: Pack {
             classes: Vec::new(),
             featured: Vec::new(),
@@ -107,6 +107,7 @@ pub fn load<R: Ruleset>(sources: &Sources) -> Result<Pack<R>, LoadError> {
             ruleset: PhantomData,
         },
         diagnostics: Vec::new(),
+        mastery_property_refs: Vec::new(),
     };
     // Records first, so encodings can find what they encode whatever the file order.
     for role in [SourceRole::Records, SourceRole::Encoding] {
@@ -114,7 +115,7 @@ pub fn load<R: Ruleset>(sources: &Sources) -> Result<Pack<R>, LoadError> {
             loader.source(source);
         }
     }
-    loader.check_masteries(sources);
+    loader.check_mastery_properties();
     if loader.diagnostics.is_empty() {
         Ok(loader.pack)
     } else {
@@ -133,7 +134,7 @@ impl<R: Ruleset> Pack<R> {
         }
     }
 
-    /// The species, background, feat or mastery with this Content ID, if the pack has one
+    /// The species, background, feat or mastery property with this Content ID, if the pack has one
     /// of kind `K`.
     pub fn featured<K: FeaturesKind>(&self, id: &ContentId) -> Option<Id<R, K>> {
         match self.by_id.get(id) {
@@ -203,13 +204,16 @@ impl<R: Ruleset> Index<Id<R, kind::Item>> for Pack<R> {
     }
 }
 
-struct Loader<R> {
+struct Loader<'s, R> {
     pack: Pack<R>,
     diagnostics: Vec<Diagnostic>,
+    /// Each loaded weapon's mastery property, with the file that names it, checked once
+    /// every record is loaded.
+    mastery_property_refs: Vec<(&'s Source, ContentId, ContentId)>,
 }
 
-impl<R: Ruleset> Loader<R> {
-    fn source(&mut self, source: &Source) {
+impl<'s, R: Ruleset> Loader<'s, R> {
+    fn source(&mut self, source: &'s Source) {
         match source.role {
             SourceRole::Records => {
                 if let Some(records) = self.parse::<Vec<Record>>(source) {
@@ -238,14 +242,14 @@ impl<R: Ruleset> Loader<R> {
         }
     }
 
-    fn record(&mut self, source: &Source, record: Record) {
+    fn record(&mut self, source: &'s Source, record: Record) {
         let featured = Entry::Featured(len(&self.pack.featured));
         let (entry, wanted) = match &record {
             Record::Class(_) => (Entry::Class(len(&self.pack.classes)), kind::Class::NAME),
             Record::Species(_) => (featured, kind::Species::NAME),
             Record::Background(_) => (featured, kind::Background::NAME),
             Record::Feat(_) => (featured, kind::Feat::NAME),
-            Record::Mastery(_) => (featured, kind::Mastery::NAME),
+            Record::MasteryProperty(_) => (featured, kind::MasteryProperty::NAME),
             Record::Weapon(_) => (Entry::Weapon(len(&self.pack.weapons)), kind::Item::NAME),
         };
         let id = record.id().clone();
@@ -265,11 +269,17 @@ impl<R: Ruleset> Loader<R> {
             Record::Species(record)
             | Record::Background(record)
             | Record::Feat(record)
-            | Record::Mastery(record) => self.pack.featured.push(FeaturesDef {
+            | Record::MasteryProperty(record) => self.pack.featured.push(FeaturesDef {
                 record,
                 encoding: None,
             }),
-            Record::Weapon(record) => self.pack.weapons.push(record),
+            Record::Weapon(record) => {
+                if let Some(property) = &record.mastery_property {
+                    self.mastery_property_refs
+                        .push((source, record.id.clone(), property.clone()));
+                }
+                self.pack.weapons.push(record);
+            }
         }
     }
 
@@ -296,11 +306,13 @@ impl<R: Ruleset> Loader<R> {
                 self.featured::<kind::Background>(source, encoding);
             }
             Encoding::Feat(encoding) => self.featured::<kind::Feat>(source, encoding),
-            Encoding::Mastery(encoding) => self.featured::<kind::Mastery>(source, encoding),
+            Encoding::MasteryProperty(encoding) => {
+                self.featured::<kind::MasteryProperty>(source, encoding);
+            }
         }
     }
 
-    /// Attaches the encoding of a species, background, feat or mastery to its record.
+    /// Attaches the encoding of a species, background, feat or mastery property to its record.
     fn featured<K: FeaturesKind>(&mut self, source: &Source, encoding: FeaturesEncoding) {
         let id = encoding.id.clone();
         if !self.check_id(source, &id, K::NAME) {
@@ -322,32 +334,25 @@ impl<R: Ruleset> Loader<R> {
         def.encoding = Some(encoding);
     }
 
-    /// Reports each weapon whose mastery is not a mastery record in the pack. Runs once
-    /// every record is loaded, so file order does not matter.
-    fn check_masteries(&mut self, sources: &Sources) {
-        let unknown: Vec<(ContentId, ContentId)> = self
-            .pack
-            .weapons
-            .iter()
-            .filter_map(|weapon| {
-                let mastery = weapon.mastery.as_ref()?;
-                let known = mastery.ruleset() == R::PREFIX
-                    && self.pack.featured::<kind::Mastery>(mastery).is_some();
-                (!known).then(|| (weapon.id.clone(), mastery.clone()))
-            })
-            .collect();
-        for (weapon, mastery) in unknown {
-            let quoted = format!("\"{weapon}\"");
-            let source = sources
-                .files
-                .iter()
-                .find(|s| s.role == SourceRole::Records && s.text.contains(&quoted))
-                .expect("a loaded weapon came from a records file");
-            self.report_id(
-                source,
-                &mastery,
-                format!("{weapon} has mastery {mastery}, which is not a mastery in the pack"),
-            );
+    /// Reports each weapon whose mastery property is not a mastery property record in the
+    /// pack. Runs once every record is loaded, so file order does not matter.
+    fn check_mastery_properties(&mut self) {
+        for (source, weapon, property) in std::mem::take(&mut self.mastery_property_refs) {
+            let known = property.ruleset() == R::PREFIX
+                && self
+                    .pack
+                    .featured::<kind::MasteryProperty>(&property)
+                    .is_some();
+            if !known {
+                self.report_id(
+                    source,
+                    &property,
+                    format!(
+                        "{weapon} has mastery property {property}, which is not a mastery \
+                         property in the pack"
+                    ),
+                );
+            }
         }
     }
 

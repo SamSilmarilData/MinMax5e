@@ -15,7 +15,7 @@ pub enum Record {
     Species(NamedRecord),
     Background(NamedRecord),
     Feat(NamedRecord),
-    Mastery(NamedRecord),
+    MasteryProperty(NamedRecord),
     Weapon(WeaponRecord),
 }
 
@@ -23,9 +23,10 @@ impl Record {
     pub fn id(&self) -> &ContentId {
         match self {
             Record::Class(r) => &r.id,
-            Record::Species(r) | Record::Background(r) | Record::Feat(r) | Record::Mastery(r) => {
-                &r.id
-            }
+            Record::Species(r)
+            | Record::Background(r)
+            | Record::Feat(r)
+            | Record::MasteryProperty(r) => &r.id,
             Record::Weapon(r) => &r.id,
         }
     }
@@ -57,7 +58,7 @@ pub struct WeaponRecord {
     pub properties: Vec<WeaponProperty>,
     /// The mastery property Weapon Mastery unlocks for it, if it has one.
     #[serde(default)]
-    pub mastery: Option<ContentId>,
+    pub mastery_property: Option<ContentId>,
 }
 
 /// `count` dice of `sides` sides, e.g. 2d6.

@@ -580,17 +580,18 @@ Locked 2026-11-27. The tape spike is **frozen** as evidence, not promoted: the c
 **Synthetic content** (source `tst`, in `crates/mm-testkit/fixtures/`):
 
 - one species, background and Origin feat with no combat effect, so a Build is complete;
-- `test-warrior`: Extra Attack, Weapon Mastery, a style that counts 1s and 2s as 3;
+- `test-warrior`: Extra Attack and Weapon Mastery; its fighting style is the feat `test-great-style`, which counts 1s and 2s as 3 (#18);
 - `test-crusader`: half-caster slots, Extra Attack, and the optional `test-smite` Rider (Bonus Action, one slot, once per turn, dice doubled on a crit);
 - `test-heavy-hitter`: +PB on Attack-action hits with a Heavy weapon, and a crit-gated Bonus Action attack;
-- `test-greatblade` (2d6, Heavy, Graze-like mastery) and `test-sideblade` (1d6, Light, Vex-like mastery);
+- `test-greatblade` (2d6, Heavy, the Graze-like mastery property `test-graze`) and `test-sideblade` (1d6, Light, Vex-like mastery property);
+- for research 03 §7.2's variants (#18): `test-plainblade`, the greatblade with no mastery property, and `test-heavy-striker`, `test-heavy-hitter` without the crit-gated attack;
 - one Ruling, `R-TST-HEW-BONUS`: whether the crit-gated attack gets the +PB.
 
 The level-5 warrior reproduces research 03 §7.2 end to end; the crusader mirrors the spike's smite model.
 
 **Assumptions:** Nova (rounds 1–2) and Sustained (default Adventuring Day Model: 4 encounters × 3 rounds, short rest after encounter 2, solved as one MDP). Target from ADR-0024 (AC and HP only), overridable.
 
-**CLI:** `mm-cli evaluate <build.ron> [--assumptions] [--ac] [--hp] [--mode nova|sustained|both] [--rulings] [--pack-dir]… [--format text|ron]` and `mm-cli validate-packs`. `compile` already emits `(KitShape, KitParams)` with `ShapeKey`/`ParamsFp` over the Rulings read, so the tape drops in behind the same call at step 4.
+**CLI:** `mm-cli evaluate <build.ron> [--assumptions] [--ac] [--hp] [--nova-rounds] [--mode nova|sustained|both] [--rulings] [--pack-dir]… [--format text|ron]` and `mm-cli validate-packs`. `compile` already emits `(KitShape, KitParams)` with `ShapeKey`/`ParamsFp` over the Rulings read, so the tape drops in behind the same call at step 4.
 
 **Done** when CI is green (fmt, clippy, tests, the wasm32 check, `xtask deps`, `xtask leak-scan`, `cargo deny`, `xtask xhash`) and these pass:
 

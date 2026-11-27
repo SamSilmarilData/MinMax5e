@@ -21,7 +21,7 @@ pub enum Encoding {
     /// A feat, Origin feats and fighting styles included.
     Feat(FeaturesEncoding),
     /// A weapon's mastery property, which Weapon Mastery unlocks.
-    Mastery(FeaturesEncoding),
+    MasteryProperty(FeaturesEncoding),
 }
 
 /// What a class grants at each level.
