@@ -9,12 +9,6 @@ use serde::{Serialize, Serializer};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Fp([u8; 16]);
 
-impl Fp {
-    pub fn to_bytes(self) -> [u8; 16] {
-        self.0
-    }
-}
-
 impl fmt::Display for Fp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.iter().try_for_each(|b| write!(f, "{b:02x}"))
@@ -61,11 +55,6 @@ impl FpHasher {
     pub fn str(&mut self, value: &str) -> &mut Self {
         self.u64(value.len() as u64);
         self.0.update(value.as_bytes());
-        self
-    }
-
-    pub fn fp(&mut self, value: Fp) -> &mut Self {
-        self.0.update(&value.0);
         self
     }
 

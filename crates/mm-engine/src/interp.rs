@@ -7,10 +7,10 @@
 //! with the highest mean, ties going to the lowest option index. The moment fold is ported
 //! from `fold` in the tape spike (`spikes/tape-spike/src/main.rs`).
 
-use mm_dice::{AcLanes, AttackRoll, Moments, Pmf, RollMode};
+use mm_dice::{AcLanes, AttackRoll, Moments, RollMode};
 use rustc_hash::FxHashMap;
 
-use crate::kit::{Damage, KitParams, KitShape};
+use crate::kit::{KitParams, KitShape};
 use crate::turn::{self, Outcome, Step, TurnState};
 
 /// The moments of total damage over `rounds` rounds, one per AC lane.
@@ -19,8 +19,8 @@ pub(crate) fn total_moments(shape: &KitShape, params: &KitParams, rounds: u32) -
         .rows
         .iter()
         .map(|row| RowTerms {
-            hit: moments(&row.hit),
-            crit: moments(&row.crit),
+            hit: row.hit,
+            crit: row.crit,
             odds: AcLanes::from_fn(|ac| {
                 AttackRoll {
                     bonus: row.to_hit,
@@ -110,15 +110,4 @@ impl Dp<'_> {
                 .expect("ending the turn is always legal")
         })
     }
-}
-
-/// The moments of one outcome's damage.
-fn moments(damage: &Damage) -> Moments {
-    damage
-        .dice
-        .iter()
-        .fold(Pmf::point(damage.flat), |total, dice| {
-            total.convolve(&Pmf::die(dice.sides).sum_of(dice.count))
-        })
-        .moments()
 }

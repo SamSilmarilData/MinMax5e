@@ -2,7 +2,7 @@
 //! a [`Ruleset`] supplies the edition's facts.
 //!
 //! The public seam:
-//! - [`Ruleset`] and [`ResourceDecl`]: an edition's prefix and economy.
+//! - [`Ruleset`], [`ResourceDecl`] and [`ActionEconomy`]: an edition's prefix and economy.
 //! - [`ContentId`] (`<ruleset>:<kind>/<slug>|<source>`, ADR-0008) and the typed
 //!   [`Id<R, K>`](Id) handles a Rules Pack hands out, with the kinds in [`kind`].
 //! - [`records`]: resolved records, the shape `mm-import` will produce.
@@ -27,5 +27,5 @@ pub use assumptions::{AssumptionSet, EncounterProfile};
 pub use build::{AbilityScores, Build, BuildError, Loadout};
 pub use fp::{Fp, FpHasher};
 pub use id::{ContentId, ContentIdError, Id};
-pub use ruleset::{Refresh, ResourceDecl, Ruleset};
+pub use ruleset::{ActionEconomy, Refresh, ResourceDecl, Ruleset};
 pub use sources::{Source, SourceRole, Sources};

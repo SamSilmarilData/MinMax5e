@@ -14,6 +14,9 @@ pub trait Ruleset: Debug + Send + Sync + 'static {
     /// The spendable resources this edition declares (spell slots and the like).
     fn resources() -> Vec<ResourceDecl>;
 
+    /// Which actions a turn offers besides the Action.
+    fn actions() -> ActionEconomy;
+
     /// The edition's own encodings, embedded at build time (ADR-0035).
     fn encodings() -> Sources;
 }
@@ -29,6 +32,15 @@ pub struct ResourceDecl {
     pub ordered: bool,
     /// When spent units come back.
     pub refresh: Refresh,
+}
+
+/// The actions a creature has besides its Action, each usable once per round.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ActionEconomy {
+    /// A Bonus Action on its own turn.
+    pub bonus_action: bool,
+    /// A Reaction, on any creature's turn.
+    pub reaction: bool,
 }
 
 /// The rest that restores a resource.

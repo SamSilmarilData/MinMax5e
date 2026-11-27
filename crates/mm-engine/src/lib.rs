@@ -20,6 +20,5 @@ pub mod turn;
 
 pub use evaluate::{Evaluation, LaneResult, ModeResult, evaluate};
 pub use kit::{
-    AttackSource, CombatKit, CompileError, Damage, KitParams, KitShape, RowParams, RowShape,
-    compile,
+    AttackSource, CombatKit, CompileError, KitParams, KitShape, RowParams, RowShape, compile,
 };

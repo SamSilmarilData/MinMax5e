@@ -5,7 +5,7 @@
 //! directory is empty until real encodings start (build-order step 6). There are no hooks
 //! yet (ADR-0036).
 
-use mm_core::{Refresh, ResourceDecl, Ruleset, Source, SourceRole, Sources};
+use mm_core::{ActionEconomy, Refresh, ResourceDecl, Ruleset, Source, SourceRole, Sources};
 
 /// The 2024 rules.
 #[derive(Debug, Clone, Copy)]
@@ -25,6 +25,13 @@ impl Ruleset for Rules2024 {
             ordered: true,
             refresh: Refresh::LongRest,
         }]
+    }
+
+    fn actions() -> ActionEconomy {
+        ActionEconomy {
+            bonus_action: true,
+            reaction: true,
+        }
     }
 
     fn encodings() -> Sources {

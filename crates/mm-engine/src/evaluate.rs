@@ -47,7 +47,7 @@ pub fn evaluate(kit: &CombatKit, assumptions: &AssumptionSet) -> Evaluation {
     Evaluation {
         shape_key: kit.shape.key(),
         params_fp: kit.params.fp(),
-        target_ac: assumptions.encounter.target_ac,
+        target_ac: assumptions.encounter_profile.target_ac,
         nova: ModeResult {
             rounds,
             lanes: totals

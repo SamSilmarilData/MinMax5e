@@ -50,6 +50,24 @@ pub enum BuildError {
 }
 
 impl Build {
+    /// The character level: the number of class levels.
+    pub fn level(&self) -> usize {
+        self.levels.len()
+    }
+
+    /// The level in its class that character level `index + 1` grants: how many of the
+    /// levels up to and including it are in the same class.
+    ///
+    /// # Panics
+    /// If `index` is not below [`Build::level`].
+    pub fn class_level(&self, index: usize) -> usize {
+        let class = &self.levels[index];
+        self.levels[..=index]
+            .iter()
+            .filter(|id| *id == class)
+            .count()
+    }
+
     /// Every Content ID the Build names.
     pub fn content_ids(&self) -> impl Iterator<Item = &ContentId> {
         self.levels.iter().chain([&self.loadout.main_hand])

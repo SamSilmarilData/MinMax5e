@@ -2,10 +2,11 @@
 
 use mm_core::records::DiceTerm;
 use mm_core::{AbilityScores, Build, BuildError, ContentId, Fp, FpHasher, Ruleset};
+use mm_dice::{Moments, Pmf};
 use mm_load::Pack;
 
 /// A Build compiled for evaluation: its structure and its numbers.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct CombatKit {
     pub shape: KitShape,
     pub params: KitParams,
@@ -33,26 +34,21 @@ pub enum AttackSource {
 }
 
 /// The numbers evaluated over a Kit Shape: one entry per row of the shape.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct KitParams {
     pub rows: Vec<RowParams>,
 }
 
-/// One attack row's numbers.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// One attack row's numbers (ADR-0047): the roll, and the moments of each outcome's damage.
+#[derive(Debug, Clone, PartialEq)]
 pub struct RowParams {
     pub to_hit: i32,
     /// The lowest natural roll that crits.
     pub crit_on: i32,
-    pub hit: Damage,
-    pub crit: Damage,
-}
-
-/// Damage dealt by one outcome: dice plus a flat amount.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Damage {
-    pub dice: Vec<DiceTerm>,
-    pub flat: i32,
+    /// The damage of a hit that is not a crit.
+    pub hit: Moments,
+    /// The damage of a crit.
+    pub crit: Moments,
 }
 
 /// Why a Build does not compile.
@@ -99,10 +95,7 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
             .encoding
             .as_ref()
             .ok_or_else(|| CompileError::Unencoded(class_id.clone()))?;
-        let class_level = build.levels[..=index]
-            .iter()
-            .filter(|id| *id == class_id)
-            .count();
+        let class_level = build.class_level(index);
         for feature in &encoding.features {
             if usize::from(feature.level) == class_level && !feature.riders.is_empty() {
                 return Err(CompileError::UnsupportedRiders {
@@ -120,7 +113,7 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
         .ok_or_else(|| CompileError::UnknownWeapon(weapon_id.clone()))?];
 
     // `build.ruleset()` has checked there is at least one level.
-    let proficiency = i32::try_from(2 + (build.levels.len() - 1) / 4).unwrap_or(i32::MAX);
+    let proficiency = i32::try_from(2 + (build.level() - 1) / 4).unwrap_or(i32::MAX);
     let ability = AbilityScores::modifier(build.abilities.str);
     // A crit doubles the attack's dice, not its flat bonus.
     let crit_dice = DiceTerm {
@@ -139,17 +132,19 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
             rows: vec![RowParams {
                 to_hit: ability + proficiency,
                 crit_on: 20,
-                hit: Damage {
-                    dice: vec![weapon.damage],
-                    flat: ability,
-                },
-                crit: Damage {
-                    dice: vec![crit_dice],
-                    flat: ability,
-                },
+                hit: damage(weapon.damage, ability),
+                crit: damage(crit_dice, ability),
             }],
         },
     })
+}
+
+/// The moments of `dice` plus `flat`.
+fn damage(dice: DiceTerm, flat: i32) -> Moments {
+    Pmf::die(dice.sides)
+        .sum_of(dice.count)
+        .shift(flat)
+        .moments()
 }
 
 impl KitShape {
@@ -168,19 +163,16 @@ impl KitShape {
 }
 
 impl KitParams {
-    /// The `ParamsFp`: a fingerprint of every number in the params. Equal params give
-    /// equal fingerprints.
+    /// The `ParamsFp`: a fingerprint of every number in the params, floats by their bits.
+    /// Equal params give equal fingerprints, so damage terms with equal moments share one.
     pub fn fp(&self) -> Fp {
         let mut h = FpHasher::new("mm-engine/ParamsFp/1");
         h.u64(self.rows.len() as u64);
         for row in &self.rows {
             h.i64(row.to_hit.into()).i64(row.crit_on.into());
-            for damage in [&row.hit, &row.crit] {
-                h.u64(damage.dice.len() as u64);
-                for dice in &damage.dice {
-                    h.u64(dice.count.into()).u64(dice.sides.into());
-                }
-                h.i64(damage.flat.into());
+            for moments in [row.hit, row.crit] {
+                h.u64(moments.mean().to_bits())
+                    .u64(moments.second().to_bits());
             }
         }
         h.finish()
