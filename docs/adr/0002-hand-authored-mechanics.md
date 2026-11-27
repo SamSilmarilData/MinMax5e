@@ -12,6 +12,8 @@ Feature text is untemplated prose, and no available source (5e.tools, Open5e, dn
 
 CI fails if any in-scope content ID has no encoding (a coverage report).
 
+> *Amended 2026-11-28 (where the coverage gate runs, #17):* CI cannot see the in-scope content IDs. Records come from the corpus, which stays in the local cache and which CI never fetches (ADR-0028). So the coverage report is a gate in `mm-cli validate-packs`, which fails on any in-scope record without an encoding. It runs locally against the cache once `mm-import` produces records (build-order step 6), or in an opt-in, manual-trigger job within ADR-0028's limits. In CI, `validate-packs` checks only that the embedded encodings load, and the synthetic fixtures' tests exercise the coverage report itself.
+
 **Amended 2026-11-27 (5e.tools as the local corpus, ADR-0027).** These structured fields are imported deterministically:
 
 - class chassis, class tables (Sneak Attack dice, Rage damage, Martial Arts die), and feature, feat and optional-feature progressions;
