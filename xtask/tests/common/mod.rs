@@ -48,6 +48,22 @@ impl TempTree {
         self
     }
 
+    /// Commits everything staged, with a fixed test identity.
+    pub fn commit(&self, message: &str) -> &Self {
+        self.run_git(&[
+            "-c",
+            "user.name=xtask test",
+            "-c",
+            "user.email=xtask@example.invalid",
+            "commit",
+            "--quiet",
+            "--no-verify",
+            "-m",
+            message,
+        ]);
+        self
+    }
+
     pub fn run_git(&self, args: &[&str]) {
         let status = Command::new("git")
             .args(args)
@@ -80,8 +96,10 @@ pub fn repo_root() -> PathBuf {
 
 /// Runs the xtask binary with the given arguments.
 pub fn xtask(args: &[&str]) -> XtaskRun {
+    // CI changes what xtask prints, so tests run as if outside CI.
     let output = Command::new(env!("CARGO_BIN_EXE_xtask"))
         .args(args)
+        .env_remove("CI")
         .output()
         .unwrap();
     XtaskRun(output)

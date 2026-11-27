@@ -24,7 +24,7 @@ use regex::bytes::Regex;
 use serde::Deserialize;
 
 use crate::Outcome;
-use crate::git::{RepoFile, tracked_files, untracked_files};
+use crate::git::{RepoFile, hooks_path, tracked_files, untracked_files};
 use crate::report::{Check as _, Problem, Report, at_line, lines};
 
 /// The check's name, assembled so this file does not match it.
@@ -127,7 +127,11 @@ impl Patterns {
     }
 }
 
+/// Where the tracked hooks live; enabling them is one `git config` setting.
+const HOOKS_DIR: &str = ".githooks";
+
 pub fn run(root: &Path) -> Result<Outcome> {
+    warn_if_hook_disabled(root)?;
     let files = tracked_files(root)?;
     let untracked = untracked_files(root)?;
     let mut report = Report::new("leak-scan");
@@ -156,6 +160,16 @@ pub fn run(root: &Path) -> Result<Outcome> {
         ),
         &format!("Remove the content, or exempt the file in {ALLOWLIST} with a reason (ADR-0028)."),
     ))
+}
+
+/// Prints a reminder when this clone's pre-commit hook is off. CI has no hooks to enable.
+fn warn_if_hook_disabled(root: &Path) -> Result<()> {
+    if std::env::var_os("CI").is_none() && hooks_path(root)?.as_deref() != Some(HOOKS_DIR) {
+        eprintln!(
+            "leak-scan: the pre-commit hook is not enabled in this clone, so commits are not scanned. Enable it with: git config core.hooksPath {HOOKS_DIR}"
+        );
+    }
+    Ok(())
 }
 
 /// Reads the staged allowlist into path → allowed checks. Malformed entries are reported

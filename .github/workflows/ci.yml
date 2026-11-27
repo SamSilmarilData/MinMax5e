@@ -70,10 +70,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # adr-check compares with an earlier commit.
+          fetch-depth: 0
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - run: cargo xtask deps
       - run: cargo xtask leak-scan
+      # Accepted ADRs change only by dated amendment: compare with the pull request's base,
+      # or with the commit before this push.
+      - name: cargo xtask adr-check
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE=origin/main
+          fi
+          cargo xtask adr-check --base "$BASE"
 
   deny:
     name: cargo deny

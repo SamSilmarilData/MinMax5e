@@ -315,3 +315,26 @@ fn a_fixture_content_id_without_a_source_fails() {
         "2024:feat/great-weapon-master has no `|source`",
     ]);
 }
+
+#[test]
+fn it_warns_when_the_pre_commit_hook_is_not_enabled() {
+    let tree = TempTree::git();
+    tree.track("README.md", "hi\n");
+    let run = scan(&tree);
+    run.assert_ok();
+    assert!(
+        run.stderr().contains("git config core.hooksPath .githooks"),
+        "{}",
+        run.stderr()
+    );
+}
+
+#[test]
+fn it_is_quiet_about_the_hook_once_it_is_enabled() {
+    let tree = TempTree::git();
+    tree.track("README.md", "hi\n");
+    tree.run_git(&["config", "core.hooksPath", ".githooks"]);
+    let run = scan(&tree);
+    run.assert_ok();
+    assert!(!run.stderr().contains("core.hooksPath"), "{}", run.stderr());
+}
