@@ -1,0 +1,16 @@
+# The fixture Builds `cargo xtask xhash` evaluates natively and under wasmtime, then
+# hashes (ADR-0050). The result must hash alike on both targets.
+#
+# To add a Build to the hashed set, append an entry:
+#
+#   [[build]]
+#   path = "crates/mm-testkit/fixtures/builds/<name>.ron"  # relative to the repo root
+#   ac = 16                                                 # the target AC to evaluate against
+#
+# Each Build is evaluated with `mm-cli evaluate <path> --ac <ac> --format ron` on the
+# fixture pack, `crates/mm-testkit/fixtures/pack`. Adding or reordering entries changes
+# the hash; only agreement between the two targets matters, not its value.
+
+[[build]]
+path = "crates/mm-testkit/fixtures/builds/warrior-1.ron"
+ac = 16

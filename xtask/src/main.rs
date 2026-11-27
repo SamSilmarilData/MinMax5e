@@ -3,12 +3,14 @@
 //! - `deps`: the crate dependency rules of ADR-0034, checked against `cargo metadata`.
 //! - `leak-scan`: no upstream rules data in tracked files (ADR-0028).
 //! - `adr-check`: accepted ADRs change only by dated amendment.
+//! - `xhash`: evaluation gives the same bits natively and in WebAssembly (ADR-0050).
 
 mod adr;
 mod deps;
 mod git;
 mod leak;
 mod report;
+mod xhash;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -45,6 +47,17 @@ enum Command {
         #[arg(long)]
         root: Option<PathBuf>,
     },
+    /// Check that evaluation gives the same bits natively and under wasmtime (ADR-0050).
+    ///
+    /// Builds mm-cli for the host and for wasm32-wasip1, evaluates every Build in the
+    /// hashed set with each, and prints both hashes. Needs wasmtime on PATH. To add a
+    /// fixture Build to the hashed set, append a `[[build]]` entry to xtask/xhash.toml.
+    Xhash {
+        /// Flip one bit of the first WebAssembly result before hashing, to show that a
+        /// difference fails.
+        #[arg(long)]
+        mismatch: bool,
+    },
 }
 
 fn main() -> ExitCode {
@@ -55,6 +68,7 @@ fn main() -> ExitCode {
         }
         Command::LeakScan { root } => leak::run(&root.unwrap_or_else(repo_root)),
         Command::AdrCheck { root, base } => adr::run(&root.unwrap_or_else(repo_root), &base),
+        Command::Xhash { mismatch } => xhash::run(&repo_root(), mismatch),
     };
     match result {
         Ok(Outcome::Clean) => ExitCode::SUCCESS,
