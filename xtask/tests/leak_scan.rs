@@ -136,6 +136,22 @@ fn untracked_files_are_not_scanned() {
 }
 
 #[test]
+fn the_summary_says_untracked_files_got_only_the_simd_check() {
+    let tree = TempTree::git();
+    tree.track("README.md", "hi\n")
+        .write("fixtures/new.ron", "no marker yet\n");
+    let run = scan(&tree);
+    run.assert_ok();
+    let stdout = run.stdout();
+    assert!(
+        stdout.contains("1 tracked file(s) clean")
+            && stdout.contains("1 untracked file(s) checked for")
+            && stdout.contains("only; stage them to scan them fully"),
+        "{stdout}"
+    );
+}
+
+#[test]
 fn staged_contents_are_scanned_not_the_working_copy() {
     let tree = TempTree::git();
     tree.track("notes.md", format!("{}x}}\n", tag("spell ")))

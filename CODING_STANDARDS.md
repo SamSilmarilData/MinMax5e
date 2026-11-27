@@ -17,3 +17,4 @@ Read during review. Tooling already enforces fmt, clippy (`all` and `pedantic`, 
 - **Research errors go to the errata.** A test whose expected value departs from a figure in a research note adds an entry to the Errata in [`docs/research/README.md`](docs/research/README.md); the note itself stays as written.
 - **Scope is the ticket's.** Work a ticket defers (to a later ticket or build-order step) is recorded as deferred in an amendment, and a review treats it as done.
 - **Tests sit at agreed seams** (spec #12, "Testing Decisions"), assert behaviour through public interfaces, and take expected values from an independent source: a worked example, the spec, a hand-computed literal.
+- **Floats compare bit for bit or within a stated bound.** The bounds and their sources live in `mm_testkit::tolerance`; a bound written inline is a breach.

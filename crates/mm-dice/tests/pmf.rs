@@ -1,9 +1,7 @@
 //! Damage distributions on dice small enough to count by hand.
 
-mod common;
-
-use common::assert_close;
 use mm_dice::Pmf;
+use mm_testkit::tolerance::assert_close;
 
 fn two_d6() -> Pmf {
     Pmf::die(6).sum_of(2)

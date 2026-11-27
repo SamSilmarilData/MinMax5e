@@ -154,7 +154,10 @@ pub fn run(root: &Path) -> Result<Outcome> {
 
     Ok(report.finish(
         &format!(
-            "{} tracked and {} untracked files clean",
+            // Untracked files get only the SIMD check; say so, so a new fixture
+            // that has not been staged yet is not read as checked.
+            "{} tracked file(s) clean; {} untracked file(s) checked for {RELAXED_SIMD} only; \
+             stage them to scan them fully",
             files.len(),
             untracked.len()
         ),

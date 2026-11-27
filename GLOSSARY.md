@@ -182,7 +182,7 @@ A modelling simplification (fixed hit rate, permanent advantage, no overkill) th
 _Avoid_: theorycraft
 
 **DPR**:
-Expected damage per round against a single target under a stated Assumption Set.
+Expected damage per round against a single target under a stated Assumption Set: the expected total over the mode's rounds, divided by the number of rounds.
 _Avoid_: DPS, damage output
 
 **Sustained DPR**:
@@ -192,6 +192,10 @@ _Avoid_: average DPR, at-will DPR
 **Nova DPR**:
 DPR over rounds 1–2 with burst resources spent freely.
 _Avoid_: burst, alpha strike, spike
+
+**SD**:
+The standard deviation reported beside a DPR: the SD of the total over the same rounds, divided by the number of rounds. A single round's SD is the SD over a one-round horizon.
+_Avoid_: spread (that is the Reliability Band), variance (its square)
 
 **Attack outcome**:
 One of Miss, Hit, or Crit for a single attack roll.
