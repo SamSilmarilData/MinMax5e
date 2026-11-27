@@ -9,7 +9,7 @@ mod common;
 
 use common::{TempTree, xtask};
 
-const GLOSSARY: &str = "# Glossary\n\n**Mastery property**:\nA weapon's property.\n_Avoid_: mastery, weapon trait\n\n**Content ID**:\nAn identity.\n_Avoid_: content key, source (clashes with book source codes)\n";
+const GLOSSARY: &str = "# Glossary\n\n**Mastery property**:\nA weapon's property.\n_Avoid_: mastery, weapon trait\n\n**Content ID**:\nAn identity.\n_Avoid_: content key, source (clashes with book source codes)\n\n**Nova DPR**:\nDamage in the opening rounds.\n_Avoid_: DPS, off-hand attack, level 20 snapshot\n";
 
 /// A Content ID of `kind`, assembled so this file does not match the guard itself.
 fn content_id(ruleset: &str, kind: &str) -> String {
@@ -164,6 +164,60 @@ fn every_serde_name_form_is_read() {
 }
 
 #[test]
+fn names_match_terms_whatever_their_case_and_separators() {
+    let cases = [
+        (
+            "src/effect.rs",
+            "pub enum Encoding {\n    OffHandAttack,\n}\n",
+            "\"OffHandAttack\"",
+        ),
+        (
+            "src/effect.rs",
+            "pub enum Encoding {\n    Dps,\n}\n",
+            "\"Dps\"",
+        ),
+        (
+            "src/effect.rs",
+            "pub enum Encoding {\n    Level20Snapshot,\n}\n",
+            "\"Level20Snapshot\"",
+        ),
+        (
+            "src/effect.rs",
+            "pub enum Encoding {\n    #[serde(rename = \"DPS\")]\n    Damage,\n}\n",
+            "\"DPS\"",
+        ),
+    ];
+    for (path, text, needle) in cases {
+        let tree = tree_with_glossary();
+        tree.track(path, text);
+        check(&tree).assert_fails_with(&["[variant]", needle]);
+    }
+    let tree = tree_with_glossary();
+    tree.track("fixtures/a.ron", content_id("2024", "off-hand-attack"));
+    check(&tree).assert_fails_with(&["fixtures/a.ron:1", "\"off-hand-attack\""]);
+}
+
+#[test]
+fn a_serde_name_inside_cfg_attr_is_read() {
+    let tree = tree_with_glossary();
+    tree.track(
+        "src/records.rs",
+        "pub enum Record {\n    #[cfg_attr(all(feature = \"x\", not(test)), serde(default), serde(rename = \"mastery\"))]\n    MasteryProperty,\n}\n",
+    );
+    check(&tree).assert_fails_with(&["src/records.rs:2", "[variant] the variant \"mastery\""]);
+}
+
+#[test]
+fn a_kind_trait_imported_under_another_name_is_read() {
+    let tree = tree_with_glossary();
+    tree.track(
+        "src/kind.rs",
+        "use crate::Kind as K;\n\nimpl K for T {\n    const NAME: &str = \"mastery\";\n}\n",
+    );
+    check(&tree).assert_fails_with(&["src/kind.rs:4", "[kind-name] the kind \"mastery\""]);
+}
+
+#[test]
 fn a_name_the_guard_cannot_read_fails() {
     let tree = tree_with_glossary();
     tree.track(
@@ -175,7 +229,7 @@ fn a_name_the_guard_cannot_read_fails() {
         "pub enum Record {\n    #[serde(rename = 3)]\n    A,\n}\n",
     );
     check(&tree).assert_fails_with(&[
-        "src/kind.rs:2: [parse] cannot check a Kind::NAME that is not a string literal",
+        "src/kind.rs:2: [parse] cannot check a `const NAME` that is not a string literal",
         "src/records.rs:2: [parse] cannot check the serde attribute on A",
     ]);
 }

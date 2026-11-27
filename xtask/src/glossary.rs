@@ -1,18 +1,22 @@
 //! `glossary`: content kinds use the project's vocabulary, never a term GLOSSARY.md avoids.
 //!
-//! The names checked, each read as lowercase words, against every term on an `_Avoid_:`
-//! line of the staged GLOSSARY.md:
-//! - `kind`: the `<kind>` segment of a Content ID (`<ruleset>:<kind>/…`) in any file, hyphens
-//!   read as spaces;
-//! - `kind-name`: the string literal a Rust `impl Kind for … { const NAME … }` gives;
-//! - `variant`: a variant of a Rust `enum Record` or `enum Encoding`, split at its capitals
-//!   (`MasteryProperty` is "mastery property"), and every string a `#[serde(rename …)]` or
-//!   `#[serde(alias …)]` on it gives, in either form, since RON reads a pack in those names.
+//! The names checked, against every term on an `_Avoid_:` line of the staged GLOSSARY.md:
+//! - `kind`: the `<kind>` segment of a Content ID (`<ruleset>:<kind>/…`) in any file;
+//! - `kind-name`: the string literal a `const NAME` in a Rust trait impl gives: the `Kind`
+//!   impls, under whatever name the trait is imported as;
+//! - `variant`: a variant of a Rust `enum Record` or `enum Encoding`, and every string a
+//!   `rename` or `alias` gives it, in either form, in a `#[serde(…)]` attribute or one inside
+//!   `#[cfg_attr(…)]`, since RON reads a pack in those names.
+//!
+//! A name and a term match when their letters and digits agree, ignoring case, spaces,
+//! hyphens and underscores, so `MasteryProperty`, `mastery-property` and "mastery property"
+//! match, as do `Dps` and "DPS", and `Level20Snapshot` and "level 20 snapshot".
 //!
 //! Rust files are parsed with `syn`, so comments, strings, attributes and generics cannot hide
 //! a name. What the guard cannot read is a `parse` problem, never a silent pass: a Rust file
-//! that does not parse, a `Kind::NAME` that is not a string literal, or a serde attribute on a
-//! content variant that does not parse.
+//! that does not parse, a `const NAME` in a trait impl that is not a string literal, or a serde
+//! attribute on a content variant that does not parse. Items a macro generates are not seen;
+//! today every `Kind` impl is written out, and a repository test fails if fewer are found.
 //!
 //! Prose and other identifiers are left to review: the avoid lists hold common words
 //! ("source", "version"), and terms one entry avoids that another defines ("corpus", "errata"),
@@ -25,6 +29,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use regex::Regex;
+use syn::punctuated::Punctuated;
 use syn::visit::Visit;
 
 use crate::Outcome;
@@ -40,18 +45,15 @@ const RESEARCH_DIR: &str = "docs/research/";
 /// The enums whose variant names a pack's RON is written in.
 const CONTENT_ENUMS: [&str; 2] = ["Record", "Encoding"];
 
-/// The trait whose `NAME` is a Content ID kind.
-const KIND_TRAIT: &str = "Kind";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 enum Check {
     /// A Content ID kind.
     Kind,
-    /// A `Kind::NAME` in Rust.
+    /// A `const NAME` in a trait impl.
     KindName,
-    /// A content enum variant, or its serde rename.
+    /// A content enum variant, or a serde name on it.
     Variant,
-    /// A Rust file `syn` cannot parse, so its names cannot be checked.
+    /// Something the guard cannot read, so cannot check.
     Parse,
 }
 
@@ -66,13 +68,28 @@ impl crate::report::Check for Check {
     }
 }
 
-impl Check {
-    /// What a name this check reads is, in a report.
+/// What a found name is.
+#[derive(Debug, Clone, Copy)]
+enum Named {
+    ContentIdKind,
+    KindName,
+    Variant,
+}
+
+impl Named {
+    fn check(self) -> Check {
+        match self {
+            Named::ContentIdKind => Check::Kind,
+            Named::KindName => Check::KindName,
+            Named::Variant => Check::Variant,
+        }
+    }
+
+    /// How a report calls it.
     fn noun(self) -> &'static str {
         match self {
-            Check::Kind | Check::KindName => "kind",
-            Check::Variant => "variant",
-            Check::Parse => "name",
+            Named::ContentIdKind | Named::KindName => "kind",
+            Named::Variant => "variant",
         }
     }
 }
@@ -80,8 +97,8 @@ impl Check {
 /// A term GLOSSARY.md says to avoid, and the entry that says so.
 #[derive(Debug)]
 struct Avoided {
-    /// Lowercase, without any parenthetical note.
-    term: String,
+    /// The term's [`key`].
+    key: String,
     entry: String,
 }
 
@@ -90,25 +107,19 @@ struct Avoided {
 struct Found {
     /// The line index, from 0.
     line: usize,
-    check: Check,
+    named: Named,
     name: String,
-    /// The name as lowercase words, as the avoid lists write terms.
-    words: String,
 }
 
-impl Found {
-    fn new(line: usize, check: Check, name: String) -> Self {
-        let words = words_of(&name);
-        Self {
-            line,
-            check,
-            name,
-            words,
-        }
-    }
+/// Something the guard cannot read, where it is.
+#[derive(Debug)]
+struct Unreadable {
+    /// The line index, from 0.
+    line: usize,
+    message: String,
 }
 
-/// How many names of each check a scan read.
+/// How many names of each sort a scan read.
 #[derive(Debug, Default)]
 struct Counts {
     kinds: usize,
@@ -117,12 +128,11 @@ struct Counts {
 }
 
 impl Counts {
-    fn add(&mut self, check: Check) {
-        match check {
-            Check::Kind => self.kinds += 1,
-            Check::KindName => self.kind_names += 1,
-            Check::Variant => self.variants += 1,
-            Check::Parse => {}
+    fn add(&mut self, named: Named) {
+        match named {
+            Named::ContentIdKind => self.kinds += 1,
+            Named::KindName => self.kind_names += 1,
+            Named::Variant => self.variants += 1,
         }
     }
 }
@@ -143,33 +153,27 @@ pub fn run(root: &Path) -> Result<Outcome> {
         scanned += 1;
         let text = String::from_utf8_lossy(&file.contents);
         let mut found = content_id_kinds(&content_id, &text);
+        let mut unreadable = Vec::new();
         if Path::new(&file.path)
             .extension()
             .is_some_and(|ext| ext == "rs")
         {
-            match syn::parse_file(&text) {
-                Ok(parsed) => found.extend(rust_names(&parsed)),
-                Err(err) => report.push(Check::Parse.problem(
-                    at_line(&file.path, err.span().start().line.saturating_sub(1)),
-                    format!("cannot parse it to check its names: {err}"),
-                )),
-            }
+            let names = rust_names(&text);
+            found.extend(names.found);
+            unreadable = names.unreadable;
+        }
+        for problem in unreadable {
+            report.push(Check::Parse.problem(at_line(&file.path, problem.line), problem.message));
         }
         for name in found {
-            counts.add(name.check);
-            if name.check == Check::Parse {
-                report.push(
-                    name.check
-                        .problem(at_line(&file.path, name.line), name.name),
-                );
-                continue;
-            }
-            if let Some(hit) = avoided.iter().find(|a| a.term == name.words) {
-                report.push(name.check.problem(
+            counts.add(name.named);
+            let name_key = key(&name.name);
+            if let Some(hit) = avoided.iter().find(|a| a.key == name_key) {
+                report.push(name.named.check().problem(
                     at_line(&file.path, name.line),
                     format!(
                         "the {} \"{}\" is a term {GLOSSARY} avoids (see **{}**)",
-                        name.check.noun(),
+                        name.named.noun(),
                         name.name,
                         hit.entry
                     ),
@@ -194,51 +198,73 @@ pub fn run(root: &Path) -> Result<Outcome> {
     ))
 }
 
+/// What a name and a term are compared by: their letters and digits, lowercase.
+fn key(name: &str) -> String {
+    name.chars()
+        .filter(char::is_ascii_alphanumeric)
+        .map(|c| c.to_ascii_lowercase())
+        .collect()
+}
+
 /// The kind of every Content ID in `text`.
 fn content_id_kinds(content_id: &Regex, text: &str) -> Vec<Found> {
     text.lines()
         .enumerate()
-        .flat_map(|(index, line)| {
+        .flat_map(|(line, text)| {
             content_id
-                .captures_iter(line)
+                .captures_iter(text)
                 .filter_map(|caps| caps.name("kind"))
-                .map(move |kind| Found::new(index, Check::Kind, kind.as_str().to_owned()))
+                .map(move |kind| Found {
+                    line,
+                    named: Named::ContentIdKind,
+                    name: kind.as_str().to_owned(),
+                })
         })
         .collect()
 }
 
-/// Every `Kind::NAME` and content enum variant in a parsed Rust file.
-fn rust_names(file: &syn::File) -> Vec<Found> {
-    let mut names = RustNames::default();
-    names.visit_file(file);
-    names.found
-}
-
-#[derive(Default)]
+/// Every `const NAME` in a trait impl and content enum variant in Rust `text`, and what
+/// could not be read.
+#[derive(Debug, Default)]
 struct RustNames {
     found: Vec<Found>,
+    unreadable: Vec<Unreadable>,
+}
+
+fn rust_names(text: &str) -> RustNames {
+    let mut names = RustNames::default();
+    match syn::parse_file(text) {
+        Ok(file) => names.visit_file(&file),
+        Err(err) => names.unreadable(err.span(), &format!("cannot parse the file: {err}")),
+    }
+    names
+}
+
+/// The line index of a span's start.
+fn line_of(at: proc_macro2::Span) -> usize {
+    at.start().line.saturating_sub(1)
 }
 
 impl RustNames {
-    fn push(&mut self, at: proc_macro2::Span, check: Check, name: String) {
-        let line = at.start().line.saturating_sub(1);
-        self.found.push(Found::new(line, check, name));
+    fn push(&mut self, at: proc_macro2::Span, named: Named, name: String) {
+        self.found.push(Found {
+            line: line_of(at),
+            named,
+            name,
+        });
     }
 
-    /// A name this cannot read, so cannot check: a `parse` problem, never a silent pass.
-    fn unreadable(&mut self, at: proc_macro2::Span, what: &str) {
-        self.push(at, Check::Parse, format!("cannot check {what}"));
+    fn unreadable(&mut self, at: proc_macro2::Span, message: &str) {
+        self.unreadable.push(Unreadable {
+            line: line_of(at),
+            message: message.to_owned(),
+        });
     }
 }
 
 impl<'ast> Visit<'ast> for RustNames {
     fn visit_item_impl(&mut self, item: &'ast syn::ItemImpl) {
-        let is_kind = item
-            .trait_
-            .as_ref()
-            .and_then(|(_, path, _)| path.segments.last())
-            .is_some_and(|segment| segment.ident == KIND_TRAIT);
-        if is_kind {
+        if item.trait_.is_some() {
             for member in &item.items {
                 let syn::ImplItem::Const(constant) = member else {
                     continue;
@@ -250,10 +276,10 @@ impl<'ast> Visit<'ast> for RustNames {
                     syn::Expr::Lit(syn::ExprLit {
                         lit: syn::Lit::Str(name),
                         ..
-                    }) => self.push(name.span(), Check::KindName, name.value()),
+                    }) => self.push(name.span(), Named::KindName, name.value()),
                     _ => self.unreadable(
                         constant.ident.span(),
-                        "a Kind::NAME that is not a string literal",
+                        "cannot check a `const NAME` that is not a string literal",
                     ),
                 }
             }
@@ -266,19 +292,22 @@ impl<'ast> Visit<'ast> for RustNames {
             for variant in &item.variants {
                 self.push(
                     variant.ident.span(),
-                    Check::Variant,
+                    Named::Variant,
                     variant.ident.to_string(),
                 );
-                for attr in variant.attrs.iter().filter(|a| a.path().is_ident("serde")) {
-                    match serde_names(attr) {
+                for attr in &variant.attrs {
+                    match serde_names(&attr.meta) {
                         Ok(names) => {
                             for name in names {
-                                self.push(name.span(), Check::Variant, name.value());
+                                self.push(name.span(), Named::Variant, name.value());
                             }
                         }
                         Err(err) => self.unreadable(
                             err.span(),
-                            &format!("the serde attribute on {}: {err}", variant.ident),
+                            &format!(
+                                "cannot check the serde attribute on {}: {err}",
+                                variant.ident
+                            ),
                         ),
                     }
                 }
@@ -288,52 +317,45 @@ impl<'ast> Visit<'ast> for RustNames {
     }
 }
 
-/// The names a `#[serde(…)]` attribute gives a variant in RON: `rename` and `alias`, in
-/// their `= "…"` and `(serialize = "…", deserialize = "…")` forms. Every other entry is read
-/// past, so one cannot hide a later name.
-fn serde_names(attr: &syn::Attribute) -> syn::Result<Vec<syn::LitStr>> {
+/// The names an attribute gives a variant in RON: `rename` and `alias` in a `serde(…)`, in
+/// their `= "…"` and `(serialize = "…", deserialize = "…")` forms, including a `serde(…)`
+/// inside `cfg_attr(…)`. Every other entry is read past, so one cannot hide a later name.
+fn serde_names(meta: &syn::Meta) -> syn::Result<Vec<syn::LitStr>> {
     let mut names = Vec::new();
-    attr.parse_nested_meta(|meta| {
-        let names_it = meta.path.is_ident("rename") || meta.path.is_ident("alias");
-        if meta.input.peek(syn::Token![=]) {
-            let value = meta.value()?;
-            if names_it {
-                names.push(value.parse()?);
-            } else {
-                let _: syn::Expr = value.parse()?;
+    if meta.path().is_ident("cfg_attr") {
+        let inner = meta
+            .require_list()?
+            .parse_args_with(Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated)?;
+        // The first entry is the condition; the rest are attributes.
+        for attr in inner.iter().skip(1) {
+            names.extend(serde_names(attr)?);
+        }
+    } else if meta.path().is_ident("serde") {
+        meta.require_list()?.parse_nested_meta(|entry| {
+            let names_it = entry.path.is_ident("rename") || entry.path.is_ident("alias");
+            if entry.input.peek(syn::Token![=]) {
+                let value = entry.value()?;
+                if names_it {
+                    names.push(value.parse()?);
+                } else {
+                    let _: syn::Expr = value.parse()?;
+                }
+            } else if entry.input.peek(syn::token::Paren) {
+                if names_it {
+                    entry.parse_nested_meta(|side| {
+                        names.push(side.value()?.parse()?);
+                        Ok(())
+                    })?;
+                } else {
+                    let content;
+                    syn::parenthesized!(content in entry.input);
+                    let _: proc_macro2::TokenStream = content.parse()?;
+                }
             }
-        } else if meta.input.peek(syn::token::Paren) {
-            if names_it {
-                meta.parse_nested_meta(|side| {
-                    names.push(side.value()?.parse()?);
-                    Ok(())
-                })?;
-            } else {
-                let content;
-                syn::parenthesized!(content in meta.input);
-                let _: proc_macro2::TokenStream = content.parse()?;
-            }
-        }
-        Ok(())
-    })?;
-    Ok(names)
-}
-
-/// A name as lowercase words: `MasteryProperty`, `mastery-property` and `mastery_property`
-/// are all "mastery property".
-fn words_of(name: &str) -> String {
-    let mut words = String::new();
-    for (i, c) in name.chars().enumerate() {
-        if c == '-' || c == '_' {
-            words.push(' ');
-            continue;
-        }
-        if c.is_ascii_uppercase() && i > 0 && !words.ends_with(' ') {
-            words.push(' ');
-        }
-        words.push(c.to_ascii_lowercase());
+            Ok(())
+        })?;
     }
-    words
+    Ok(names)
 }
 
 /// Every term on an `_Avoid_:` line, with the bold entry above it.
@@ -349,10 +371,10 @@ fn avoided_terms(glossary: &str) -> Vec<Avoided> {
             avoided.extend(
                 terms
                     .split(',')
-                    .map(|term| term.trim().to_lowercase())
-                    .filter(|term| !term.is_empty())
-                    .map(|term| Avoided {
-                        term,
+                    .map(key)
+                    .filter(|key| !key.is_empty())
+                    .map(|key| Avoided {
+                        key,
                         entry: entry.to_owned(),
                     }),
             );
