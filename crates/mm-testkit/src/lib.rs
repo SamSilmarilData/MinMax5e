@@ -3,8 +3,10 @@
 //!
 //! - [`rational`]: exact `BigRational` arithmetic, the oracle `mm-dice` is checked against
 //!   (ADR-0023).
+//! - [`fixtures`]: where the synthetic fixtures live (source `tst`, ADR-0028).
 //!
-//! The fixtures, the `TestRules` ruleset, the Monte Carlo oracle and the proptest
+//! The `TestRules` ruleset, the Monte Carlo oracle and the proptest
 //! strategies for Kit Shapes arrive with the engine (architecture §11.1, steps 2–3).
 
+pub mod fixtures;
 pub mod rational;

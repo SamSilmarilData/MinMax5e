@@ -1,0 +1,15 @@
+[package]
+name = "mm-rules-2024"
+version = "0.0.0"
+description = "The 2024 Ruleset: its economy and its embedded encodings."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# mm-core only (ADR-0034).
+[dependencies]
+mm-core = { path = "../mm-core" }
+
+[lints]
+workspace = true

@@ -1,0 +1,26 @@
+[package]
+name = "mm-cli"
+version = "0.0.0"
+description = "The command-line shell: evaluate a Build on a Rules Pack."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+mm-core = { path = "../mm-core" }
+mm-load = { path = "../mm-load" }
+mm-engine = { path = "../mm-engine" }
+mm-rules-2024 = { path = "../mm-rules-2024" }
+anyhow.workspace = true
+clap.workspace = true
+miette.workspace = true
+ron.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+mm-testkit = { path = "../mm-testkit" }
+insta.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,19 @@
+[package]
+name = "mm-load"
+version = "0.0.0"
+description = "Loads records and RON encodings into a Rules Pack for one Ruleset."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+mm-core = { path = "../mm-core" }
+miette.workspace = true
+ron.workspace = true
+rustc-hash.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

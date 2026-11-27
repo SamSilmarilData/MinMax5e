@@ -1,0 +1,19 @@
+[package]
+name = "mm-engine"
+version = "0.0.0"
+description = "Compiles a Build into a Combat Kit and evaluates it exactly over AC lanes."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+mm-core = { path = "../mm-core" }
+mm-load = { path = "../mm-load" }
+mm-dice = { path = "../mm-dice" }
+rustc-hash.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
