@@ -11,14 +11,21 @@ Invented content for tests and the CLI (ADR-0028). Every RON file starts with th
   §7.2's: the warrior class, a species, background and Origin feat with no combat effect,
   the style and heavy-weapon feats, a Graze-like mastery property, and two 2d6 Heavy weapons, one
   with that mastery property and one without. `test-heavy-striker` is the heavy-weapon feat
-  without its crit-gated attack, so a variant can drop that attack alone.
+  without its crit-gated attack, so a variant can drop that attack alone. Files under
+  `rulings/` declare Rulings (ADR-0006): `R-TST-HEW-BONUS`, whether the heavy-weapon
+  feat's +PB reaches its crit-gated attack, which `test-heavy-hitter` reads for that
+  attack alone.
 - `malformed/`: one pack directory per mistake, each loaded alongside `pack/` by
   `mm-cli validate-packs`: an unknown Content ID, a wrong Ruleset prefix, a misspelled
-  DSL variant, a missing citation, a record with no encoding, and a weapon naming an
-  unknown mastery property.
+  DSL variant, a missing citation, a record with no encoding, a weapon naming an
+  unknown mastery property, an encoding reading an option its Ruling lacks, and a Ruling
+  whose default is not one of its options.
 - `assumptions/`: Assumption Set files (`mm-cli evaluate --assumptions`). `hand-count`
   is the target of the CLI tests' hand count for `warrior-1` (AC 16, 6 HP), with an
   Adventuring Day Model other than the default.
+- `ruling-sets/`: Ruling Set files (`mm-cli evaluate --rulings`). `hew-with-pb` flips
+  `R-TST-HEW-BONUS` to its alternative reading, research 03 §7.2's "Hew counted with
+  +PB".
 - `builds/`: Build files. `warrior-1` is #15's level-1 warrior, wielding the plainblade.
   `warrior-5` is research 03 §7.2's level-5 warrior, and each
   `warrior-5-no-*` drops one component for the note's variant table. Each Build is

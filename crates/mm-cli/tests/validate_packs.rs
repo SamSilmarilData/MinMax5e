@@ -109,3 +109,27 @@ fn a_weapon_naming_an_unknown_mastery_property_is_a_diagnostic() {
     );
     insta::assert_snapshot!("unknown-mastery-property", stderr);
 }
+
+#[test]
+fn an_encoding_reading_an_option_its_ruling_lacks_is_a_diagnostic() {
+    let stderr = diagnostic_for(
+        "unknown-ruling-option",
+        "encodings/test-ruled.ron",
+        "\"sometimes\"",
+    );
+    assert!(
+        stderr.contains("Ruling `R-TST-HEW-BONUS` has no option `sometimes`"),
+        "{stderr}"
+    );
+    insta::assert_snapshot!("unknown-ruling-option", stderr);
+}
+
+#[test]
+fn a_ruling_whose_default_is_not_an_option_is_a_diagnostic() {
+    let stderr = diagnostic_for(
+        "ruling-default-not-an-option",
+        "rulings/R-TST-BAD-DEFAULT.ron",
+        "\"third\"",
+    );
+    insta::assert_snapshot!("ruling-default-not-an-option", stderr);
+}

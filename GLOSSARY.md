@@ -56,6 +56,10 @@ _Avoid_: backward compatible, legacy mode
 A named, versioned, cited choice between interpretations of ambiguous rules text. The user can toggle the disputed ones, and every result records the Rulings it used.
 _Avoid_: house rule (that means changing the rules), assumption, errata, table ruling
 
+**Ruling Set**:
+The options a user has chosen for some Rulings; every Ruling it does not name takes its default.
+_Avoid_: house rules, rulings config
+
 ## Game mechanics
 
 **Weapon Mastery**:

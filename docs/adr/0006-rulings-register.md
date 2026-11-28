@@ -6,6 +6,8 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-28 (#21):* a pack declares each Ruling in a RON file under its `rulings/` directory: the id, the question, the options (each a stable id and its reading), the default, the reasoning and the citations. A Ruling is versioned by its option ids: an option's meaning never changes once results record it, and a changed reading is a new option. So a result records each Ruling it read with its option id, in place of a version of the whole Ruling set (ADR-0052). Encodings read a Ruling with the Effect DSL predicate `Ruling(id, option)`, and a user's choices are a Ruling Set (`mm-cli evaluate --rulings`).
+
 > *Amended 2026-11-27 (ADR-0052):* fingerprints include only the Rulings that a kit's compile or trace actually read. So "how much DPR flipping this Ruling changes" re-scores only the pool entries that depend on that Ruling, not the whole Solve. Each disputed Ruling also gets a test scenario asserting the DPR delta between its options (ADR-0056).
 
 Every ambiguous or disputed mechanic becomes a **Ruling** with:

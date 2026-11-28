@@ -26,7 +26,8 @@ use std::num::NonZeroU32;
 use serde::{Deserialize, Serialize};
 
 /// The assumptions behind an evaluation (GLOSSARY.md, **Assumption Set**). The active
-/// Rulings, which the glossary also counts in, are given beside it (#21).
+/// Rulings, which the glossary also counts in, are given beside it as a
+/// [`RulingSet`](crate::RulingSet).
 ///
 /// As a file (`mm-cli evaluate --assumptions`), it is RON with every field given:
 ///

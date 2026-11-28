@@ -7,18 +7,22 @@
 //!   Content ID to get a typed [`Id`], then index the pack with it.
 //! - [`Pack::coverage`]: which in-scope records have an encoding and which do not, so
 //!   unencoded content is never silently ignored (ADR-0002).
+//! - [`Pack::ruling`]: the Rulings the pack declares (ADR-0006). Each is checked when it
+//!   loads (two or more distinct options, a default among them, a citation), and so is
+//!   every Ruling an encoding's predicate reads, with its option.
 //!
 //! Every Content ID must carry the Ruleset's prefix, so an ID from another edition can
 //! never load (ADR-0008).
 
+use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::ops::Index;
 
 use miette::{NamedSource, SourceSpan};
-use mm_core::effect::{ClassEncoding, Encoding, FeaturesEncoding};
+use mm_core::effect::{ClassEncoding, Encoding, FeaturesEncoding, Pred, Rider};
 use mm_core::kind::{self, Kind};
 use mm_core::records::{ClassRecord, NamedRecord, Record, WeaponRecord};
-use mm_core::{ContentId, Id, Ruleset, Source, SourceRole, Sources};
+use mm_core::{ContentId, Id, Ruleset, Ruling, RulingId, Source, SourceRole, Sources};
 use rustc_hash::FxHashMap;
 
 /// A loaded Rules Pack for Ruleset `R`: every record, with its encoding where it has one.
@@ -29,6 +33,7 @@ pub struct Pack<R> {
     feature_defs: Vec<FeaturesDef>,
     weapons: Vec<WeaponRecord>,
     by_id: FxHashMap<ContentId, Entry>,
+    rulings: BTreeMap<RulingId, Ruling>,
     ruleset: PhantomData<fn() -> R>,
 }
 
@@ -97,7 +102,9 @@ pub struct Diagnostic {
 /// # Errors
 /// If any source fails to parse, any Content ID lacks `R`'s prefix or names the wrong
 /// kind, an ID is defined twice, an encoding names no loaded record, or a weapon names a
-/// mastery property the pack lacks. Every problem found is reported, not just the first.
+/// mastery property the pack lacks; if a Ruling is declared twice or is malformed, or an
+/// encoding reads a Ruling or option the pack lacks. Every problem found is reported, not
+/// just the first.
 pub fn load<R: Ruleset>(sources: &Sources) -> Result<Pack<R>, LoadError> {
     let mut loader = Loader::<'_, R> {
         pack: Pack {
@@ -105,13 +112,19 @@ pub fn load<R: Ruleset>(sources: &Sources) -> Result<Pack<R>, LoadError> {
             feature_defs: Vec::new(),
             weapons: Vec::new(),
             by_id: FxHashMap::default(),
+            rulings: BTreeMap::new(),
             ruleset: PhantomData,
         },
         diagnostics: Vec::new(),
         mastery_property_refs: Vec::new(),
     };
-    // Records first, so encodings can find what they encode whatever the file order.
-    for role in [SourceRole::Records, SourceRole::Encoding] {
+    // Records and Rulings first, so encodings can find what they encode and read whatever
+    // the file order.
+    for role in [
+        SourceRole::Records,
+        SourceRole::Ruling,
+        SourceRole::Encoding,
+    ] {
         for source in sources.files.iter().filter(|s| s.role == role) {
             loader.source(source);
         }
@@ -150,6 +163,11 @@ impl<R: Ruleset> Pack<R> {
             Some(&Entry::Weapon(i)) => Some(Id::from_index(i)),
             _ => None,
         }
+    }
+
+    /// The Ruling with this id, if the pack declares one.
+    pub fn ruling(&self, id: &RulingId) -> Option<&Ruling> {
+        self.rulings.get(id)
     }
 }
 
@@ -231,8 +249,96 @@ impl<'s, R: Ruleset> Loader<'s, R> {
             }
             SourceRole::Encoding => {
                 if let Some(encoding) = self.parse::<Encoding>(source) {
+                    self.check_ruling_reads(source, &encoding);
                     self.encoding(source, encoding);
                 }
+            }
+            SourceRole::Ruling => {
+                if let Some(ruling) = self.parse::<Ruling>(source) {
+                    self.ruling(source, ruling);
+                }
+            }
+        }
+    }
+
+    /// Adds a Ruling's declaration, if it is well formed and not declared already.
+    fn ruling(&mut self, source: &Source, ruling: Ruling) {
+        let id = ruling.id.as_str();
+        if self.pack.rulings.contains_key(&ruling.id) {
+            self.report_quoted(source, id, format!("Ruling `{id}` is declared twice"));
+            return;
+        }
+        let problem = if ruling.options.len() < 2 {
+            Some((id, "a Ruling offers at least two options".to_owned()))
+        } else if let Some(bad) = ruling.options.iter().find(|o| !is_option_id(&o.id)) {
+            Some((
+                bad.id.as_str(),
+                format!(
+                    "`{}` is not an option id (lowercase letters, digits and hyphens)",
+                    bad.id
+                ),
+            ))
+        } else if let Some(twice) = ruling.options.iter().enumerate().find_map(|(i, o)| {
+            let earlier = &ruling.options[..i];
+            earlier.iter().any(|before| before.id == o.id).then_some(o)
+        }) {
+            Some((
+                twice.id.as_str(),
+                format!("option `{}` is offered twice", twice.id),
+            ))
+        } else if !ruling.has_option(&ruling.default) {
+            Some((
+                ruling.default.as_str(),
+                format!(
+                    "the default `{}` is not an option of Ruling `{id}`; its options are {}",
+                    ruling.default,
+                    ruling.option_list()
+                ),
+            ))
+        } else if ruling.citations.is_empty() {
+            Some((
+                id,
+                "a Ruling cites at least one source (ADR-0006)".to_owned(),
+            ))
+        } else {
+            None
+        };
+        if let Some((quoted, message)) = problem {
+            self.report_quoted(source, quoted, message);
+            return;
+        }
+        self.pack.rulings.insert(ruling.id.clone(), ruling);
+    }
+
+    /// Reports each Ruling an encoding's predicates read that the pack does not declare,
+    /// or whose option it does not offer.
+    fn check_ruling_reads(&mut self, source: &Source, encoding: &Encoding) {
+        let riders: Vec<&Rider> = match encoding {
+            Encoding::Class(class) => class.features.iter().flat_map(|f| &f.riders).collect(),
+            Encoding::Species(e)
+            | Encoding::Background(e)
+            | Encoding::Feat(e)
+            | Encoding::MasteryProperty(e) => e.features.iter().flat_map(|f| &f.riders).collect(),
+        };
+        let mut reads = Vec::new();
+        for pred in riders.iter().filter_map(|rider| rider.when.as_ref()) {
+            ruling_reads(pred, &mut reads);
+        }
+        for (id, option) in reads {
+            match self.pack.rulings.get(id) {
+                None => self.report_quoted(
+                    source,
+                    id.as_str(),
+                    format!("the pack declares no Ruling `{id}`"),
+                ),
+                Some(ruling) if !ruling.has_option(option) => {
+                    let message = format!(
+                        "Ruling `{id}` has no option `{option}`; its options are {}",
+                        ruling.option_list()
+                    );
+                    self.report_quoted(source, option, message);
+                }
+                Some(_) => {}
             }
         }
     }
@@ -398,7 +504,12 @@ impl<'s, R: Ruleset> Loader<'s, R> {
 
     /// Reports a problem with `id`, pointing at its first quoted occurrence in the source.
     fn report_id(&mut self, source: &Source, id: &ContentId, message: String) {
-        let quoted = format!("\"{id}\"");
+        self.report_quoted(source, &id.to_string(), message);
+    }
+
+    /// Reports a problem with `text`, pointing at its first quoted occurrence in the source.
+    fn report_quoted(&mut self, source: &Source, text: &str, message: String) {
+        let quoted = format!("\"{text}\"");
         let span = source
             .text
             .find(&quoted)
@@ -413,6 +524,28 @@ impl<'s, R: Ruleset> Loader<'s, R> {
             span: span.into(),
         });
     }
+}
+
+/// Every `(Ruling, option)` that `pred` can read, in order.
+fn ruling_reads<'p>(pred: &'p Pred, reads: &mut Vec<(&'p RulingId, &'p str)>) {
+    match pred {
+        Pred::Fact(_) => {}
+        Pred::Ruling(id, option) => reads.push((id, option)),
+        Pred::All(preds) | Pred::Any(preds) => {
+            for pred in preds {
+                ruling_reads(pred, reads);
+            }
+        }
+        Pred::Not(pred) => ruling_reads(pred, reads),
+    }
+}
+
+/// Whether `text` is a Ruling option id: lowercase letters, digits and hyphens.
+fn is_option_id(text: &str) -> bool {
+    !text.is_empty()
+        && text
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
 fn len<T>(items: &[T]) -> u32 {

@@ -1,0 +1,16 @@
+---
+source: crates/mm-cli/tests/validate_packs.rs
+expression: stderr
+---
+error: the pack has 1 problem(s)
+    Diagnostic severity: error
+
+Error: Ruling `R-TST-HEW-BONUS` has no option `sometimes`; its options are attack-action-only, bonus-action-too
+    Diagnostic severity: error
+
+Begin snippet for malformed/unknown-ruling-option/encodings/test-ruled.ron starting at line 11, column 1
+
+snippet line 11:                     on: AttackHit,
+snippet line 12:                     when: Some(Ruling("R-TST-HEW-BONUS", "sometimes")),
+    label at line 12, columns 58 to 68: here
+snippet line 13:                     effect: FlatDamage(1),

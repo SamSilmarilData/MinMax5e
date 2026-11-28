@@ -9,9 +9,11 @@
 #   assumptions = "crates/mm-testkit/fixtures/assumptions/<name>.ron"  # optional
 #   ac = 16                                                 # optional: the target AC
 #   hp = 30                                                 # optional: the target's HP
+#   rulings = "crates/mm-testkit/fixtures/ruling-sets/<name>.ron"  # optional
 #
 # Each Build is evaluated with `mm-cli evaluate <path> [--assumptions <file>] [--ac <ac>]
-# [--hp <hp>] --format ron` on the fixture pack, `crates/mm-testkit/fixtures/pack`. With
+# [--hp <hp>] [--rulings <file>] --format ron` on the fixture pack,
+# `crates/mm-testkit/fixtures/pack`. With
 # none of the three, the target is the Encounter Baseline for the Build's level. A Build
 # may be listed more than once, with different flags. Adding or reordering entries
 # changes the hash; only agreement between the two targets matters, not its value.
@@ -34,3 +36,7 @@ path = "crates/mm-testkit/fixtures/builds/warrior-5-no-style.ron"
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-1.ron"
 assumptions = "crates/mm-testkit/fixtures/assumptions/hand-count.ron"
+
+[[build]]
+path = "crates/mm-testkit/fixtures/builds/warrior-5.ron"
+rulings = "crates/mm-testkit/fixtures/ruling-sets/hew-with-pb.ron"

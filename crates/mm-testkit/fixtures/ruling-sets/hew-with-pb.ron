@@ -1,0 +1,6 @@
+// fixture: synthetic
+// Flips R-TST-HEW-BONUS to its alternative reading: the heavy-weapon feat's +PB reaches
+// the crit-gated Bonus Action attack too (research 03 §7.2, "Hew counted with +PB").
+{
+    "R-TST-HEW-BONUS": "bonus-action-too",
+}

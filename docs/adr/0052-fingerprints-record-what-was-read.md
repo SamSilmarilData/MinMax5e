@@ -6,6 +6,8 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-28 (#21):* each key covers the Rulings read while building its own half of the kit. A Ruling read to decide a rider that changes which attacks exist enters the `ShapeKey`; one read to decide a rider's numbers enters the `ParamsFp` alone, so flipping it re-scores the kit on its existing shape (and, from step 4, its Tape) instead of tracing again. `KitKey = (ShapeKey, ParamsFp)` still covers every Ruling read. `All` and `Any` stop once their answer is known, so a Ruling behind a part that settles the predicate is not read. Flipping `R-TST-HEW-BONUS` changes the level-5 warrior's `ParamsFp` and keeps its `ShapeKey`.
+
 Every pipeline stage is a pure function from fingerprinted inputs to a fingerprinted output:
 
 - corpus + encodings → `PackFp`;

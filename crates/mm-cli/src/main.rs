@@ -2,17 +2,20 @@
 //! §11.1).
 //!
 //! - `mm-cli evaluate <build.ron> [--assumptions <file.ron>] [--ac <AC>] [--hp <HP>]
-//!   [--nova-rounds <N>] [--pack-dir <dir>]… [--format text|ron]`
+//!   [--nova-rounds <N>] [--rulings <file.ron>] [--pack-dir <dir>]… [--format text|ron]`
 //! - `mm-cli validate-packs [--pack-dir <dir>]…`
 //!
 //! `evaluate` starts from the default Assumption Set, whose target is the Encounter
 //! Baseline for the Build's level (ADR-0024), or from the `--assumptions` file in its
-//! place. `--ac`, `--hp` and `--nova-rounds` then override what either gives.
+//! place. `--ac`, `--hp` and `--nova-rounds` then override what either gives. Every
+//! Ruling takes the pack's default unless the `--rulings` file chooses another option;
+//! the output lists the Rulings the result read, with their options (ADR-0006).
 //!
 //! `evaluate` infers the Ruleset from the Build's Content ID prefixes; `validate-packs`
 //! checks against the 2024 Ruleset, the only one `mm-cli` knows. The pack is the
 //! Ruleset's embedded encodings plus every `.ron` file under each `--pack-dir`: files
-//! under a `records/` directory are records, the rest are encodings. Load problems are
+//! under a `records/` directory are records, those under a `rulings/` directory declare
+//! Rulings, and the rest are encodings. Load problems are
 //! printed as miette diagnostics naming the file and the offending text. The CLI calls
 //! the `mm-engine` facade directly until the Session protocol arrives (ADR-0051
 //! amendment).
@@ -26,8 +29,10 @@ use std::{fs, io};
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use miette::NarratableReportHandler;
-use mm_core::{AssumptionSet, Build, EncounterProfile, Ruleset, Source, SourceRole, Sources};
-use mm_engine::Evaluation;
+use mm_core::{
+    AssumptionSet, Build, EncounterProfile, Ruleset, RulingSet, Source, SourceRole, Sources,
+};
+use mm_engine::{CompileError, Evaluation};
 use mm_load::Pack;
 use mm_rules_2024::Rules2024;
 
@@ -45,8 +50,8 @@ struct Cli {
 enum Command {
     /// Evaluate a Build: Nova DPR, its SD, the least a round deals and the Reliability Band
     /// at every AC from 10 to 25, and Time-to-kill and Kill probability against the
-    /// target's HP. The target is the Encounter Baseline for the Build's level unless
-    /// `--assumptions`, `--ac` or `--hp` say otherwise.
+    /// target's HP, with the Rulings the result read. The target is the Encounter Baseline
+    /// for the Build's level unless `--assumptions`, `--ac` or `--hp` say otherwise.
     Evaluate(EvaluateArgs),
     /// Load every pack and report problems, then list which in-scope records are
     /// encoded. Fails on any problem or unencoded record (ADR-0002).
@@ -73,6 +78,10 @@ struct EvaluateArgs {
     /// Defaults to rounds 1–2, as GLOSSARY.md defines Nova DPR.
     #[arg(long)]
     nova_rounds: Option<NonZeroU32>,
+    /// A Ruling Set file (RON): a map from Ruling id to the option chosen. Rulings it
+    /// does not name take the pack's default.
+    #[arg(long)]
+    rulings: Option<PathBuf>,
     /// A directory of records and encodings to load into the pack. Repeatable.
     #[arg(long = "pack-dir")]
     pack_dirs: Vec<PathBuf>,
@@ -120,8 +129,12 @@ fn evaluate(args: &EvaluateArgs) -> Result<String> {
         .with_context(|| format!("parsing the Build in {}", args.build.display()))?;
     let ruleset = build.ruleset()?;
     let target = Target::resolve(&build, args)?;
+    let rulings = match &args.rulings {
+        Some(path) => read_rulings(path)?,
+        None => RulingSet::default(),
+    };
     let evaluation = match ruleset {
-        Rules2024::PREFIX => evaluate_in::<Rules2024>(&build, &target.assumptions, args)?,
+        Rules2024::PREFIX => evaluate_in::<Rules2024>(&build, &target.assumptions, &rulings, args)?,
         other => bail!("the Build's Content IDs use Ruleset `{other}`, which mm-cli does not know"),
     };
     match args.format {
@@ -139,11 +152,26 @@ fn evaluate(args: &EvaluateArgs) -> Result<String> {
 fn evaluate_in<R: Ruleset>(
     build: &Build,
     assumptions: &AssumptionSet,
+    rulings: &RulingSet,
     args: &EvaluateArgs,
 ) -> Result<Evaluation> {
     let pack = load_pack::<R>(&args.pack_dirs)?;
-    let kit = mm_engine::compile(&pack, build)?;
+    let kit = match (mm_engine::compile(&pack, build, rulings), &args.rulings) {
+        (Err(error @ CompileError::Ruling(_)), Some(path)) => {
+            return Err(error)
+                .with_context(|| format!("checking the Rulings in {}", path.display()));
+        }
+        (kit, _) => kit?,
+    };
     Ok(mm_engine::evaluate(&kit, assumptions))
+}
+
+/// The Ruling Set in the RON file at `path`.
+fn read_rulings(path: &Path) -> Result<RulingSet> {
+    let text = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+    ron::Options::default()
+        .from_str(&text)
+        .with_context(|| format!("parsing the Rulings in {}", path.display()))
 }
 
 /// The Assumption Set an evaluation runs under, and what each target figure rests on.
@@ -293,8 +321,11 @@ fn read_pack_dir(dir: &Path) -> Result<Sources> {
         .into_iter()
         .map(|path| {
             let relative = path.strip_prefix(dir).unwrap_or(&path);
-            let role = if relative.components().any(|c| c.as_os_str() == "records") {
+            let under = |name: &str| relative.components().any(|c| c.as_os_str() == name);
+            let role = if under("records") {
                 SourceRole::Records
+            } else if under("rulings") {
+                SourceRole::Ruling
             } else {
                 SourceRole::Encoding
             };
@@ -381,6 +412,18 @@ fn render_text(evaluation: &Evaluation, target: &Target) -> String {
         let survives = 1.0 - kill.kill_probability.last().copied().unwrap_or(0.0);
         let _ = writeln!(out, "  survives the horizon: {:.2}%", survives * 100.0);
     }
+    let read: Vec<String> = evaluation
+        .rulings
+        .chosen
+        .iter()
+        .map(|(id, option)| format!("{id} = {option}"))
+        .collect();
+    let read = if read.is_empty() {
+        "none".to_owned()
+    } else {
+        read.join(", ")
+    };
+    let _ = writeln!(out, "Rulings read: {read}");
     let _ = writeln!(out, "ShapeKey {}", evaluation.shape_key);
     let _ = writeln!(out, "ParamsFp {}", evaluation.params_fp);
     out
