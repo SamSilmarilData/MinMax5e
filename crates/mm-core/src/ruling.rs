@@ -8,15 +8,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::Citation;
 
-/// A Ruling's stable id: `R-` then uppercase letters, digits and hyphens, for example
-/// `R-TST-HEW-BONUS`.
+/// A Ruling's stable id: `R-` then uppercase letters, digits and hyphens, not ending in a
+/// hyphen, for example `R-TST-HEW-BONUS`.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct RulingId(Box<str>);
 
 /// Why a string is not a Ruling id.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("`{0}` is not a Ruling id (`R-` then uppercase letters, digits and hyphens)")]
+#[error(
+    "`{0}` is not a Ruling id (`R-` then uppercase letters, digits and hyphens, not ending in a hyphen)"
+)]
 pub struct RulingIdError(pub String);
 
 impl RulingId {
@@ -107,11 +109,37 @@ impl Ruling {
         self.options.iter().any(|o| o.id == option)
     }
 
-    /// The option ids, in declaration order, joined with `, `.
-    pub fn option_list(&self) -> String {
-        let ids: Vec<&str> = self.options.iter().map(|o| o.id.as_str()).collect();
-        ids.join(", ")
+    /// Whether `option` is one of this Ruling's options.
+    ///
+    /// # Errors
+    /// If it is not, naming the options there are.
+    pub fn check_option(&self, option: &str) -> Result<(), RulingError> {
+        if self.has_option(option) {
+            return Ok(());
+        }
+        Err(RulingError::UnknownOption {
+            ruling: self.id.clone(),
+            option: option.to_owned(),
+            options: self.options.iter().map(|o| o.id.clone()).collect(),
+        })
     }
+}
+
+/// A Ruling, or an option of one, named but not declared.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum RulingError {
+    #[error("there is no Ruling `{0}` in the pack")]
+    Unknown(RulingId),
+    #[error(
+        "Ruling `{ruling}` has no option `{option}`; its options are {}",
+        options.join(", ")
+    )]
+    UnknownOption {
+        ruling: RulingId,
+        option: String,
+        /// The Ruling's option ids, in declaration order.
+        options: Vec<String>,
+    },
 }
 
 /// The options a user has chosen for some Rulings: the rest take their defaults.

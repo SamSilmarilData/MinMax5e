@@ -5,8 +5,9 @@
 //! WebAssembly build runs under wasmtime, which must be on PATH.
 //!
 //! What is hashed is `mm-cli evaluate --format ron` output, with `--assumptions`, `--ac`,
-//! `--hp` and `--rulings` where the entry gives them; an entry with none is evaluated against the
-//! Encounter Baseline. RON writes each float in Rust's shortest round-trip form, so the
+//! `--hp` and `--rulings` where the entry gives them. An entry with none of the first three
+//! is evaluated against the Encounter Baseline, and one without `--rulings` under every
+//! Ruling's default. RON writes each float in Rust's shortest round-trip form, so the
 //! text carries every bit of every finite result. The entries are hashed in set order,
 //! each as its path, its flags and its output, each preceded by its length, with
 //! BLAKE3.
@@ -65,7 +66,7 @@ struct Entry {
 
 impl Entry {
     /// The target and Ruling flags `mm-cli evaluate` gets, with paths under `root`.
-    fn target_args(&self, root: &Path) -> Vec<OsString> {
+    fn flags(&self, root: &Path) -> Vec<OsString> {
         let mut args = Vec::new();
         if let Some(assumptions) = &self.assumptions {
             args.push("--assumptions".into());
@@ -187,7 +188,7 @@ fn evaluate(mut command: Command, root: &Path, entry: &Entry) -> Result<Vec<u8>>
     command
         .arg("evaluate")
         .arg(root.join(&entry.path))
-        .args(entry.target_args(root))
+        .args(entry.flags(root))
         .args(["--format", "ron", "--pack-dir"])
         .arg(root.join(PACK));
     let output = command

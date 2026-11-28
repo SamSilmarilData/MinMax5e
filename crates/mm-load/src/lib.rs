@@ -22,7 +22,7 @@ use miette::{NamedSource, SourceSpan};
 use mm_core::effect::{ClassEncoding, Encoding, FeaturesEncoding, Pred, Rider};
 use mm_core::kind::{self, Kind};
 use mm_core::records::{ClassRecord, NamedRecord, Record, WeaponRecord};
-use mm_core::{ContentId, Id, Ruleset, Ruling, RulingId, Source, SourceRole, Sources};
+use mm_core::{ContentId, Id, Ruleset, Ruling, RulingError, RulingId, Source, SourceRole, Sources};
 use rustc_hash::FxHashMap;
 
 /// A loaded Rules Pack for Ruleset `R`: every record, with its encoding where it has one.
@@ -286,14 +286,10 @@ impl<'s, R: Ruleset> Loader<'s, R> {
                 twice.id.as_str(),
                 format!("option `{}` is offered twice", twice.id),
             ))
-        } else if !ruling.has_option(&ruling.default) {
+        } else if let Err(error) = ruling.check_option(&ruling.default) {
             Some((
                 ruling.default.as_str(),
-                format!(
-                    "the default `{}` is not an option of Ruling `{id}`; its options are {}",
-                    ruling.default,
-                    ruling.option_list()
-                ),
+                format!("the default is not an option: {error}"),
             ))
         } else if ruling.citations.is_empty() {
             Some((
@@ -325,20 +321,20 @@ impl<'s, R: Ruleset> Loader<'s, R> {
             ruling_reads(pred, &mut reads);
         }
         for (id, option) in reads {
-            match self.pack.rulings.get(id) {
-                None => self.report_quoted(
-                    source,
-                    id.as_str(),
-                    format!("the pack declares no Ruling `{id}`"),
-                ),
-                Some(ruling) if !ruling.has_option(option) => {
-                    let message = format!(
-                        "Ruling `{id}` has no option `{option}`; its options are {}",
-                        ruling.option_list()
-                    );
-                    self.report_quoted(source, option, message);
+            let checked = self
+                .pack
+                .rulings
+                .get(id)
+                .ok_or_else(|| RulingError::Unknown(id.clone()))
+                .and_then(|ruling| ruling.check_option(option));
+            match checked {
+                Err(error @ RulingError::Unknown(_)) => {
+                    self.report_quoted(source, id.as_str(), error.to_string());
                 }
-                Some(_) => {}
+                Err(error @ RulingError::UnknownOption { .. }) => {
+                    self.report_quoted(source, option, error.to_string());
+                }
+                Ok(()) => {}
             }
         }
     }

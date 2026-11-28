@@ -9,7 +9,8 @@ use mm_core::effect::{Fact, Grant, Op, Pred, Rider, Stage};
 use mm_core::kind::{self, Kind};
 use mm_core::records::WeaponRecord;
 use mm_core::{
-    AbilityScores, Build, BuildError, ContentId, Fp, FpHasher, Ruleset, RulingId, RulingSet,
+    AbilityScores, Build, BuildError, ContentId, Fp, FpHasher, Ruleset, RulingError, RulingId,
+    RulingSet,
 };
 use mm_dice::Pmf;
 use mm_load::{FeaturesKind, Pack};
@@ -90,20 +91,6 @@ pub enum CompileError {
     },
     #[error(transparent)]
     Ruling(#[from] RulingError),
-}
-
-/// Why a Ruling Set does not fit the pack.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum RulingError {
-    #[error("there is no Ruling `{0}` in the pack")]
-    Unknown(RulingId),
-    #[error("Ruling `{ruling}` has no option `{option}`; its options are {options}")]
-    UnknownOption {
-        ruling: RulingId,
-        option: String,
-        /// The Ruling's option ids, joined with `, `.
-        options: String,
-    },
 }
 
 /// Compiles `build` against `pack`, under the options `rulings` chooses and the pack's
@@ -226,7 +213,9 @@ pub fn compile<R: Ruleset>(
 }
 
 /// Whether a rider with this effect changes which attacks exist, so the Rulings its
-/// predicate reads decide the shape; otherwise they decide numbers.
+/// predicate reads decide the shape; otherwise they decide numbers. An effect is
+/// structural when applying it changes a [`RowShape`] (today, `crit_offers`) rather than
+/// a [`RowParams`]; one that changes both must count as structural.
 fn decides_shape(effect: &Op) -> bool {
     match effect {
         Op::BonusActionAttack => true,
@@ -247,16 +236,9 @@ impl<'a, R: Ruleset> Active<'a, R> {
     /// Checks that every Ruling `chosen` names is in the pack and offers that option.
     fn new(pack: &'a Pack<R>, chosen: &'a RulingSet) -> Result<Self, RulingError> {
         for (id, option) in &chosen.chosen {
-            let ruling = pack
-                .ruling(id)
-                .ok_or_else(|| RulingError::Unknown(id.clone()))?;
-            if !ruling.has_option(option) {
-                return Err(RulingError::UnknownOption {
-                    ruling: id.clone(),
-                    option: option.clone(),
-                    options: ruling.option_list(),
-                });
-            }
+            pack.ruling(id)
+                .ok_or_else(|| RulingError::Unknown(id.clone()))?
+                .check_option(option)?;
         }
         Ok(Active { pack, chosen })
     }
@@ -498,6 +480,23 @@ struct FlatDamage {
     miss: i32,
     hit: i32,
     crit: i32,
+}
+
+impl CombatKit {
+    /// Every Ruling the kit read, shape and params together, each with its option.
+    pub fn rulings_read(&self) -> RulingSet {
+        let both = self
+            .shape
+            .rulings
+            .chosen
+            .iter()
+            .chain(&self.params.rulings.chosen);
+        RulingSet {
+            chosen: both
+                .map(|(id, option)| (id.clone(), option.clone()))
+                .collect(),
+        }
+    }
 }
 
 impl KitShape {

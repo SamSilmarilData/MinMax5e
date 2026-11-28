@@ -5,8 +5,9 @@ Invented content for tests and the CLI (ADR-0028). Every RON file starts with th
 `cargo xtask leak-scan` checks both.
 
 - `pack/`: a pack directory (`mm-cli --pack-dir`). Files under `records/` are resolved
-  records, the shape `mm-import` will produce; every other `.ron` file is an encoding,
-  our mechanics for those records in the Effect DSL (ADR-0010, ADR-0035). Each encoded
+  records, the shape `mm-import` will produce; files under `rulings/` declare Rulings;
+  every other `.ron` file is an encoding, our mechanics for those records in the Effect
+  DSL (ADR-0010, ADR-0035). Each encoded
   feature cites its source at tier `Synthetic` (ADR-0007). The content is research 03
   §7.2's: the warrior class, a species, background and Origin feat with no combat effect,
   the style and heavy-weapon feats, a Graze-like mastery property, and two 2d6 Heavy weapons, one

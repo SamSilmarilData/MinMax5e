@@ -38,5 +38,5 @@ pub use citation::{Citation, SourceTier};
 pub use fp::{Fp, FpHasher};
 pub use id::{ContentId, ContentIdError, Id};
 pub use ruleset::{ActionEconomy, Refresh, ResourceDecl, Ruleset};
-pub use ruling::{Ruling, RulingId, RulingIdError, RulingOption, RulingSet};
+pub use ruling::{Ruling, RulingError, RulingId, RulingIdError, RulingOption, RulingSet};
 pub use sources::{Source, SourceRole, Sources};

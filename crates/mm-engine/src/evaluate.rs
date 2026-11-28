@@ -91,16 +91,7 @@ pub fn evaluate(kit: &CombatKit, assumptions: &AssumptionSet) -> Evaluation {
         params_fp: kit.params.fp(),
         target_ac: assumptions.encounter_profile.target_ac,
         target_hp,
-        rulings: RulingSet {
-            chosen: kit
-                .shape
-                .rulings
-                .chosen
-                .iter()
-                .chain(&kit.params.rulings.chosen)
-                .map(|(id, option)| (id.clone(), option.clone()))
-                .collect(),
-        },
+        rulings: kit.rulings_read(),
         nova: ModeResult {
             rounds,
             lanes: lanes
