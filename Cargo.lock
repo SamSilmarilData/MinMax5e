@@ -478,6 +478,7 @@ dependencies = [
  "mm-core",
  "mm-dice",
  "mm-load",
+ "mm-testkit",
  "rustc-hash",
  "serde",
  "thiserror",

@@ -90,3 +90,20 @@ fn branches_of_a_mix_may_be_partial() {
     assert_close(attack.mass(), 1.0);
     assert_close(attack.mean(), 0.6 * 3.5);
 }
+
+#[test]
+fn the_mean_of_the_lowest_tenth_takes_part_of_the_bin_that_crosses_it() {
+    // 2d6: 2 has 1/36, 3 has 2/36, 4 has 3/36. The lowest 0.1 = 3.6/36 of the mass is
+    // all of 2 and 3 and 0.6/36 of the 4s: (2·1 + 3·2 + 4·0.6) / 3.6 = 10.4 / 3.6 = 26/9.
+    assert_close(two_d6().mean_of_lowest(0.1), 26.0 / 9.0);
+    // All of the mass is the whole mean.
+    assert_close(two_d6().mean_of_lowest(1.0), 7.0);
+    // A certain total is its own floor.
+    assert_close(Pmf::point(8).mean_of_lowest(0.1), 8.0);
+}
+
+#[test]
+fn the_tail_beyond_the_support_is_positive_zero() {
+    // Not −0.0, the empty sum of `Iterator::sum`, which would print as "-0.0".
+    assert_eq!(two_d6().tail(13).to_bits(), 0.0_f64.to_bits());
+}

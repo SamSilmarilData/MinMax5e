@@ -39,7 +39,7 @@ Character builders record the choices you make. Optimization guides rate options
 
 - the Cargo workspace, its CI and its repo guards ([#13](https://github.com/SamSilmarilData/MinMax5e/issues/13));
 - `mm-dice`, exact damage distributions checked against a `BigRational` oracle ([#14](https://github.com/SamSilmarilData/MinMax5e/issues/14));
-- `mm-cli evaluate`, which gives exact Nova DPR and its SD at every AC from 10 to 25 ([#15](https://github.com/SamSilmarilData/MinMax5e/issues/15)), now for the full level-5 synthetic warrior, reproducing research 03 §7.2's worked example and its variants ([#18](https://github.com/SamSilmarilData/MinMax5e/issues/18));
+- `mm-cli evaluate`, which gives exact Nova DPR and its SD at every AC from 10 to 25 ([#15](https://github.com/SamSilmarilData/MinMax5e/issues/15)), now for the full level-5 synthetic warrior, reproducing research 03 §7.2's worked example and its variants ([#18](https://github.com/SamSilmarilData/MinMax5e/issues/18)), and its Reliability Band, with Time-to-kill and Kill probability against `--hp` ([#19](https://github.com/SamSilmarilData/MinMax5e/issues/19));
 - the cross-target result hash, which shows that evaluation gives the same bits natively and in WebAssembly ([#16](https://github.com/SamSilmarilData/MinMax5e/issues/16));
 - `mm-cli validate-packs`, with diagnostics and a coverage report ([#17](https://github.com/SamSilmarilData/MinMax5e/issues/17)).
 
@@ -47,10 +47,10 @@ Try it on the synthetic fixtures:
 
 ```sh
 cargo run -p mm-cli -- evaluate crates/mm-testkit/fixtures/builds/warrior-5.ron \
-  --ac 16 --nova-rounds 1 --pack-dir crates/mm-testkit/fixtures/pack
+  --ac 16 --hp 40 --nova-rounds 1 --pack-dir crates/mm-testkit/fixtures/pack
 ```
 
-Next come the rest of the skeleton's tickets (#19–#27): distributions, Assumption Sets, Rulings, resources, Sustained mode, Turn Plans and the independent oracles. Then the Tape (step 4) and the solver (step 5).
+Next come the rest of the skeleton's tickets (#20–#27): Assumption Sets, Rulings, resources, Sustained mode, Turn Plans and the independent oracles. Then the Tape (step 4) and the solver (step 5).
 
 The design is written up:
 

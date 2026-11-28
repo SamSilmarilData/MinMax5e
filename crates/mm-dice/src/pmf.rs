@@ -155,11 +155,11 @@ impl Pmf {
     /// The probability that the total is at least `value`, summed from the top so that
     /// small tails keep their precision.
     pub fn tail(&self, value: i32) -> f64 {
+        // A fold from +0.0: `sum` starts from −0.0, which an empty tail would keep.
         self.values()
             .rev()
             .take_while(|&(x, _)| x >= value)
-            .map(|(_, p)| p)
-            .sum()
+            .fold(0.0, |acc, (_, p)| acc + p)
     }
 
     /// The smallest total whose cumulative probability reaches `q`; the highest total if
@@ -173,6 +173,30 @@ impl Pmf {
             }
         }
         self.max()
+    }
+
+    /// The mean of the lowest `q` of the mass (the conditional value at risk at `q`): the
+    /// bins from the lowest total up, taking only the part of the last bin that brings the
+    /// mass taken to `q`. With `q = 0.1` this is the Floor (GLOSSARY.md). It is meant for
+    /// a full distribution: on a partial one with less mass than `q`, the missing mass
+    /// counts as 0.
+    ///
+    /// # Panics
+    /// If `q` is not positive.
+    pub fn mean_of_lowest(&self, q: f64) -> f64 {
+        assert!(q > 0.0, "the lowest share of the mass is positive");
+        let mut taken = 0.0;
+        let mut sum = 0.0;
+        for (x, p) in self.values() {
+            let left = q - taken;
+            if left <= 0.0 {
+                break;
+            }
+            let part = if p < left { p } else { left };
+            taken += part;
+            sum += f64::from(x) * part;
+        }
+        sum / q
     }
 
     /// `(total, mass)` pairs in increasing order of total.

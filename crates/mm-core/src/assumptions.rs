@@ -13,13 +13,20 @@ pub struct AssumptionSet {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EncounterProfile {
     pub target_ac: i32,
+    /// The target's hit points, which Time-to-kill and Kill probability are measured
+    /// against. `None` leaves them out; the Encounter Baseline default arrives with #20.
+    pub target_hp: Option<u32>,
 }
 
 impl AssumptionSet {
-    /// The default assumptions against a target of `target_ac`: Nova over rounds 1–2.
+    /// The default assumptions against a target of `target_ac`, with no hit points given:
+    /// Nova over rounds 1–2.
     pub fn against(target_ac: i32) -> AssumptionSet {
         AssumptionSet {
-            encounter_profile: EncounterProfile { target_ac },
+            encounter_profile: EncounterProfile {
+                target_ac,
+                target_hp: None,
+            },
             nova_rounds: 2,
         }
     }
