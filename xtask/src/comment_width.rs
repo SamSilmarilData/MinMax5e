@@ -6,8 +6,8 @@
 //! optional indentation) and is wider than 100 columns, counting characters rather than
 //! bytes. Files under `spikes/` are frozen (spec #12) and are not checked.
 //!
-//! A comment line with no space after its marker's text starts, such as a link alone on its
-//! line, cannot be wrapped and passes. A line that is not UTF-8 fails, since its columns
+//! A comment line whose text has no space in it, such as a link alone on its line, cannot be
+//! wrapped and passes. A line that is not UTF-8 fails, since its columns
 //! cannot be counted.
 //!
 //! Comments are found line by line as text, which leaves three limits. A line inside a

@@ -592,7 +592,7 @@ The level-5 warrior reproduces research 03 §7.2 end to end; the crusader mirror
 
 **CLI:** `mm-cli evaluate <build.ron> [--assumptions] [--ac] [--hp] [--nova-rounds] [--mode nova|sustained|both] [--rulings] [--pack-dir]… [--format text|ron]` and `mm-cli validate-packs`. `compile` already emits `(KitShape, KitParams)` with `ShapeKey`/`ParamsFp` over the Rulings read, so the tape drops in behind the same call at step 4.
 
-**Done** when CI is green (fmt, clippy, tests, the wasm32 check, `xtask deps`, `xtask leak-scan`, `xtask glossary`, `xtask comment-width`, `cargo deny`, `xtask xhash`) and these pass:
+**Done** when CI is green (fmt, clippy, tests, the wasm32 check, `xtask deps`, `xtask leak-scan`, `xtask adr-check`, `xtask glossary`, `xtask comment-width`, `cargo deny`, `xtask xhash`) and these pass:
 
 1. golden: research 03 §7.2's mean, SD, percentiles and variant table, first in `mm-dice` alone, then through the pipeline;
 2. `mm-dice` against BigRational to within 1e-12 relative;
