@@ -6,6 +6,11 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-28 (after retro-19's push run):*
+>
+> - **CI's `adr-check` compares a branch with `main`.** It used to compare a push with the commit before it, so a branch that revised an amendment it had not merged yet failed as a silent edit, although `main` was untouched. Now a pull request compares with its base and a branch push with `origin/main`; a push to `main` still compares with the `main` before it.
+> - **`main` requires CI to pass before a merge.** Branch protection makes every job in `.github/workflows/ci.yml` a required status check (the list lives in the repository's settings), so a pull request with a red check cannot merge. retro-19 merged with one red check.
+
 > *Amended 2026-11-28 (retro after #18):*
 >
 > - **`cargo xtask glossary`** joins the repo guards and CI. It fails when a content kind's name is a term on one of GLOSSARY.md's _Avoid_ lists: the kind in a Content ID or a Rust `Kind::NAME` (the trait as `Kind` or a `use … as` rename of it in the same file), and the variants of `enum Record` and `enum Encoding` with every name serde gives them (`rename` or `alias`, in either form, also inside `cfg_attr`), the names a pack's RON is written in. A name matches a term when their letters and digits agree, ignoring case and every other character. **`syn` (features `full` and `visit`) and `proc-macro2` join `[workspace.dependencies]`,** used only by `xtask`, which turns on `proc-macro2`'s `span-locations` for line numbers; both were already in the graph through serde. The guard parses Rust with them, so comments, strings and attributes cannot hide a name, and what it cannot read (a file that does not parse, a `Kind::NAME` that is not a string literal, an unreadable serde attribute on a content variant) fails. Research notes are not scanned, since they stay as written; accepted ADRs are, and none names an avoided kind; prose and other identifiers stay with review. The Content ID pattern it reads is the leak scan's, now shared. #18's review spent two rounds on the kind `mastery`, which the glossary avoids, so the mechanical part of that check moves out of review.
