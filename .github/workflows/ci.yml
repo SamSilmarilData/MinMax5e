@@ -88,6 +88,7 @@ jobs:
       - run: cargo xtask deps
       - run: cargo xtask leak-scan
       - run: cargo xtask glossary
+      - run: cargo xtask comment-width
       # The 2024 Ruleset's embedded encodings load cleanly. Records stay in the local cache
       # (ADR-0028), so ADR-0002's coverage check runs locally, not here.
       - run: cargo run --locked -q -p mm-cli -- validate-packs

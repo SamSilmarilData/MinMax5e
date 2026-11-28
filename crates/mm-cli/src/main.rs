@@ -1,7 +1,8 @@
 //! `mm-cli`: evaluate a Build, or check encodings, from the command line (architecture
 //! §11.1).
 //!
-//! - `mm-cli evaluate <build.ron> [--assumptions <file.ron>] [--ac <AC>] [--hp <HP>] [--nova-rounds <N>] [--pack-dir <dir>]… [--format text|ron]`
+//! - `mm-cli evaluate <build.ron> [--assumptions <file.ron>] [--ac <AC>] [--hp <HP>]
+//!   [--nova-rounds <N>] [--pack-dir <dir>]… [--format text|ron]`
 //! - `mm-cli validate-packs [--pack-dir <dir>]…`
 //!
 //! `evaluate` starts from the default Assumption Set, whose target is the Encounter

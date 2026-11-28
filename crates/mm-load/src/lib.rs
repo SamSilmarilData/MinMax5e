@@ -46,7 +46,8 @@ pub struct FeaturesDef {
     pub encoding: Option<FeaturesEncoding>,
 }
 
-/// The kinds whose records are [`FeaturesDef`]s: species, backgrounds, feats and mastery properties.
+/// The kinds whose records are [`FeaturesDef`]s: species, backgrounds, feats and mastery
+/// properties.
 pub trait FeaturesKind: Kind {}
 
 impl FeaturesKind for kind::Species {}
