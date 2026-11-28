@@ -198,7 +198,7 @@ fn the_level_5_warrior_prints_research_03_mean_and_sd_for_nova_round_1() {
     // not the 23.07 of the alternative reading (research 03 §7.2, "Hew counted with +PB").
     assert_rounds_to("mean", dpr, 22.897, 0.001);
     assert_rounds_to("SD", sd, 10.26, 0.01);
-    // The Band columns follow: the minimum, p10, p50, p90 and Floor, to one decimal.
+    // Then the minimum and the Band (p10, p50, p90, Floor), to one decimal.
     let row = text
         .lines()
         .find(|line| line.starts_with('>'))
