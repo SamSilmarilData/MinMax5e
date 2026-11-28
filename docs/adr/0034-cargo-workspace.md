@@ -9,7 +9,7 @@ status: accepted
 > *Amended 2026-11-28 (after retro-19's push run):*
 >
 > - **CI's `adr-check` compares a branch with `main`.** It used to compare a push with the commit before it, so a branch that revised an amendment it had not merged yet failed as a silent edit, although `main` was untouched. Now a pull request compares with its base and a branch push with `origin/main`; a push to `main` still compares with the `main` before it.
-> - **`main` requires CI to pass before a merge.** Branch protection makes every job in `.github/workflows/ci.yml` a required status check (the list lives in the repository's settings), so a pull request with a red check cannot merge. retro-19 merged with one red check.
+> - **`main` requires CI to pass before a merge.** Branch protection makes the CI jobs listed in the repository's settings required status checks, so a pull request with a red check cannot merge, and blocks force-pushes to `main`. A new CI job joins that list in the same change. retro-19 merged with one red check.
 
 > *Amended 2026-11-28 (retro after #18):*
 >

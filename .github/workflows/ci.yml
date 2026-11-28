@@ -81,7 +81,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # adr-check compares with an earlier commit.
+          # adr-check needs main's history for its merge-base.
           fetch-depth: 0
       - run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
@@ -99,6 +99,7 @@ jobs:
         env:
           BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || (github.ref == 'refs/heads/main' && github.event.before || 'origin/main') }}
         run: |
+          # No commit before this push: only when main itself is created.
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
             BASE=origin/main
           fi
