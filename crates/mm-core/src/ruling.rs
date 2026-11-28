@@ -144,6 +144,9 @@ pub enum RulingError {
 
 /// The options a user has chosen for some Rulings: the rest take their defaults.
 ///
+/// The same map also records the Rulings a kit or result read, each with the option it
+/// had (defaults included), so a result's Rulings can be passed back as a Ruling Set.
+///
 /// As a file (`mm-cli evaluate --rulings`), it is a RON map from Ruling id to option id:
 ///
 /// ```ron

@@ -57,7 +57,7 @@ A named, versioned, cited choice between interpretations of ambiguous rules text
 _Avoid_: house rule (that means changing the rules), assumption, errata, table ruling
 
 **Ruling Set**:
-The options a user has chosen for some Rulings; every Ruling it does not name takes its default.
+The options a user has chosen for some Rulings; every Ruling it does not name takes its default. A result lists the Rulings it read in the same form, so it can be reused as a Ruling Set.
 _Avoid_: house rules, rulings config
 
 ## Game mechanics

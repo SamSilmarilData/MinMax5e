@@ -5,17 +5,16 @@ Invented content for tests and the CLI (ADR-0028). Every RON file starts with th
 `cargo xtask leak-scan` checks both.
 
 - `pack/`: a pack directory (`mm-cli --pack-dir`). Files under `records/` are resolved
-  records, the shape `mm-import` will produce; files under `rulings/` declare Rulings;
-  every other `.ron` file is an encoding, our mechanics for those records in the Effect
-  DSL (ADR-0010, ADR-0035). Each encoded
-  feature cites its source at tier `Synthetic` (ADR-0007). The content is research 03
-  §7.2's: the warrior class, a species, background and Origin feat with no combat effect,
-  the style and heavy-weapon feats, a Graze-like mastery property, and two 2d6 Heavy weapons, one
-  with that mastery property and one without. `test-heavy-striker` is the heavy-weapon feat
-  without its crit-gated attack, so a variant can drop that attack alone. Files under
-  `rulings/` declare Rulings (ADR-0006): `R-TST-HEW-BONUS`, whether the heavy-weapon
-  feat's +PB reaches its crit-gated attack, which `test-heavy-hitter` reads for that
-  attack alone.
+  records, the shape `mm-import` will produce; files under `rulings/` declare Rulings
+  (ADR-0006); every other `.ron` file is an encoding, our mechanics for those records in
+  the Effect DSL (ADR-0010, ADR-0035). Each encoded feature cites its source at tier
+  `Synthetic` (ADR-0007). The content is research 03 §7.2's: the warrior class, a
+  species, background and Origin feat with no combat effect, the style and heavy-weapon
+  feats, a Graze-like mastery property, and two 2d6 Heavy weapons, one with that mastery
+  property and one without. `test-heavy-striker` is the heavy-weapon feat without its
+  crit-gated attack, so a variant can drop that attack alone. The one Ruling is
+  `R-TST-HEW-BONUS`, whether the heavy-weapon feat's +PB reaches its crit-gated attack,
+  which `test-heavy-hitter` reads for that attack alone.
 - `malformed/`: one pack directory per mistake, each loaded alongside `pack/` by
   `mm-cli validate-packs`: an unknown Content ID, a wrong Ruleset prefix, a misspelled
   DSL variant, a missing citation, a record with no encoding, a weapon naming an
