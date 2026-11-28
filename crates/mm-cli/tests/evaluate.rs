@@ -163,6 +163,11 @@ fn evaluate_ron_output_is_snapshotted_for_every_fixture_build() {
             &fixture("pack"),
             &["--hp", SNAPSHOT_HP, "--format", "ron"],
         ));
+        // No result is negative, so a −0.0 is a sign error, such as an empty `f64` `sum`.
+        assert!(
+            !ron.contains("-0.0"),
+            "{name} prints a negative zero:\n{ron}"
+        );
         insta::assert_snapshot!(name.into_owned(), ron);
     }
 }

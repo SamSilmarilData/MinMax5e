@@ -226,7 +226,7 @@ The mean damage of the worst 10% of rounds (CVaR₁₀), or Graze-style damage t
 _Avoid_: minimum damage (that is the true minimum)
 
 **Reliability Band**:
-The displayed spread of a Build's damage (p10, p50, p90, and Floor) beside its mean.
+The displayed spread of a Build's damage (p10, p50, p90, and Floor) beside its mean. Each figure is that of one round; over a multi-round horizon, of a round picked evenly from it (unlike **SD**, which is that of the horizon's total, divided by the number of rounds).
 _Avoid_: variance bar, error bar, confidence interval
 
 **AC Sensitivity Curve**:

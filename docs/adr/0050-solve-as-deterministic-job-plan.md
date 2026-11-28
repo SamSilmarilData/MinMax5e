@@ -6,6 +6,8 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-28 (retro after #19):* **Scored code does not iterate hash maps.** FxHash hashes in `usize`, so a map's iteration order differs between native (64-bit) and wasm32 even for the same insertions (research 09 errata). Anything iterated lives in a `Vec`, and a map only indexes into it. `clippy.toml` bans `HashMap`'s iterating methods next to the float bans. A `for` loop over `&map` gets past the ban, so review still checks for one. `xtask/tests/clippy_bans.rs` now checks each `f32`/`f64` ban for both types, and every `HashMap` ban is rejected.
+
 > *Amended 2026-11-28 (cross-target result hash, #16):* **Until `mm-solver` exists, the hashed set is fixture Builds, not jobs.** `cargo xtask xhash` builds `mm-cli` for the host and for `wasm32-wasip1`, evaluates every Build listed in `xtask/xhash.toml` with each (the WebAssembly build under wasmtime), and hashes the `--format ron` output with BLAKE3. RON writes floats in Rust's shortest round-trip form, so the text carries every bit of every finite result; NaN payloads are not covered, and scored code should not produce NaN anyway. It exits 1 when the hashes differ, and `--mismatch` changes one digit of a WebAssembly result to show that it does. CI runs it in the macOS leg of the test job with wasmtime 51.0.0, the version research 13 §4 measured with. Each ticket that adds a fixture Build adds it to the set. The synthetic job set in the rule below joins the hash when `mm-solver` arrives (architecture §11, step 5).
 
 > *Amended 2026-11-27 (workspace foundation, #13): the float bans, with sources.*
