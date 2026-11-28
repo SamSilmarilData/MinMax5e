@@ -1,0 +1,9 @@
+// fixture: synthetic
+// An Assumption Set (`mm-cli evaluate --assumptions`): the target of the CLI tests' hand
+// count for the level-1 warrior (AC 16, 6 HP), Nova over rounds 1–2, and an Adventuring Day
+// Model other than the default, so the whole set is read.
+(
+    encounter_profile: (target_ac: 16, target_hp: 6),
+    adventuring_day: (encounters: 3, rounds_per_encounter: 4, short_rests_after: [1]),
+    nova_rounds: 2,
+)

@@ -17,20 +17,34 @@ fn fixture_text(path: &str) -> String {
     std::fs::read_to_string(fixture(path)).expect("fixture exists")
 }
 
-/// Runs `mm-cli evaluate <build> --ac 16 --pack-dir <pack> <extra>…`.
+/// Runs `mm-cli evaluate <build> --pack-dir <pack> <extra>…`.
 fn evaluate_with(build: &Path, pack: &Path, extra: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_mm-cli"))
         .arg("evaluate")
         .arg(build)
-        .args(["--ac", "16", "--pack-dir"])
+        .arg("--pack-dir")
         .arg(pack)
         .args(extra)
         .output()
         .expect("mm-cli runs")
 }
 
+/// `first` followed by `rest`, as one argument list.
+fn args<'a>(first: &[&'a str], rest: &[&'a str]) -> Vec<&'a str> {
+    first.iter().chain(rest).copied().collect()
+}
+
 /// Evaluates the fixture Build `build` on the fixture pack against AC 16.
 fn evaluate(build: &str, extra: &[&str]) -> Output {
+    evaluate_with(
+        &fixture(build),
+        &fixture("pack"),
+        &args(&["--ac", "16"], extra),
+    )
+}
+
+/// Evaluates the fixture Build `build` on the fixture pack, with no target given.
+fn evaluate_untargeted(build: &str, extra: &[&str]) -> Output {
     evaluate_with(&fixture(build), &fixture("pack"), extra)
 }
 
@@ -49,6 +63,8 @@ fn scratch_file(dir: &str, name: &str, contents: &str) -> PathBuf {
 struct Evaluation {
     shape_key: String,
     params_fp: String,
+    target_ac: i32,
+    target_hp: u32,
     nova: Mode,
 }
 
@@ -64,7 +80,7 @@ struct Lane {
     sd: f64,
     minimum: f64,
     band: Band,
-    kill: Option<Kill>,
+    kill: Kill,
 }
 
 #[derive(Debug, Deserialize)]
@@ -145,12 +161,8 @@ fn evaluate_prints_nova_dpr_and_sd_across_ac_with_the_target_highlighted() {
     }
 }
 
-/// The target's hit points in the snapshots: within reach of every fixture Build over the
-/// Nova horizon, so their Kill odds are not all 0.
-const SNAPSHOT_HP: &str = "30";
-
 #[test]
-fn evaluate_ron_output_is_snapshotted_for_every_fixture_build() {
+fn evaluate_ron_output_against_the_default_target_is_snapshotted_for_every_fixture_build() {
     let mut builds: Vec<PathBuf> = std::fs::read_dir(fixture("builds"))
         .expect("the builds directory")
         .map(|entry| entry.expect("a directory entry").path())
@@ -161,7 +173,7 @@ fn evaluate_ron_output_is_snapshotted_for_every_fixture_build() {
         let ron = stdout_of(&evaluate_with(
             &build,
             &fixture("pack"),
-            &["--hp", SNAPSHOT_HP, "--format", "ron"],
+            &["--format", "ron"],
         ));
         // No result is negative, so a −0.0 is a sign error, such as an empty `f64` `sum`.
         assert!(
@@ -180,8 +192,7 @@ fn round_1_at_ac_16(build: &str) -> Lane {
 
 /// The AC 16 lane of `build` evaluated with the flags `extra`.
 fn ac_16_lane(build: &str, extra: &[&str]) -> Lane {
-    let args: Vec<&str> = extra.iter().copied().chain(["--format", "ron"]).collect();
-    evaluation(&evaluate(build, &args))
+    evaluation(&evaluate(build, &args(extra, &["--format", "ron"])))
         .nova
         .lanes
         .into_iter()
@@ -195,7 +206,12 @@ fn ac_16_lane(build: &str, extra: &[&str]) -> Lane {
 #[test]
 fn the_level_5_warrior_prints_research_03_mean_and_sd_for_nova_round_1() {
     let text = stdout_of(&evaluate("builds/warrior-5.ron", &["--nova-rounds", "1"]));
-    assert!(text.starts_with("Nova DPR, round 1,"), "{text}");
+    assert!(
+        text.lines()
+            .nth(1)
+            .is_some_and(|line| line.starts_with("Nova DPR, round 1,")),
+        "{text}"
+    );
     let (highlighted, dpr, sd) = table_row(&text, 16);
     assert!(highlighted, "{text}");
     // The table prints three decimals. The crit-gated Bonus Action attack is its own
@@ -260,9 +276,7 @@ fn over_two_rounds_the_band_is_still_that_of_a_round() {
 /// The AC 16 lane's Kill odds for `build` over the default Nova horizon (rounds 1–2)
 /// against `hp`.
 fn kill_at_ac_16(build: &str, hp: &str) -> Kill {
-    ac_16_lane(build, &["--hp", hp])
-        .kill
-        .expect("Kill odds, with --hp given")
+    ac_16_lane(build, &["--hp", hp]).kill
 }
 
 // By hand, for the level-1 warrior (one 2d6 + 3 attack: miss 1/2, hit 9/20, crit 1/20 at
@@ -282,10 +296,207 @@ fn time_to_kill_and_kill_probability_match_a_hand_count() {
     assert_close(kill.time_to_kill[1], 20.0 / 80.0);
 }
 
+// The Encounter Baseline (ADR-0024): CR equals character level, AC from research 03
+// §5.3's "Default AC" column (Dunn's table), HP = 10 + 17·CR worked by hand.
+
 #[test]
-fn without_hp_there_are_no_kill_odds() {
-    let evaluation = evaluation(&evaluate("builds/warrior-1.ron", &["--format", "ron"]));
-    assert!(evaluation.nova.lanes.iter().all(|lane| lane.kill.is_none()));
+fn with_no_target_flags_evaluate_uses_the_encounter_baseline_and_prints_it() {
+    let five = evaluation(&evaluate_untargeted(
+        "builds/warrior-5.ron",
+        &["--format", "ron"],
+    ));
+    // CR 5: AC 15, HP 10 + 85 = 95.
+    assert_eq!((five.target_ac, five.target_hp), (15, 95));
+    let one = evaluation(&evaluate_untargeted(
+        "builds/warrior-1.ron",
+        &["--format", "ron"],
+    ));
+    // CR 1: AC 14, HP 10 + 17 = 27.
+    assert_eq!((one.target_ac, one.target_hp), (14, 27));
+
+    let text = stdout_of(&evaluate_untargeted("builds/warrior-5.ron", &[]));
+    assert!(
+        text.contains("Target: AC 15, 95 HP (Encounter Baseline, CR 5)"),
+        "{text}"
+    );
+    assert!(table_row(&text, 15).0, "AC 15 is highlighted:\n{text}");
+    assert!(text.contains("Against 95 HP at AC 15, by round:"), "{text}");
+}
+
+#[test]
+fn a_target_flag_overrides_only_its_own_figure_of_the_baseline() {
+    let ac = evaluation(&evaluate_untargeted(
+        "builds/warrior-5.ron",
+        &["--ac", "18", "--format", "ron"],
+    ));
+    assert_eq!((ac.target_ac, ac.target_hp), (18, 95));
+    let hp = evaluation(&evaluate_untargeted(
+        "builds/warrior-5.ron",
+        &["--hp", "40", "--format", "ron"],
+    ));
+    assert_eq!((hp.target_ac, hp.target_hp), (15, 40));
+
+    let text = stdout_of(&evaluate_untargeted(
+        "builds/warrior-5.ron",
+        &["--ac", "18"],
+    ));
+    assert!(
+        text.contains("Target: AC 18 (--ac), 95 HP (Encounter Baseline, CR 5)"),
+        "{text}"
+    );
+}
+
+/// The fixture Assumption Set: AC 16 and 6 HP, the hand count's target.
+const HAND_COUNT: &str = "assumptions/hand-count.ron";
+
+/// The path of the fixture Assumption Set.
+fn hand_count_path() -> String {
+    fixture(HAND_COUNT)
+        .into_os_string()
+        .into_string()
+        .expect("a UTF-8 path")
+}
+
+/// `--assumptions <path>` followed by `extra`.
+fn with_hand_count<'a>(path: &'a str, extra: &[&'a str]) -> Vec<&'a str> {
+    args(&["--assumptions", path], extra)
+}
+
+#[test]
+fn an_assumptions_file_replaces_the_defaults_and_feeds_the_kill_odds() {
+    let path = hand_count_path();
+    let path = path.as_str();
+    let args = with_hand_count(path, &["--format", "ron"]);
+    let evaluation = evaluation(&evaluate_untargeted("builds/warrior-1.ron", &args));
+    assert_eq!((evaluation.target_ac, evaluation.target_hp), (16, 6));
+    // The hand count beside `time_to_kill_and_kill_probability_match_a_hand_count`.
+    let lane = evaluation
+        .nova
+        .lanes
+        .iter()
+        .find(|lane| lane.ac == 16)
+        .expect("an AC 16 lane");
+    assert_close(lane.kill.kill_probability[0], 39.0 / 80.0);
+    assert_close(lane.kill.kill_probability[1], 59.0 / 80.0);
+
+    let text = stdout_of(&evaluate_untargeted(
+        "builds/warrior-1.ron",
+        &with_hand_count(path, &[]),
+    ));
+    assert!(
+        text.contains(&format!("Target: AC 16, 6 HP ({path})")),
+        "{text}"
+    );
+}
+
+#[test]
+fn flags_take_precedence_over_the_assumptions_file() {
+    let path = hand_count_path();
+    let path = path.as_str();
+    let args = with_hand_count(
+        path,
+        &["--hp", "30", "--nova-rounds", "1", "--format", "ron"],
+    );
+    let hp = evaluation(&evaluate_untargeted("builds/warrior-1.ron", &args));
+    assert_eq!((hp.target_ac, hp.target_hp), (16, 30));
+    let lane = &hp.nova.lanes[0];
+    assert_eq!(lane.kill.kill_probability.len(), 1, "--nova-rounds 1 wins");
+
+    let args = with_hand_count(path, &["--ac", "12", "--format", "ron"]);
+    let ac = evaluation(&evaluate_untargeted("builds/warrior-1.ron", &args));
+    assert_eq!((ac.target_ac, ac.target_hp), (12, 6));
+}
+
+#[test]
+fn an_assumptions_file_case_is_snapshotted() {
+    let path = hand_count_path();
+    let args = with_hand_count(&path, &["--format", "ron"]);
+    let ron = stdout_of(&evaluate_untargeted("builds/warrior-1.ron", &args));
+    insta::assert_snapshot!("warrior-1-hand-count", ron);
+}
+
+#[test]
+fn a_malformed_assumptions_file_is_a_clear_error_naming_it() {
+    let set = fixture_text(HAND_COUNT);
+    for (name, from, to, expected) in [
+        (
+            "unknown-field.ron",
+            "nova_rounds: 2",
+            "nova_rounds: 2, rounds: 3",
+            "Unexpected field named `rounds`",
+        ),
+        ("zero-hp.ron", "target_hp: 6", "target_hp: 0", "nonzero"),
+        (
+            "late-rest.ron",
+            "short_rests_after: [1]",
+            "short_rests_after: [3]",
+            "before the last of the 3",
+        ),
+    ] {
+        let file = scratch_file("malformed-assumptions", name, &set.replace(from, to));
+        let file = file.to_str().expect("a UTF-8 path");
+        let stderr = stderr_of_failure(&evaluate_untargeted(
+            "builds/warrior-1.ron",
+            &["--assumptions", file],
+        ));
+        assert!(
+            stderr.contains(&format!("parsing the Assumption Set in {file}")),
+            "{stderr}"
+        );
+        assert!(stderr.contains(expected), "{name}: {stderr}");
+    }
+}
+
+/// The level-1 warrior Build with `level` warrior levels, written under `dir`.
+fn warrior_of_level(dir: &str, level: usize) -> PathBuf {
+    let class = "\"2024:class/test-warrior|tst\"";
+    let levels = vec![class; level].join(", ");
+    let build = fixture_text("builds/warrior-1.ron").replace(
+        &format!("levels: [{class}]"),
+        &format!("levels: [{levels}]"),
+    );
+    assert!(build.contains(&levels), "the level list was replaced");
+    scratch_file(dir, &format!("warrior-{level}.ron"), &build)
+}
+
+#[test]
+fn the_encounter_baseline_matches_research_03_default_target_at_every_tabulated_level() {
+    // Research 03 §5.3's "Default AC" column; HP = 10 + 17·level, by hand.
+    for (level, ac, hp) in [
+        (1, 14, 27),
+        (3, 15, 61),
+        (5, 15, 95),
+        (8, 16, 146),
+        (11, 17, 197),
+        (13, 18, 231),
+        (16, 19, 282),
+        (17, 19, 299),
+        (20, 20, 350),
+    ] {
+        let build = warrior_of_level("baseline", level);
+        let evaluation = evaluation(&evaluate_with(
+            &build,
+            &fixture("pack"),
+            &["--format", "ron"],
+        ));
+        assert_eq!(
+            (evaluation.target_ac, evaluation.target_hp),
+            (ac, hp),
+            "level {level}"
+        );
+    }
+}
+
+#[test]
+fn beyond_level_20_the_target_must_be_given() {
+    let build = warrior_of_level("beyond-baseline", 21);
+    let stderr = stderr_of_failure(&evaluate_with(&build, &fixture("pack"), &["--ac", "20"]));
+    assert!(stderr.contains("give --ac and --hp"), "{stderr}");
+    assert!(stderr.contains("levels 1 to 20, not 21"), "{stderr}");
+
+    let given = &["--ac", "20", "--hp", "400", "--format", "ron"];
+    let evaluation = evaluation(&evaluate_with(&build, &fixture("pack"), given));
+    assert_eq!((evaluation.target_ac, evaluation.target_hp), (20, 400));
 }
 
 #[test]

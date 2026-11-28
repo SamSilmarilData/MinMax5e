@@ -1,8 +1,12 @@
 //! `mm-cli`: evaluate a Build, or check encodings, from the command line (architecture
 //! §11.1).
 //!
-//! - `mm-cli evaluate <build.ron> --ac <AC> [--hp <HP>] [--nova-rounds <N>] [--pack-dir <dir>]… [--format text|ron]`
+//! - `mm-cli evaluate <build.ron> [--assumptions <file.ron>] [--ac <AC>] [--hp <HP>] [--nova-rounds <N>] [--pack-dir <dir>]… [--format text|ron]`
 //! - `mm-cli validate-packs [--pack-dir <dir>]…`
+//!
+//! `evaluate` starts from the default Assumption Set, whose target is the Encounter
+//! Baseline for the Build's level (ADR-0024), or from the `--assumptions` file in its
+//! place. `--ac`, `--hp` and `--nova-rounds` then override what either gives.
 //!
 //! `evaluate` infers the Ruleset from the Build's Content ID prefixes; `validate-packs`
 //! checks against the 2024 Ruleset, the only one `mm-cli` knows. The pack is the
@@ -12,7 +16,8 @@
 //! the `mm-engine` facade directly until the Session protocol arrives (ADR-0051
 //! amendment).
 
-use std::fmt::Write as _;
+use std::fmt::{self, Write as _};
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::{fs, io};
@@ -20,7 +25,7 @@ use std::{fs, io};
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand, ValueEnum};
 use miette::NarratableReportHandler;
-use mm_core::{AssumptionSet, Build, Ruleset, Source, SourceRole, Sources};
+use mm_core::{AssumptionSet, Build, EncounterProfile, Ruleset, Source, SourceRole, Sources};
 use mm_engine::Evaluation;
 use mm_load::Pack;
 use mm_rules_2024::Rules2024;
@@ -38,7 +43,9 @@ struct Cli {
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Evaluate a Build: Nova DPR, its SD, the least a round deals and the Reliability Band
-    /// at every AC from 10 to 25, and with `--hp`, Time-to-kill and Kill probability.
+    /// at every AC from 10 to 25, and Time-to-kill and Kill probability against the
+    /// target's HP. The target is the Encounter Baseline for the Build's level unless
+    /// `--assumptions`, `--ac` or `--hp` say otherwise.
     Evaluate(EvaluateArgs),
     /// Load every pack and report problems, then list which in-scope records are
     /// encoded. Fails on any problem or unencoded record (ADR-0002).
@@ -49,16 +56,22 @@ enum Command {
 struct EvaluateArgs {
     /// The Build file (RON).
     build: PathBuf,
-    /// The target's Armor Class; its row is highlighted.
+    /// An Assumption Set file (RON) to use in place of the defaults; the flags below
+    /// override it.
     #[arg(long)]
-    ac: i32,
+    assumptions: Option<PathBuf>,
+    /// The target's Armor Class; its row is highlighted. Defaults to the Encounter
+    /// Baseline's for the Build's level.
+    #[arg(long)]
+    ac: Option<i32>,
     /// The target's hit points, for Time-to-kill and Kill probability over the horizon.
-    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
-    hp: Option<u32>,
+    /// Defaults to the Encounter Baseline's for the Build's level.
+    #[arg(long)]
+    hp: Option<NonZeroU32>,
     /// The Nova horizon: rounds 1 to this. 1 gives a single round's DPR, SD and Band.
-    #[arg(long, default_value_t = AssumptionSet::against(0).nova_rounds,
-          value_parser = clap::value_parser!(u32).range(1..))]
-    nova_rounds: u32,
+    /// Defaults to rounds 1–2, as GLOSSARY.md defines Nova DPR.
+    #[arg(long)]
+    nova_rounds: Option<NonZeroU32>,
     /// A directory of records and encodings to load into the pack. Repeatable.
     #[arg(long = "pack-dir")]
     pack_dirs: Vec<PathBuf>,
@@ -104,12 +117,14 @@ fn evaluate(args: &EvaluateArgs) -> Result<String> {
     let build: Build = ron::Options::default()
         .from_str(&text)
         .with_context(|| format!("parsing the Build in {}", args.build.display()))?;
-    let evaluation = match build.ruleset()? {
-        Rules2024::PREFIX => evaluate_in::<Rules2024>(&build, args)?,
+    let ruleset = build.ruleset()?;
+    let target = Target::resolve(&build, args)?;
+    let evaluation = match ruleset {
+        Rules2024::PREFIX => evaluate_in::<Rules2024>(&build, &target.assumptions, args)?,
         other => bail!("the Build's Content IDs use Ruleset `{other}`, which mm-cli does not know"),
     };
     match args.format {
-        Format::Text => Ok(render_text(&evaluation)),
+        Format::Text => Ok(render_text(&evaluation, &target)),
         Format::Ron => {
             let mut ron =
                 ron::ser::to_string_pretty(&evaluation, ron::ser::PrettyConfig::default())
@@ -120,15 +135,109 @@ fn evaluate(args: &EvaluateArgs) -> Result<String> {
     }
 }
 
-fn evaluate_in<R: Ruleset>(build: &Build, args: &EvaluateArgs) -> Result<Evaluation> {
+fn evaluate_in<R: Ruleset>(
+    build: &Build,
+    assumptions: &AssumptionSet,
+    args: &EvaluateArgs,
+) -> Result<Evaluation> {
     let pack = load_pack::<R>(&args.pack_dirs)?;
     let kit = mm_engine::compile(&pack, build)?;
-    let mut assumptions = AssumptionSet {
-        nova_rounds: args.nova_rounds,
-        ..AssumptionSet::against(args.ac)
-    };
-    assumptions.encounter_profile.target_hp = args.hp;
-    Ok(mm_engine::evaluate(&kit, &assumptions))
+    Ok(mm_engine::evaluate(&kit, assumptions))
+}
+
+/// The Assumption Set an evaluation runs under, and what each target figure rests on.
+struct Target {
+    assumptions: AssumptionSet,
+    ac_basis: Basis,
+    hp_basis: Basis,
+}
+
+/// What a target figure rests on, as the text output names it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Basis {
+    /// The Encounter Baseline at this CR, the character level.
+    Baseline {
+        cr: usize,
+    },
+    File(PathBuf),
+    Flag(&'static str),
+}
+
+impl Target {
+    /// The defaults, or the `--assumptions` file in their place, with the flags on top.
+    /// The Encounter Baseline is only consulted for a figure no file or flag gives.
+    fn resolve(build: &Build, args: &EvaluateArgs) -> Result<Target> {
+        let mut assumptions = match (&args.assumptions, args.ac, args.hp) {
+            (Some(path), _, _) => read_assumptions(path)?,
+            (None, Some(target_ac), Some(target_hp)) => AssumptionSet::against(EncounterProfile {
+                target_ac,
+                target_hp,
+            }),
+            (None, _, _) => AssumptionSet::baseline(build.level())
+                .context("the Build has no default target; give --ac and --hp")?,
+        };
+        let unflagged = match &args.assumptions {
+            Some(path) => Basis::File(path.clone()),
+            None => Basis::Baseline { cr: build.level() },
+        };
+        let profile = &mut assumptions.encounter_profile;
+        let ac_basis = match args.ac {
+            Some(ac) => {
+                profile.target_ac = ac;
+                Basis::Flag("--ac")
+            }
+            None => unflagged.clone(),
+        };
+        let hp_basis = match args.hp {
+            Some(hp) => {
+                profile.target_hp = hp;
+                Basis::Flag("--hp")
+            }
+            None => unflagged,
+        };
+        if let Some(rounds) = args.nova_rounds {
+            assumptions.nova_rounds = rounds;
+        }
+        Ok(Target {
+            assumptions,
+            ac_basis,
+            hp_basis,
+        })
+    }
+
+    /// The target line of the text output.
+    fn describe(&self) -> String {
+        let EncounterProfile {
+            target_ac,
+            target_hp,
+        } = self.assumptions.encounter_profile;
+        if self.ac_basis == self.hp_basis {
+            format!("Target: AC {target_ac}, {target_hp} HP ({})", self.ac_basis)
+        } else {
+            format!(
+                "Target: AC {target_ac} ({}), {target_hp} HP ({})",
+                self.ac_basis, self.hp_basis
+            )
+        }
+    }
+}
+
+impl fmt::Display for Basis {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Basis::Baseline { cr } => write!(f, "Encounter Baseline, CR {cr}"),
+            Basis::File(path) => write!(f, "{}", path.display()),
+            Basis::Flag(flag) => f.write_str(flag),
+        }
+    }
+}
+
+/// The Assumption Set in the RON file at `path`.
+fn read_assumptions(path: &Path) -> Result<AssumptionSet> {
+    let text = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+    ron::Options::default()
+        .from_str(&text)
+        .with_context(|| format!("parsing the Assumption Set in {}", path.display()))
 }
 
 /// Loads every pack under Ruleset `R` and reports its coverage; an error if any record
@@ -212,9 +321,10 @@ fn collect_ron(dir: &Path, paths: &mut Vec<PathBuf>) -> io::Result<()> {
     Ok(())
 }
 
-fn render_text(evaluation: &Evaluation) -> String {
+fn render_text(evaluation: &Evaluation, target: &Target) -> String {
     let nova = &evaluation.nova;
     let mut out = String::new();
+    let _ = writeln!(out, "{}", target.describe());
     let rounds = match nova.rounds {
         1 => "round 1".to_owned(),
         rounds => format!("rounds 1–{rounds}"),
@@ -241,14 +351,12 @@ fn render_text(evaluation: &Evaluation) -> String {
             lane.ac, lane.dpr, lane.sd, lane.minimum, band.p10, band.p50, band.p90, band.floor
         );
     }
-    let target = nova
+    let target_lane = nova
         .lanes
         .iter()
         .find(|lane| lane.ac == evaluation.target_ac);
-    if let (Some(hp), Some(kill)) = (
-        evaluation.target_hp,
-        target.and_then(|lane| lane.kill.as_ref()),
-    ) {
+    if let Some(kill) = target_lane.map(|lane| &lane.kill) {
+        let hp = evaluation.target_hp;
         let _ = writeln!(
             out,
             "Against {hp} HP at AC {}, by round:",

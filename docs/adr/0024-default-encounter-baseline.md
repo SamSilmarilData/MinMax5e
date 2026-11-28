@@ -6,6 +6,8 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-28 (what the baseline ships, #20):* Only AC and HP are modelled so far; the save curves and Magic Resistance wait until saves are modelled (spec #12, "Out of Scope"). AC is Dunn's tabulated value at CR 1–20, and the baseline covers character levels 1–20. Rounded as he tabulates it, the table lies within about 1.0 AC of our SRD 5.2.1 fit, not 0.5 (research errata, 03 §5.3). Dunn fitted his table to the 2014 books, so the CC-BY reasoning above covers HP (our SRD 5.2.1 fit) and our check on AC, but not the AC values themselves. Those ship as his published figures, credited in `crates/mm-core/src/assumptions.rs`.
+
 When the user hasn't overridden the Encounter Profile, the target dummy has these stats:
 
 - **CR:** equal to the character's level.

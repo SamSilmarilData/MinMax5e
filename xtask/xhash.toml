@@ -6,34 +6,31 @@
 #
 #   [[build]]
 #   path = "crates/mm-testkit/fixtures/builds/<name>.ron"  # relative to the repo root
-#   ac = 16                                                 # the target AC to evaluate against
+#   assumptions = "crates/mm-testkit/fixtures/assumptions/<name>.ron"  # optional
+#   ac = 16                                                 # optional: the target AC
 #   hp = 30                                                 # optional: the target's HP
 #
-# Each Build is evaluated with `mm-cli evaluate <path> --ac <ac> [--hp <hp>] --format ron`
-# on the fixture pack, `crates/mm-testkit/fixtures/pack`. Adding or reordering entries
+# Each Build is evaluated with `mm-cli evaluate <path> [--assumptions <file>] [--ac <ac>]
+# [--hp <hp>] --format ron` on the fixture pack, `crates/mm-testkit/fixtures/pack`. With
+# none of the three, the target is the Encounter Baseline for the Build's level. A Build
+# may be listed more than once, with different flags. Adding or reordering entries
 # changes the hash; only agreement between the two targets matters, not its value.
 
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-1.ron"
-ac = 16
-hp = 30
 
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-5.ron"
-ac = 16
-hp = 30
 
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-5-no-hew.ron"
-ac = 16
-hp = 30
 
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-5-no-graze.ron"
-ac = 16
-hp = 30
 
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-5-no-style.ron"
-ac = 16
-hp = 30
+
+[[build]]
+path = "crates/mm-testkit/fixtures/builds/warrior-1.ron"
+assumptions = "crates/mm-testkit/fixtures/assumptions/hand-count.ron"
