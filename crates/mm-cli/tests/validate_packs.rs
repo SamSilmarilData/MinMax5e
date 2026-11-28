@@ -158,6 +158,7 @@ fn each_malformed_ruling_is_a_diagnostic() {
         (
             "malformed-ruling-option-id",
             "rulings/R-TST-BAD-OPTION-ID.ron",
+            // A parse error: RON points at the value, so the quotes may fall outside.
             "Second Reading",
             "`Second Reading` is not a Ruling option id",
         ),

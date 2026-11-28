@@ -288,7 +288,8 @@ impl<'s, R: Ruleset> Loader<'s, R> {
             let earlier = &ruling.options[..i];
             earlier.iter().any(|before| before.id == o.id).then_some(o)
         }) {
-            // Point at the repeat, the option id's second quoted occurrence.
+            // Point at the repeat: the option id's second quoted occurrence, as `options`
+            // comes before `default` in a Ruling file.
             let message = format!("option `{}` is offered twice", twice.id);
             self.report_quoted_nth(source, twice.id.as_str(), 1, message);
             return;

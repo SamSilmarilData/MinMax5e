@@ -748,6 +748,12 @@ fn an_unknown_ruling_or_option_in_the_rulings_file_is_a_clear_error() {
             "hew bonus",
             "`hew bonus` is not a Ruling id",
         ),
+        (
+            "malformed-option.ron",
+            "bonus-action-too",
+            "Bonus Too",
+            "`Bonus Too` is not a Ruling option id",
+        ),
     ] {
         let file = scratch_file("bad-rulings", name, &set.replace(from, to));
         let file = file.to_str().expect("a UTF-8 path");

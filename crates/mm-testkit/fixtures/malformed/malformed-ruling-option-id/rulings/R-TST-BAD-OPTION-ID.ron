@@ -1,5 +1,5 @@
 // fixture: synthetic
-// A Ruling whose option id is not lowercase letters, digits and hyphens.
+// A Ruling with an option id of the wrong form: it has uppercase letters and a space.
 (
     id: "R-TST-BAD-OPTION-ID",
     question: "Which reading?",
