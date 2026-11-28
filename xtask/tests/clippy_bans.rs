@@ -1,5 +1,7 @@
 //! The repository's `clippy.toml` bans the float operations that are not bit-identical
-//! across targets (ADR-0037, ADR-0050). A throwaway crate that uses each must fail clippy.
+//! across targets (ADR-0037, ADR-0050), and the `HashMap` methods that iterate in an order
+//! that differs across targets (research 09 errata). A throwaway crate that uses each must
+//! fail clippy.
 
 #![allow(
     clippy::unwrap_used,
@@ -25,8 +27,18 @@ fn banned_paths() -> Vec<String> {
         .collect()
 }
 
-/// An expression calling the banned method `path` (e.g. `f32::powf`) on `x: f64`.
+/// The prefix of the banned `HashMap` methods' paths.
+const HASH_MAP: &str = "std::collections::HashMap::";
+
+/// An expression calling the banned method `path`: a float method (e.g. `f32::powf`) on
+/// `x: f64`, or a `HashMap` method on `m: &mut HashMap<u32, u32>`.
 fn call(path: &str) -> String {
+    if let Some(method) = path.strip_prefix(HASH_MAP) {
+        return match method {
+            "into_keys" | "into_values" => format!("m.clone().{method}()"),
+            _ => format!("m.{method}()"),
+        };
+    }
     let (ty, method) = path.split_once("::").unwrap();
     let args = match method {
         "mul_add" => "2.0, 3.0",
@@ -63,7 +75,7 @@ fn the_bans_the_spec_requires_are_all_present() {
 }
 
 #[test]
-fn every_ban_covers_both_f32_and_f64() {
+fn every_float_ban_covers_both_f32_and_f64() {
     let banned = banned_paths();
     let methods = |ty: &str| -> std::collections::BTreeSet<String> {
         banned
@@ -76,10 +88,14 @@ fn every_ban_covers_both_f32_and_f64() {
         methods("f32"),
         "clippy.toml bans differ between f64 and f32"
     );
+    let hash_map = banned
+        .iter()
+        .filter(|path| path.starts_with(HASH_MAP))
+        .count();
     assert_eq!(
         banned.len(),
-        methods("f64").len() * 2,
-        "clippy.toml bans something other than f32/f64 methods: {banned:?}"
+        methods("f64").len() * 2 + hash_map,
+        "clippy.toml bans something other than f32/f64 or HashMap methods: {banned:?}"
     );
 }
 
@@ -90,7 +106,9 @@ fn clippy(tree: &TempTree, body: &str) -> std::process::Output {
     );
     tree.write(
         "src/lib.rs",
-        format!("pub fn f(x: f64) -> f64 {{\n{body}\n}}\n"),
+        format!(
+            "pub fn f(x: f64, m: &mut std::collections::HashMap<u32, u32>) -> f64 {{\n{body}\n}}\n"
+        ),
     );
     Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned()))
         .args([
@@ -108,7 +126,7 @@ fn clippy(tree: &TempTree, body: &str) -> std::process::Output {
 }
 
 #[test]
-fn each_banned_float_operation_fails_clippy() {
+fn each_banned_method_fails_clippy() {
     let tree = TempTree::new();
     let banned = banned_paths();
     assert!(
@@ -133,12 +151,14 @@ fn each_banned_float_operation_fails_clippy() {
 }
 
 #[test]
-fn basic_float_arithmetic_passes_clippy() {
+fn basic_float_arithmetic_and_map_lookups_pass_clippy() {
     // `sqrt` is an IEEE 754 basic operation, correctly rounded on every target (ADR-0050).
+    // Looking up and inserting do not depend on the map's order.
     let tree = TempTree::new();
     let output = clippy(
         &tree,
-        "    let y = (x * 2.0 + 3.0).sqrt();\n    if y > x { y } else { x / 2.0 }",
+        "    m.insert(1, 2);\n    let _ = m.get(&1);\n    \
+         let y = (x * 2.0 + 3.0).sqrt();\n    if y > x { y } else { x / 2.0 }",
     );
     assert!(
         output.status.success(),

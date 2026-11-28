@@ -1,7 +1,8 @@
 # Cross-target determinism (ADR-0037, ADR-0050 as amended 2026-11-27). Scored values use
 # IEEE 754 basic operations only, so `sqrt` (correctly rounded everywhere) is allowed.
 # Banned: fused multiply-add, transcendentals, `powi` (Rust documents its precision as
-# non-deterministic), and max/min (NaN-unsafe). A display-only helper
+# non-deterministic), max/min (NaN-unsafe), and HashMap's iterating methods (order differs
+# natively and on wasm32). A display-only helper
 # may allow one locally with `#[expect(clippy::disallowed_methods, reason = "...")]`.
 disallowed-methods = [
   { path = "f64::mul_add", reason = "fused multiply-add rounds differently from a * b + c (ADR-0050)" },
@@ -62,7 +63,21 @@ disallowed-methods = [
   { path = "f32::max", reason = "NaN-unsafe; compare explicitly or use total_cmp (ADR-0037, ADR-0050)" },
   { path = "f64::min", reason = "NaN-unsafe; compare explicitly or use total_cmp (ADR-0037, ADR-0050)" },
   { path = "f32::min", reason = "NaN-unsafe; compare explicitly or use total_cmp (ADR-0037, ADR-0050)" },
+  # Hash-map order differs natively and on wasm32 (FxHash hashes in usize): iterate a Vec,
+  # and look up through the map (research 09 errata). Not caught: `for`/`into_iter` over a
+# map, `retain`, `extract_if`, and any HashSet.
+  { path = "std::collections::HashMap::iter", reason = "iteration order differs across targets; iterate a Vec (ADR-0050)" },
+  { path = "std::collections::HashMap::iter_mut", reason = "iteration order differs across targets; iterate a Vec (ADR-0050)" },
+  { path = "std::collections::HashMap::keys", reason = "iteration order differs across targets; iterate a Vec (ADR-0050)" },
+  { path = "std::collections::HashMap::values", reason = "iteration order differs across targets; iterate a Vec (ADR-0050)" },
+  { path = "std::collections::HashMap::values_mut", reason = "iteration order differs across targets; iterate a Vec (ADR-0050)" },
+  { path = "std::collections::HashMap::drain", reason = "iteration order differs across targets; iterate a Vec (ADR-0050)" },
+  { path = "std::collections::HashMap::into_keys", reason = "iteration order differs across targets; iterate a Vec (ADR-0050)" },
+  { path = "std::collections::HashMap::into_values", reason = "iteration order differs across targets; iterate a Vec (ADR-0050)" },
 ]
+
+# Terms written in docs as they are (`..` keeps clippy's defaults).
+doc-valid-idents = ["CVaR", ".."]
 
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
