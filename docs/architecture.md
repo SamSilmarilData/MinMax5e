@@ -98,7 +98,7 @@ The fingerprint is one 128-bit type, `Fp` (blake3, truncated) [design]. These ke
 | Goes into **Kit Shape** (changes the state graph) | Goes into **Kit Params** (numbers only) |
 |---|---|
 | attack sources and counts (Attack action, Extra Attack, Light, Nick, Hew, Bonus Action features) | to-hit bonus per attack row, crit threshold |
-| for each attack row, which Riders can apply, with their limits, costs and `optional` flag | damage-term moments per outcome: E and E² on hit, on crit (dice doubled), Graze value |
+| for each attack row, which Riders can apply, with their limits, costs and `optional` flag | the damage term per outcome as a distribution (its E and E² read from it): on hit, on crit (dice doubled), Graze value (ADR-0047 amendment of 2026-11-28) |
 | resource kinds, their maxima, and their **spend caps** (§3) | save DCs; resistance variants of each damage term |
 | weapons in hand, legal swaps, mastery property per weapon | enhancement (+1/+2/+3), flat fighting-style bonuses |
 | concentration options, whether pre-combat setup is allowed, the set of horizons | advantage baseline from the Encounter Profile |
@@ -637,7 +637,7 @@ Spike parity (within 1e-9) is a one-off check recorded in research 13, not a gat
 These terms were added to `GLOSSARY.md` ("Evaluation engine") in revision 4, together with **Optimality gap**. Summary:
 
 - **Kit Shape:** the structure of a Combat Kit that determines its rotation state graph (attack sources, Rider slots, resource declarations, swaps, Rulings), without its numbers. _Avoid_: template, archetype.
-- **Kit Params:** the numeric part of a Combat Kit (to-hit, damage-term moments, DCs) that is evaluated over a fixed Kit Shape. _Avoid_: stats.
+- **Kit Params:** the numeric part of a Combat Kit (to-hit, damage terms, DCs) that is evaluated over a fixed Kit Shape. _Avoid_: stats.
 - **Tape:** the recorded rotation state graph of one Kit Shape, evaluated in different algebras. _Avoid_: trace (the verb that makes it), bytecode.
 - **Lane:** one independent evaluation inside a tape pass: one kit at one target AC.
 - **Occupancy:** the probability of reaching each state, and the expected number of uses of each damage term and resource, under a fixed policy. _Avoid_: visit counts, heat map.

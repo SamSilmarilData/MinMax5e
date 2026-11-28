@@ -18,7 +18,7 @@ mod interp;
 mod kit;
 pub mod turn;
 
-pub use evaluate::{Evaluation, LaneResult, ModeResult, evaluate};
+pub use evaluate::{Evaluation, KillOdds, LaneResult, ModeResult, ReliabilityBand, evaluate};
 pub use kit::{
     AttackSource, CombatKit, CompileError, KitParams, KitShape, RowParams, RowShape, compile,
 };

@@ -62,6 +62,22 @@ struct Lane {
     ac: i32,
     dpr: f64,
     sd: f64,
+    band: Band,
+    kill: Option<Kill>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Kill {
+    time_to_kill: Vec<f64>,
+    kill_probability: Vec<f64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Band {
+    p10: f64,
+    p50: f64,
+    p90: f64,
+    floor: f64,
 }
 
 fn evaluation(output: &Output) -> Evaluation {
@@ -128,6 +144,10 @@ fn evaluate_prints_nova_dpr_and_sd_across_ac_with_the_target_highlighted() {
     }
 }
 
+/// The target's hit points in the snapshots: within reach of every fixture Build over the
+/// Nova horizon, so their Kill odds are not all 0.
+const SNAPSHOT_HP: &str = "30";
+
 #[test]
 fn evaluate_ron_output_is_snapshotted_for_every_fixture_build() {
     let mut builds: Vec<PathBuf> = std::fs::read_dir(fixture("builds"))
@@ -140,7 +160,7 @@ fn evaluate_ron_output_is_snapshotted_for_every_fixture_build() {
         let ron = stdout_of(&evaluate_with(
             &build,
             &fixture("pack"),
-            &["--format", "ron"],
+            &["--hp", SNAPSHOT_HP, "--format", "ron"],
         ));
         insta::assert_snapshot!(name.into_owned(), ron);
     }
@@ -171,6 +191,81 @@ fn the_level_5_warrior_prints_research_03_mean_and_sd_for_nova_round_1() {
     // not the 23.07 of the alternative reading (research 03 §7.2, "Hew counted with +PB").
     assert_rounds_to("mean", dpr, 22.897, 0.001);
     assert_rounds_to("SD", sd, 10.26, 0.01);
+    // The Band columns follow: p10, p50, p90 and Floor, to one decimal.
+    let row = text
+        .lines()
+        .find(|line| line.starts_with('>'))
+        .expect("the target row");
+    let band: Vec<&str> = row.split_whitespace().skip(4).collect();
+    assert_eq!(band, ["8.0", "20.0", "34.0", "8.0"], "{text}");
+}
+
+#[test]
+fn with_hp_the_text_output_prints_kill_odds_by_round() {
+    let text = stdout_of(&evaluate("builds/warrior-1.ron", &["--hp", "6"]));
+    // The hand count above: 39/80 in round 1, 59/80 by round 2.
+    assert!(text.contains("Against 6 HP at AC 16, by round:"), "{text}");
+    let rows: Vec<Vec<&str>> = text
+        .lines()
+        .skip_while(|line| !line.contains("Time-to-kill"))
+        .skip(1)
+        .take(2)
+        .map(|line| line.split_whitespace().collect())
+        .collect();
+    assert_eq!(
+        rows,
+        [["1", "48.75%", "48.75%"], ["2", "25.00%", "73.75%"]],
+        "{text}"
+    );
+    assert!(text.contains("survives the horizon: 26.25%"), "{text}");
+}
+
+#[test]
+fn the_level_5_warrior_reproduces_research_03_reliability_band_for_nova_round_1() {
+    let band = round_1_at_ac_16("builds/warrior-5.ron").band;
+    // Research 03 §7.2: p10 8, median 20, p90 34, minimum 8. Both attacks graze (8) with
+    // probability 0.40² = 0.16, more than a tenth, so the worst tenth of rounds is all 8s:
+    // the Floor is the minimum, 8.
+    assert_close(band.p10, 8.0);
+    assert_close(band.p50, 20.0);
+    assert_close(band.p90, 34.0);
+    assert_close(band.floor, 8.0);
+}
+
+/// The AC 16 lane's Kill odds for `build` over the default Nova horizon (rounds 1–2)
+/// against `hp`.
+fn kill_at_ac_16(build: &str, hp: &str) -> Kill {
+    evaluation(&evaluate(build, &["--hp", hp, "--format", "ron"]))
+        .nova
+        .lanes
+        .into_iter()
+        .find(|lane| lane.ac == 16)
+        .expect("an AC 16 lane")
+        .kill
+        .expect("Kill odds, with --hp given")
+}
+
+// By hand, for the level-1 warrior (one 2d6 + 3 attack: miss 1/2, hit 9/20, crit 1/20 at
+// AC 16) against a 6 HP target over rounds 1–2. A hit deals at least 5 and fells it
+// unless the 2d6 is 2 (1/36); a crit deals at least 7.
+// Round 1: 9/20 · 35/36 + 1/20 = 39/80.
+// It survives both rounds only on totals below 6: two misses (1/4), or a miss and a hit
+// for exactly 5, in either order (2 · 1/2 · 9/20 · 1/36 = 1/80); two hits deal at least
+// 10. So by round 2: 1 − 21/80 = 59/80, and the first kill is in round 2 with 20/80.
+#[test]
+fn time_to_kill_and_kill_probability_match_a_hand_count() {
+    let kill = kill_at_ac_16("builds/warrior-1.ron", "6");
+    assert_eq!(kill.kill_probability.len(), 2, "one entry per round");
+    assert_close(kill.kill_probability[0], 39.0 / 80.0);
+    assert_close(kill.kill_probability[1], 59.0 / 80.0);
+    assert_close(kill.time_to_kill[0], 39.0 / 80.0);
+    assert_close(kill.time_to_kill[1], 20.0 / 80.0);
+}
+
+#[test]
+fn without_hp_there_are_no_kill_odds() {
+    let evaluation = evaluation(&evaluate("builds/warrior-1.ron", &["--format", "ron"]));
+    assert!(evaluation.nova.lanes.iter().all(|lane| lane.kill.is_none()));
 }
 
 #[test]

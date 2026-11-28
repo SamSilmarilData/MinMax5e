@@ -6,6 +6,8 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-28 (#19):* **Kit Params carry each damage term as its Damage Distribution, not its moments.** The `Pmf` algebra needs the distributions, and moments cannot give them back. The `Moments` algebra reads each term's E and E² from its distribution, so its results are unchanged. `ParamsFp` fingerprints every term by its support and the mass at each total in it, so two terms with equal moments but different spreads no longer share a fingerprint.
+
 A Combat Kit (ADR-0015) is split into a **Kit Shape**, everything that changes which states exist or which choices are legal, and **Kit Params**, the numbers: to-hit, damage-term moments, DCs.
 
 For each shape, the turn state machine (ADR-0012) runs **once** over rounds × resources and records a **Tape**:

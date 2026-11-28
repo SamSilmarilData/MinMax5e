@@ -4,7 +4,8 @@
 //! Build in the hashed set (`xtask/xhash.toml`) with each, and hashes the results. The
 //! WebAssembly build runs under wasmtime, which must be on PATH.
 //!
-//! What is hashed is `mm-cli evaluate --format ron` output. RON writes each float in
+//! What is hashed is `mm-cli evaluate --format ron` output (with `--hp` where the entry
+//! gives one). RON writes each float in
 //! Rust's shortest round-trip form, so the text carries every bit of every finite
 //! result. The Builds are hashed in set order, each as its path and its output, each
 //! preceded by its length, with BLAKE3.
@@ -53,6 +54,9 @@ struct Entry {
     path: String,
     /// The target AC it is evaluated against.
     ac: i32,
+    /// The target's hit points, passed as `--hp` so Time-to-kill and Kill probability are
+    /// hashed too.
+    hp: Option<u32>,
 }
 
 /// Runs the cross-target hash for the repository at `root`. With `mismatch`, the last
@@ -162,6 +166,9 @@ fn evaluate(mut command: Command, root: &Path, entry: &Entry) -> Result<Vec<u8>>
             "--pack-dir",
         ])
         .arg(root.join(PACK));
+    if let Some(hp) = entry.hp {
+        command.args(["--hp", &hp.to_string()]);
+    }
     let output = command
         .output()
         .with_context(|| format!("running {command:?}"))?;

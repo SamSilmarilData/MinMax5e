@@ -4,7 +4,7 @@ use mm_core::effect::{Fact, Grant, Op, Pred, Rider, Stage};
 use mm_core::kind::{self, Kind};
 use mm_core::records::WeaponRecord;
 use mm_core::{AbilityScores, Build, BuildError, ContentId, Fp, FpHasher, Ruleset};
-use mm_dice::{Moments, Pmf};
+use mm_dice::Pmf;
 use mm_load::{FeaturesKind, Pack};
 
 /// A Build compiled for evaluation: its structure and its numbers.
@@ -46,18 +46,19 @@ pub struct KitParams {
     pub rows: Vec<RowParams>,
 }
 
-/// One attack row's numbers (ADR-0047): the roll, and the moments of each outcome's damage.
+/// One attack row's numbers (ADR-0047): the roll, and each outcome's Damage Distribution.
+/// The backward pass reads their moments; the forward pass, the distributions themselves.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RowParams {
     pub to_hit: i32,
     /// The lowest natural roll that crits.
     pub crit_on: i32,
     /// The damage of a miss, such as Graze damage.
-    pub miss: Moments,
+    pub miss: Pmf,
     /// The damage of a hit that is not a crit.
-    pub hit: Moments,
+    pub hit: Pmf,
     /// The damage of a crit.
-    pub crit: Moments,
+    pub crit: Pmf,
 }
 
 /// Why a Build does not compile.
@@ -345,9 +346,9 @@ impl Attack<'_> {
         RowParams {
             to_hit: self.ability + self.proficiency,
             crit_on: 20,
-            miss: Moments::point(flat.miss),
-            hit: die.sum_of(count).shift(flat.hit).moments(),
-            crit: die.sum_of(count * 2).shift(flat.crit).moments(),
+            miss: Pmf::point(flat.miss),
+            hit: die.sum_of(count).shift(flat.hit),
+            crit: die.sum_of(count * 2).shift(flat.crit),
         }
     }
 }
@@ -380,15 +381,19 @@ impl KitShape {
 
 impl KitParams {
     /// The `ParamsFp`: a fingerprint of every number in the params, floats by their bits.
-    /// Equal params give equal fingerprints, so damage terms with equal moments share one.
+    /// Equal params give equal fingerprints: each damage term enters as its support and
+    /// the mass at every total in it.
     pub fn fp(&self) -> Fp {
-        let mut h = FpHasher::new("mm-engine/ParamsFp/2");
+        let mut h = FpHasher::new("mm-engine/ParamsFp/3");
         h.u64(self.rows.len() as u64);
         for row in &self.rows {
             h.i64(row.to_hit.into()).i64(row.crit_on.into());
-            for moments in [row.miss, row.hit, row.crit] {
-                h.u64(moments.mean().to_bits())
-                    .u64(moments.second().to_bits());
+            for damage in [&row.miss, &row.hit, &row.crit] {
+                let (lo, hi) = damage.support();
+                h.i64(lo.into()).i64(hi.into());
+                for total in lo..=hi {
+                    h.u64(damage.prob(total).to_bits());
+                }
             }
         }
         h.finish()

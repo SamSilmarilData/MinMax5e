@@ -306,7 +306,7 @@ The structure of a Combat Kit that determines its rotation state graph (attack s
 _Avoid_: template, archetype
 
 **Kit Params**:
-The numeric part of a Combat Kit (to-hit, damage-term moments, DCs), evaluated over a fixed Kit Shape.
+The numeric part of a Combat Kit (to-hit, each damage term's Damage Distribution, DCs), evaluated over a fixed Kit Shape.
 _Avoid_: stats
 
 **Tape**:

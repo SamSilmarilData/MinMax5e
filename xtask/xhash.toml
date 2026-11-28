@@ -7,27 +7,33 @@
 #   [[build]]
 #   path = "crates/mm-testkit/fixtures/builds/<name>.ron"  # relative to the repo root
 #   ac = 16                                                 # the target AC to evaluate against
+#   hp = 30                                                 # optional: the target's HP
 #
-# Each Build is evaluated with `mm-cli evaluate <path> --ac <ac> --format ron` on the
-# fixture pack, `crates/mm-testkit/fixtures/pack`. Adding or reordering entries changes
-# the hash; only agreement between the two targets matters, not its value.
+# Each Build is evaluated with `mm-cli evaluate <path> --ac <ac> [--hp <hp>] --format ron`
+# on the fixture pack, `crates/mm-testkit/fixtures/pack`. Adding or reordering entries
+# changes the hash; only agreement between the two targets matters, not its value.
 
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-1.ron"
 ac = 16
+hp = 30
 
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-5.ron"
 ac = 16
+hp = 30
 
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-5-no-hew.ron"
 ac = 16
+hp = 30
 
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-5-no-graze.ron"
 ac = 16
+hp = 30
 
 [[build]]
 path = "crates/mm-testkit/fixtures/builds/warrior-5-no-style.ron"
 ac = 16
+hp = 30

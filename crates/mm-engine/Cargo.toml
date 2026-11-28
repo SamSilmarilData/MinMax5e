@@ -15,5 +15,8 @@ rustc-hash.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 
+[dev-dependencies]
+mm-testkit = { path = "../mm-testkit" }
+
 [lints]
 workspace = true

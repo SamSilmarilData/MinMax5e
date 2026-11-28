@@ -1,7 +1,7 @@
 //! `mm-cli`: evaluate a Build, or check encodings, from the command line (architecture
 //! §11.1).
 //!
-//! - `mm-cli evaluate <build.ron> --ac <AC> [--nova-rounds <N>] [--pack-dir <dir>]… [--format text|ron]`
+//! - `mm-cli evaluate <build.ron> --ac <AC> [--hp <HP>] [--nova-rounds <N>] [--pack-dir <dir>]… [--format text|ron]`
 //! - `mm-cli validate-packs [--pack-dir <dir>]…`
 //!
 //! `evaluate` infers the Ruleset from the Build's Content ID prefixes; `validate-packs`
@@ -37,7 +37,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Evaluate a Build: Nova DPR and its SD at every AC from 10 to 25.
+    /// Evaluate a Build: Nova DPR, its SD and its Reliability Band at every AC from 10 to
+    /// 25, and with `--hp`, Time-to-kill and Kill probability.
     Evaluate(EvaluateArgs),
     /// Load every pack and report problems, then list which in-scope records are
     /// encoded. Fails on any problem or unencoded record (ADR-0002).
@@ -51,6 +52,9 @@ struct EvaluateArgs {
     /// The target's Armor Class; its row is highlighted.
     #[arg(long)]
     ac: i32,
+    /// The target's hit points, for Time-to-kill and Kill probability over the horizon.
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
+    hp: Option<u32>,
     /// The Nova horizon: rounds 1 to this. 1 gives a single round's DPR and SD.
     #[arg(long, default_value_t = AssumptionSet::against(0).nova_rounds,
           value_parser = clap::value_parser!(u32).range(1..))]
@@ -119,10 +123,11 @@ fn evaluate(args: &EvaluateArgs) -> Result<String> {
 fn evaluate_in<R: Ruleset>(build: &Build, args: &EvaluateArgs) -> Result<Evaluation> {
     let pack = load_pack::<R>(&args.pack_dirs)?;
     let kit = mm_engine::compile(&pack, build)?;
-    let assumptions = AssumptionSet {
+    let mut assumptions = AssumptionSet {
         nova_rounds: args.nova_rounds,
         ..AssumptionSet::against(args.ac)
     };
+    assumptions.encounter_profile.target_hp = args.hp;
     Ok(mm_engine::evaluate(&kit, &assumptions))
 }
 
@@ -219,18 +224,50 @@ fn render_text(evaluation: &Evaluation) -> String {
         "Nova DPR, {rounds}, target AC {} (marked >)",
         evaluation.target_ac
     );
-    let _ = writeln!(out, "     AC      DPR       SD");
+    let _ = writeln!(out, "     AC      DPR       SD    p10    p50    p90  Floor");
     for lane in &nova.lanes {
         let mark = if lane.ac == evaluation.target_ac {
             '>'
         } else {
             ' '
         };
+        let band = &lane.band;
         let _ = writeln!(
             out,
-            "{mark}    {:>2} {:>8.3} {:>8.3}",
-            lane.ac, lane.dpr, lane.sd
+            "{mark}    {:>2} {:>8.3} {:>8.3} {:>6.1} {:>6.1} {:>6.1} {:>6.1}",
+            lane.ac, lane.dpr, lane.sd, band.p10, band.p50, band.p90, band.floor
         );
+    }
+    let target = nova
+        .lanes
+        .iter()
+        .find(|lane| lane.ac == evaluation.target_ac);
+    if let (Some(hp), Some(kill)) = (
+        evaluation.target_hp,
+        target.and_then(|lane| lane.kill.as_ref()),
+    ) {
+        let _ = writeln!(
+            out,
+            "Against {hp} HP at AC {}, by round:",
+            evaluation.target_ac
+        );
+        let _ = writeln!(out, "  round  Time-to-kill  Kill probability");
+        for (i, (first, by_now)) in kill
+            .time_to_kill
+            .iter()
+            .zip(&kill.kill_probability)
+            .enumerate()
+        {
+            let _ = writeln!(
+                out,
+                "  {:>5} {:>12.2}% {:>16.2}%",
+                i + 1,
+                first * 100.0,
+                by_now * 100.0
+            );
+        }
+        let survives = 1.0 - kill.kill_probability.last().copied().unwrap_or(0.0);
+        let _ = writeln!(out, "  survives the horizon: {:.2}%", survives * 100.0);
     }
     let _ = writeln!(out, "ShapeKey {}", evaluation.shape_key);
     let _ = writeln!(out, "ParamsFp {}", evaluation.params_fp);
