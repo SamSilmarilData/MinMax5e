@@ -459,7 +459,8 @@ crates/
   mm-testkit      synthetic fixtures ★, TestRules ★, Rational + Sample oracles, proptest strategies,
                   metamorphic relations (used only from integration tests)
 xtask/ ★          dep-graph check (ADR-0034 via cargo metadata), dist/ content check, leak scan,
-                  glossary check of content kind names, comment width, cross-target result hash (native vs wasm32-wasip1 under wasmtime)
+                  ADR immutability, glossary check of content kind names, comment width,
+                  cross-target result hash (native vs wasm32-wasip1 under wasmtime)
 spikes/ ★         standalone measurement code (tape-spike), not workspace members
 data/rules-2024/**.ron, data/rules-2014/**.ron
 web/              index.html, manifest, service worker, _headers, gate Worker (JS), wrangler.jsonc
