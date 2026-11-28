@@ -9,7 +9,8 @@
 //!
 //! The forward pass then follows the recorded Policy from the start of round 1, carrying
 //! each reachable state's share of the Damage Distribution of the damage dealt so far
-//! (research 03 §3.1). It gives the exact distribution of the total after every round.
+//! (research 03 §3.1). It gives the exact distribution of the total after every round,
+//! and of each round's own damage.
 
 use mm_dice::{AcLanes, AttackRoll, Moments, OutcomeOdds, Pmf, RollMode};
 use rustc_hash::FxHashMap;
@@ -17,17 +18,20 @@ use rustc_hash::FxHashMap;
 use crate::kit::{KitParams, KitShape, RowParams};
 use crate::turn::{self, Outcome, Step, TurnState};
 
-/// What one evaluation of a kit over a horizon gives, per AC lane.
-pub(crate) struct Totals {
+/// What one evaluation of a kit over a horizon gives at one AC lane.
+pub(crate) struct LaneTotals {
     /// The moments of total damage over the horizon, from the backward pass.
-    pub moments: AcLanes<Moments>,
+    pub moments: Moments,
     /// The Damage Distribution of the total over rounds 1 to `k`, for each `k` from 1 to
     /// the horizon, from the forward pass under the same Policy.
-    pub by_round: AcLanes<Vec<Pmf>>,
+    pub by_round: Vec<Pmf>,
+    /// The Damage Distribution of one round of the horizon, each equally likely: the
+    /// mixture of every round's own damage.
+    pub a_round: Pmf,
 }
 
 /// Evaluates the kit over `rounds` rounds: the backward pass, then the forward pass.
-pub(crate) fn totals(shape: &KitShape, params: &KitParams, rounds: u32) -> Totals {
+pub(crate) fn totals(shape: &KitShape, params: &KitParams, rounds: u32) -> AcLanes<LaneTotals> {
     let odds = params
         .rows
         .iter()
@@ -57,8 +61,14 @@ pub(crate) fn totals(shape: &KitShape, params: &KitParams, rounds: u32) -> Total
         policy: FxHashMap::default(),
     };
     let moments = dp.value(0, TurnState::start());
-    let by_round = AcLanes::from_fn(|ac| dp.forward(ac));
-    Totals { moments, by_round }
+    AcLanes::from_fn(|ac| {
+        let (by_round, a_round) = dp.forward(ac);
+        LaneTotals {
+            moments: moments[ac],
+            by_round,
+            a_round,
+        }
+    })
 }
 
 /// A row's damage by outcome, in `Outcome::ALL` order.
@@ -146,52 +156,72 @@ impl Dp<'_> {
         AcLanes::from_fn(|ac| options[choice[ac]][ac])
     }
 
-    /// The forward pass at lane `ac`: the distribution of the total after each round.
-    fn forward(&self, ac: i32) -> Vec<Pmf> {
+    /// The forward pass at lane `ac`: the distribution of the total after each round, and
+    /// that of one round picked evenly from the horizon.
+    fn forward(&self, ac: i32) -> (Vec<Pmf>, Pmf) {
         let mut by_round = Vec::new();
+        let mut each_round = Vec::new();
         let mut starts = Frontier::default();
         starts.add(TurnState::start(), Pmf::point(0));
         for round in 0..self.rounds {
-            let mut ended = Frontier::default();
-            let mut frontier = starts;
-            while !frontier.is_empty() {
-                let mut next = Frontier::default();
-                for (state, so_far) in frontier.entries {
-                    if state.ended() {
-                        ended.add(state, so_far);
-                    } else if let Some(row) = state.pending_roll() {
-                        let row = usize::from(row);
-                        let weights = weights(self.odds[row][ac]);
-                        let dealt = dealt(&self.params.rows[row]);
-                        for (i, outcome) in Outcome::ALL.into_iter().enumerate() {
-                            if weights[i] == 0.0 {
-                                continue;
-                            }
-                            let after = turn::apply(self.shape, state, Step::Roll(outcome))
-                                .expect("a pending roll accepts every outcome");
-                            let reached = so_far.convolve(dealt[i]);
-                            next.add(after, Pmf::mix(&[(weights[i], &reached)]));
-                        }
-                    } else {
-                        let choice = self.policy[&(round, state)][ac];
-                        let step = turn::legal_steps(self.shape, state)[choice];
-                        let after =
-                            turn::apply(self.shape, state, step).expect("legal_steps are legal");
-                        next.add(after, so_far);
-                    }
-                }
-                frontier = next;
+            // The round's own damage: the same start states, each holding only its mass.
+            let mut fresh = Frontier::default();
+            for (state, so_far) in &starts.entries {
+                fresh.add(*state, scaled(so_far.mass(), &Pmf::point(0)));
             }
-            let shares: Vec<(f64, &Pmf)> = ended.entries.iter().map(|(_, d)| (1.0, d)).collect();
-            by_round.push(Pmf::mix(&shares));
+            each_round.push(self.play_round(round, ac, fresh).total());
+            let ended = self.play_round(round, ac, starts);
+            by_round.push(ended.total());
             // As in `value`: every ended turn leads to the start of the next round.
             starts = Frontier::default();
             for (_, so_far) in ended.entries {
                 starts.add(TurnState::start(), so_far);
             }
         }
-        by_round
+        let share = 1.0 / f64::from(self.rounds);
+        let rounds: Vec<(f64, &Pmf)> = each_round.iter().map(|d| (share, d)).collect();
+        (by_round, Pmf::mix(&rounds))
     }
+
+    /// Plays round `round` at lane `ac` under the Policy from `starts`, and returns the
+    /// ended turns, each with its share of the damage so far.
+    fn play_round(&self, round: u32, ac: i32, starts: Frontier) -> Frontier {
+        let mut ended = Frontier::default();
+        let mut frontier = starts;
+        while !frontier.is_empty() {
+            let mut next = Frontier::default();
+            for (state, so_far) in frontier.entries {
+                if state.ended() {
+                    ended.add(state, so_far);
+                } else if let Some(row) = state.pending_roll() {
+                    let row = usize::from(row);
+                    let weights = weights(self.odds[row][ac]);
+                    let dealt = dealt(&self.params.rows[row]);
+                    for (i, outcome) in Outcome::ALL.into_iter().enumerate() {
+                        if weights[i] == 0.0 {
+                            continue;
+                        }
+                        let after = turn::apply(self.shape, state, Step::Roll(outcome))
+                            .expect("a pending roll accepts every outcome");
+                        next.add(after, scaled(weights[i], &so_far.convolve(dealt[i])));
+                    }
+                } else {
+                    let choice = self.policy[&(round, state)][ac];
+                    let step = turn::legal_steps(self.shape, state)[choice];
+                    let after =
+                        turn::apply(self.shape, state, step).expect("legal_steps are legal");
+                    next.add(after, so_far);
+                }
+            }
+            frontier = next;
+        }
+        ended
+    }
+}
+
+/// `dist` with every mass multiplied by `weight`: a mix of one branch.
+fn scaled(weight: f64, dist: &Pmf) -> Pmf {
+    Pmf::mix(&[(weight, dist)])
 }
 
 /// The reachable states of one step of the forward pass, each with its share of the
@@ -204,7 +234,8 @@ struct Frontier {
 }
 
 impl Frontier {
-    /// Adds `share` to what `state` already holds.
+    /// Adds `share` to what `state` already holds: a mix with weight 1 adds partial
+    /// distributions.
     fn add(&mut self, state: TurnState, share: Pmf) {
         if let Some(&i) = self.index.get(&state) {
             let held = &mut self.entries[i].1;
@@ -218,5 +249,11 @@ impl Frontier {
 
     fn is_empty(&self) -> bool {
         self.entries.is_empty()
+    }
+
+    /// Every entry's share added together.
+    fn total(&self) -> Pmf {
+        let shares: Vec<(f64, &Pmf)> = self.entries.iter().map(|(_, d)| (1.0, d)).collect();
+        Pmf::mix(&shares)
     }
 }

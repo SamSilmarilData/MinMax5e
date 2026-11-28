@@ -74,6 +74,7 @@ struct Kill {
 
 #[derive(Debug, Deserialize)]
 struct Band {
+    minimum: f64,
     p10: f64,
     p50: f64,
     p90: f64,
@@ -191,13 +192,13 @@ fn the_level_5_warrior_prints_research_03_mean_and_sd_for_nova_round_1() {
     // not the 23.07 of the alternative reading (research 03 §7.2, "Hew counted with +PB").
     assert_rounds_to("mean", dpr, 22.897, 0.001);
     assert_rounds_to("SD", sd, 10.26, 0.01);
-    // The Band columns follow: p10, p50, p90 and Floor, to one decimal.
+    // The Band columns follow: the minimum, p10, p50, p90 and Floor, to one decimal.
     let row = text
         .lines()
         .find(|line| line.starts_with('>'))
         .expect("the target row");
     let band: Vec<&str> = row.split_whitespace().skip(4).collect();
-    assert_eq!(band, ["8.0", "20.0", "34.0", "8.0"], "{text}");
+    assert_eq!(band, ["8.0", "8.0", "20.0", "34.0", "8.0"], "{text}");
 }
 
 #[test]
@@ -222,14 +223,33 @@ fn with_hp_the_text_output_prints_kill_odds_by_round() {
 
 #[test]
 fn the_level_5_warrior_reproduces_research_03_reliability_band_for_nova_round_1() {
-    let band = round_1_at_ac_16("builds/warrior-5.ron").band;
-    // Research 03 §7.2: p10 8, median 20, p90 34, minimum 8. Both attacks graze (8) with
-    // probability 0.40² = 0.16, more than a tenth, so the worst tenth of rounds is all 8s:
-    // the Floor is the minimum, 8.
+    assert_research_03_band(&round_1_at_ac_16("builds/warrior-5.ron").band);
+}
+
+/// Research 03 §7.2's round: minimum 8, p10 8, median 20, p90 34. Both attacks graze (8)
+/// with probability 0.40² = 0.16, more than a tenth, so the worst tenth of rounds is all
+/// 8s: the Floor is 8 too.
+fn assert_research_03_band(band: &Band) {
+    assert_close(band.minimum, 8.0);
     assert_close(band.p10, 8.0);
     assert_close(band.p50, 20.0);
     assert_close(band.p90, 34.0);
     assert_close(band.floor, 8.0);
+}
+
+#[test]
+fn over_two_rounds_the_band_is_still_that_of_a_round() {
+    // The warrior's rounds are alike and spend nothing, so a round picked from rounds 1–2
+    // has research 03 §7.2's round distribution: the Floor is the worst 10% of rounds,
+    // not of two-round totals.
+    let band = evaluation(&evaluate("builds/warrior-5.ron", &["--format", "ron"]))
+        .nova
+        .lanes
+        .into_iter()
+        .find(|lane| lane.ac == 16)
+        .expect("an AC 16 lane")
+        .band;
+    assert_research_03_band(&band);
 }
 
 /// The AC 16 lane's Kill odds for `build` over the default Nova horizon (rounds 1–2)

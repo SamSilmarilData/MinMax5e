@@ -42,10 +42,13 @@ pub struct LaneResult {
     pub kill: Option<KillOdds>,
 }
 
-/// The Reliability Band (GLOSSARY.md) of damage per round: each figure is that of the
-/// total over the horizon, divided by the number of rounds, as for DPR and SD.
+/// The Reliability Band (GLOSSARY.md) of damage per round, and the true minimum beside
+/// it. Each figure is that of one round of the horizon, every round equally likely, so the
+/// Floor is the mean of the worst 10% of rounds. Over one round it is that round's.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct ReliabilityBand {
+    /// The least a round can deal: the true minimum, which the Floor is not.
+    pub minimum: f64,
     /// The 10th percentile: the smallest total at least a tenth of rounds stay at or below.
     pub p10: f64,
     /// The median.
@@ -83,7 +86,7 @@ pub fn evaluate(kit: &CombatKit, assumptions: &AssumptionSet) -> Evaluation {
     let rounds = assumptions.nova_rounds;
     assert!(rounds > 0, "the Nova horizon has at least one round");
     let target_hp = assumptions.encounter_profile.target_hp;
-    let totals = interp::totals(&kit.shape, &kit.params, rounds);
+    let lanes = interp::totals(&kit.shape, &kit.params, rounds);
     let per_round = f64::from(rounds);
     Evaluation {
         shape_key: kit.shape.key(),
@@ -92,12 +95,11 @@ pub fn evaluate(kit: &CombatKit, assumptions: &AssumptionSet) -> Evaluation {
         target_hp,
         nova: ModeResult {
             rounds,
-            lanes: totals
-                .moments
+            lanes: lanes
                 .iter()
-                .map(|(ac, total)| {
-                    let by_round = &totals.by_round[ac];
-                    let horizon = by_round.last().expect("at least one round");
+                .map(|(ac, lane)| {
+                    let total = lane.moments;
+                    let a_round = &lane.a_round;
                     // E[X²] − E[X]² can round a little below zero when the spread is nil.
                     let variance = total.variance();
                     let variance = if variance > 0.0 { variance } else { 0.0 };
@@ -106,12 +108,13 @@ pub fn evaluate(kit: &CombatKit, assumptions: &AssumptionSet) -> Evaluation {
                         dpr: total.mean() / per_round,
                         sd: variance.sqrt() / per_round,
                         band: ReliabilityBand {
-                            p10: f64::from(horizon.quantile(P10)) / per_round,
-                            p50: f64::from(horizon.quantile(P50)) / per_round,
-                            p90: f64::from(horizon.quantile(P90)) / per_round,
-                            floor: horizon.mean_of_lowest(FLOOR_SHARE) / per_round,
+                            minimum: f64::from(a_round.support().0),
+                            p10: f64::from(a_round.quantile(P10)),
+                            p50: f64::from(a_round.quantile(P50)),
+                            p90: f64::from(a_round.quantile(P90)),
+                            floor: a_round.mean_of_lowest(FLOOR_SHARE),
                         },
-                        kill: target_hp.map(|hp| kill_odds(by_round, hp)),
+                        kill: target_hp.map(|hp| kill_odds(&lane.by_round, hp)),
                     }
                 })
                 .collect(),

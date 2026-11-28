@@ -37,8 +37,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Evaluate a Build: Nova DPR, its SD and its Reliability Band at every AC from 10 to
-    /// 25, and with `--hp`, Time-to-kill and Kill probability.
+    /// Evaluate a Build: Nova DPR, its SD, the least a round deals and the Reliability Band
+    /// at every AC from 10 to 25, and with `--hp`, Time-to-kill and Kill probability.
     Evaluate(EvaluateArgs),
     /// Load every pack and report problems, then list which in-scope records are
     /// encoded. Fails on any problem or unencoded record (ADR-0002).
@@ -55,7 +55,7 @@ struct EvaluateArgs {
     /// The target's hit points, for Time-to-kill and Kill probability over the horizon.
     #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
     hp: Option<u32>,
-    /// The Nova horizon: rounds 1 to this. 1 gives a single round's DPR and SD.
+    /// The Nova horizon: rounds 1 to this. 1 gives a single round's DPR, SD and Band.
     #[arg(long, default_value_t = AssumptionSet::against(0).nova_rounds,
           value_parser = clap::value_parser!(u32).range(1..))]
     nova_rounds: u32,
@@ -224,7 +224,10 @@ fn render_text(evaluation: &Evaluation) -> String {
         "Nova DPR, {rounds}, target AC {} (marked >)",
         evaluation.target_ac
     );
-    let _ = writeln!(out, "     AC      DPR       SD    p10    p50    p90  Floor");
+    let _ = writeln!(
+        out,
+        "     AC      DPR       SD    Min    p10    p50    p90  Floor"
+    );
     for lane in &nova.lanes {
         let mark = if lane.ac == evaluation.target_ac {
             '>'
@@ -234,8 +237,8 @@ fn render_text(evaluation: &Evaluation) -> String {
         let band = &lane.band;
         let _ = writeln!(
             out,
-            "{mark}    {:>2} {:>8.3} {:>8.3} {:>6.1} {:>6.1} {:>6.1} {:>6.1}",
-            lane.ac, lane.dpr, lane.sd, band.p10, band.p50, band.p90, band.floor
+            "{mark}    {:>2} {:>8.3} {:>8.3} {:>6.1} {:>6.1} {:>6.1} {:>6.1} {:>6.1}",
+            lane.ac, lane.dpr, lane.sd, band.minimum, band.p10, band.p50, band.p90, band.floor
         );
     }
     let target = nova

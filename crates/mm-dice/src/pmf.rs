@@ -175,9 +175,9 @@ impl Pmf {
         self.max()
     }
 
-    /// The mean of the lowest `q` of the mass (the conditional value at risk at `q`): the bins from the lowest total
-    /// up, taking only the part of the last bin that brings the mass taken to `q`. With
-    /// `q = 0.1` this is the Floor (GLOSSARY.md).
+    /// The mean of the lowest `q` of the mass (the conditional value at risk at `q`): the
+    /// bins from the lowest total up, taking only the part of the last bin that brings the
+    /// mass taken to `q`. With `q = 0.1` this is the Floor (GLOSSARY.md).
     ///
     /// # Panics
     /// If `q` is not positive.
