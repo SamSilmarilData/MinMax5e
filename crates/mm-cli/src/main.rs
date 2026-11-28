@@ -238,7 +238,7 @@ fn render_text(evaluation: &Evaluation) -> String {
         let _ = writeln!(
             out,
             "{mark}    {:>2} {:>8.3} {:>8.3} {:>6.1} {:>6.1} {:>6.1} {:>6.1} {:>6.1}",
-            lane.ac, lane.dpr, lane.sd, band.minimum, band.p10, band.p50, band.p90, band.floor
+            lane.ac, lane.dpr, lane.sd, lane.minimum, band.p10, band.p50, band.p90, band.floor
         );
     }
     let target = nova

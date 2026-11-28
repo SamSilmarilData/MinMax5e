@@ -62,6 +62,7 @@ struct Lane {
     ac: i32,
     dpr: f64,
     sd: f64,
+    minimum: f64,
     band: Band,
     kill: Option<Kill>,
 }
@@ -74,7 +75,6 @@ struct Kill {
 
 #[derive(Debug, Deserialize)]
 struct Band {
-    minimum: f64,
     p10: f64,
     p50: f64,
     p90: f64,
@@ -170,7 +170,13 @@ fn evaluate_ron_output_is_snapshotted_for_every_fixture_build() {
 /// The AC 16 lane of `build` evaluated over Nova round 1 alone: a single round's DPR
 /// and SD (GLOSSARY.md, **SD**).
 fn round_1_at_ac_16(build: &str) -> Lane {
-    evaluation(&evaluate(build, &["--nova-rounds", "1", "--format", "ron"]))
+    ac_16_lane(build, &["--nova-rounds", "1"])
+}
+
+/// The AC 16 lane of `build` evaluated with the flags `extra`.
+fn ac_16_lane(build: &str, extra: &[&str]) -> Lane {
+    let args: Vec<&str> = extra.iter().copied().chain(["--format", "ron"]).collect();
+    evaluation(&evaluate(build, &args))
         .nova
         .lanes
         .into_iter()
@@ -223,14 +229,15 @@ fn with_hp_the_text_output_prints_kill_odds_by_round() {
 
 #[test]
 fn the_level_5_warrior_reproduces_research_03_reliability_band_for_nova_round_1() {
-    assert_research_03_band(&round_1_at_ac_16("builds/warrior-5.ron").band);
+    assert_research_03_band(&round_1_at_ac_16("builds/warrior-5.ron"));
 }
 
 /// Research 03 §7.2's round: minimum 8, p10 8, median 20, p90 34. Both attacks graze (8)
 /// with probability 0.40² = 0.16, more than a tenth, so the worst tenth of rounds is all
 /// 8s: the Floor is 8 too.
-fn assert_research_03_band(band: &Band) {
-    assert_close(band.minimum, 8.0);
+fn assert_research_03_band(lane: &Lane) {
+    assert_close(lane.minimum, 8.0);
+    let band = &lane.band;
     assert_close(band.p10, 8.0);
     assert_close(band.p50, 20.0);
     assert_close(band.p90, 34.0);
@@ -242,25 +249,13 @@ fn over_two_rounds_the_band_is_still_that_of_a_round() {
     // The warrior's rounds are alike and spend nothing, so a round picked from rounds 1–2
     // has research 03 §7.2's round distribution: the Floor is the worst 10% of rounds,
     // not of two-round totals.
-    let band = evaluation(&evaluate("builds/warrior-5.ron", &["--format", "ron"]))
-        .nova
-        .lanes
-        .into_iter()
-        .find(|lane| lane.ac == 16)
-        .expect("an AC 16 lane")
-        .band;
-    assert_research_03_band(&band);
+    assert_research_03_band(&ac_16_lane("builds/warrior-5.ron", &["--nova-rounds", "2"]));
 }
 
 /// The AC 16 lane's Kill odds for `build` over the default Nova horizon (rounds 1–2)
 /// against `hp`.
 fn kill_at_ac_16(build: &str, hp: &str) -> Kill {
-    evaluation(&evaluate(build, &["--hp", hp, "--format", "ron"]))
-        .nova
-        .lanes
-        .into_iter()
-        .find(|lane| lane.ac == 16)
-        .expect("an AC 16 lane")
+    ac_16_lane(build, &["--hp", hp])
         .kill
         .expect("Kill odds, with --hp given")
 }

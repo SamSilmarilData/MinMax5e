@@ -14,8 +14,8 @@ expression: ron
                 ac: 10,
                 dpr: 8.349999999999998,
                 sd: 3.5132487339593084,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 9.0,
                     p90: 14.0,
@@ -36,8 +36,8 @@ expression: ron
                 ac: 11,
                 dpr: 7.849999999999998,
                 sd: 3.707705939436587,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 9.0,
                     p90: 14.0,
@@ -58,8 +58,8 @@ expression: ron
                 ac: 12,
                 dpr: 7.35,
                 sd: 3.8602137246530783,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 9.0,
                     p90: 13.0,
@@ -80,8 +80,8 @@ expression: ron
                 ac: 13,
                 dpr: 6.849999999999998,
                 sd: 3.975602679678476,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 8.0,
                     p90: 13.0,
@@ -102,8 +102,8 @@ expression: ron
                 ac: 14,
                 dpr: 6.35,
                 sd: 4.057041204293264,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 8.0,
                     p90: 13.0,
@@ -124,8 +124,8 @@ expression: ron
                 ac: 15,
                 dpr: 5.849999999999999,
                 sd: 4.106549646601148,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 7.0,
                     p90: 13.0,
@@ -146,8 +146,8 @@ expression: ron
                 ac: 16,
                 dpr: 5.349999999999999,
                 sd: 4.125277768425621,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 5.0,
                     p90: 13.0,
@@ -168,8 +168,8 @@ expression: ron
                 ac: 17,
                 dpr: 4.85,
                 sd: 4.113645990278373,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 0.0,
                     p90: 13.0,
@@ -190,8 +190,8 @@ expression: ron
                 ac: 18,
                 dpr: 4.349999999999999,
                 sd: 4.071394110129847,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 0.0,
                     p90: 13.0,
@@ -212,8 +212,8 @@ expression: ron
                 ac: 19,
                 dpr: 3.849999999999999,
                 sd: 3.9975513338375865,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 0.0,
                     p90: 12.0,
@@ -234,8 +234,8 @@ expression: ron
                 ac: 20,
                 dpr: 3.3499999999999996,
                 sd: 3.8903191814211513,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 0.0,
                     p90: 12.0,
@@ -256,8 +256,8 @@ expression: ron
                 ac: 21,
                 dpr: 2.8499999999999996,
                 sd: 3.74683199516605,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 0.0,
                     p90: 12.0,
@@ -278,8 +278,8 @@ expression: ron
                 ac: 22,
                 dpr: 2.3499999999999996,
                 sd: 3.5627119819972353,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 0.0,
                     p90: 11.0,
@@ -300,8 +300,8 @@ expression: ron
                 ac: 23,
                 dpr: 1.8499999999999996,
                 sd: 3.331228502119501,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 0.0,
                     p90: 10.0,
@@ -322,8 +322,8 @@ expression: ron
                 ac: 24,
                 dpr: 1.3499999999999999,
                 sd: 3.041586756941186,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 0.0,
                     p90: 5.0,
@@ -344,8 +344,8 @@ expression: ron
                 ac: 25,
                 dpr: 0.8499999999999999,
                 sd: 2.6749610589065904,
+                minimum: 0.0,
                 band: (
-                    minimum: 0.0,
                     p10: 0.0,
                     p50: 0.0,
                     p90: 0.0,

@@ -6,8 +6,8 @@
 //!
 //! What is hashed is `mm-cli evaluate --format ron` output (with `--hp` where the entry
 //! gives one). RON writes each float in Rust's shortest round-trip form, so the text
-//! carries every bit of every finite result. The Builds are hashed in set order, each as its path and its output, each
-//! preceded by its length, with BLAKE3.
+//! carries every bit of every finite result. The Builds are hashed in set order, each
+//! as its path and its output, each preceded by its length, with BLAKE3.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};

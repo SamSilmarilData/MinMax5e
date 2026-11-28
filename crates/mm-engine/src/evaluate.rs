@@ -36,19 +36,19 @@ pub struct LaneResult {
     pub dpr: f64,
     /// The standard deviation of damage per round over the horizon: SD(total) / rounds.
     pub sd: f64,
+    /// The least a round of the horizon can deal: the true minimum, which the Floor is not.
+    pub minimum: f64,
     /// The spread of damage per round over the horizon.
     pub band: ReliabilityBand,
     /// Time-to-kill and Kill probability against the target's hit points, if given.
     pub kill: Option<KillOdds>,
 }
 
-/// The Reliability Band (GLOSSARY.md) of damage per round, and the true minimum beside
-/// it. Each figure is that of one round of the horizon, every round equally likely, so the
-/// Floor is the mean of the worst 10% of rounds. Over one round it is that round's.
+/// The Reliability Band (GLOSSARY.md) of damage per round. Each figure is that of one
+/// round of the horizon, every round equally likely, so the Floor is the mean of the worst
+/// 10% of rounds. Over one round it is that round's.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct ReliabilityBand {
-    /// The least a round can deal: the true minimum, which the Floor is not.
-    pub minimum: f64,
     /// The 10th percentile: the smallest total at least a tenth of rounds stay at or below.
     pub p10: f64,
     /// The median.
@@ -99,7 +99,7 @@ pub fn evaluate(kit: &CombatKit, assumptions: &AssumptionSet) -> Evaluation {
                 .iter()
                 .map(|(ac, lane)| {
                     let total = lane.moments;
-                    let a_round = &lane.a_round;
+                    let one_round = &lane.one_round;
                     // E[X²] − E[X]² can round a little below zero when the spread is nil.
                     let variance = total.variance();
                     let variance = if variance > 0.0 { variance } else { 0.0 };
@@ -107,12 +107,12 @@ pub fn evaluate(kit: &CombatKit, assumptions: &AssumptionSet) -> Evaluation {
                         ac,
                         dpr: total.mean() / per_round,
                         sd: variance.sqrt() / per_round,
+                        minimum: f64::from(one_round.support().0),
                         band: ReliabilityBand {
-                            minimum: f64::from(a_round.support().0),
-                            p10: f64::from(a_round.quantile(P10)),
-                            p50: f64::from(a_round.quantile(P50)),
-                            p90: f64::from(a_round.quantile(P90)),
-                            floor: a_round.mean_of_lowest(FLOOR_SHARE),
+                            p10: f64::from(one_round.quantile(P10)),
+                            p50: f64::from(one_round.quantile(P50)),
+                            p90: f64::from(one_round.quantile(P90)),
+                            floor: one_round.mean_of_lowest(FLOOR_SHARE),
                         },
                         kill: target_hp.map(|hp| kill_odds(&lane.by_round, hp)),
                     }

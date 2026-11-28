@@ -18,7 +18,7 @@ use rustc_hash::FxHashMap;
 use crate::kit::{KitParams, KitShape, RowParams};
 use crate::turn::{self, Outcome, Step, TurnState};
 
-/// What one evaluation of a kit over a horizon gives at one AC lane.
+/// What one evaluation of a kit over a horizon gives at one AC lane: totals, and one round.
 pub(crate) struct LaneTotals {
     /// The moments of total damage over the horizon, from the backward pass.
     pub moments: Moments,
@@ -27,7 +27,7 @@ pub(crate) struct LaneTotals {
     pub by_round: Vec<Pmf>,
     /// The Damage Distribution of one round of the horizon, each equally likely: the
     /// mixture of every round's own damage.
-    pub a_round: Pmf,
+    pub one_round: Pmf,
 }
 
 /// Evaluates the kit over `rounds` rounds: the backward pass, then the forward pass.
@@ -62,11 +62,11 @@ pub(crate) fn totals(shape: &KitShape, params: &KitParams, rounds: u32) -> AcLan
     };
     let moments = dp.value(0, TurnState::start());
     AcLanes::from_fn(|ac| {
-        let (by_round, a_round) = dp.forward(ac);
+        let (by_round, one_round) = dp.forward(ac);
         LaneTotals {
             moments: moments[ac],
             by_round,
-            a_round,
+            one_round,
         }
     })
 }
@@ -157,7 +157,8 @@ impl Dp<'_> {
     }
 
     /// The forward pass at lane `ac`: the distribution of the total after each round, and
-    /// that of one round picked evenly from the horizon.
+    /// that of one round picked evenly from the horizon. Each round is played twice, from
+    /// the damage so far and from nothing, which is cheap at these sizes.
     fn forward(&self, ac: i32) -> (Vec<Pmf>, Pmf) {
         let mut by_round = Vec::new();
         let mut each_round = Vec::new();
