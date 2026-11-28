@@ -7,9 +7,13 @@
 //! bytes. Files under `spikes/` are frozen (spec #12) and are not checked.
 //!
 //! A comment line with no space after its marker's text starts, such as a link alone on its
-//! line, cannot be wrapped and passes. Comments are found line by line as text, so a line
-//! inside a multi-line string literal that starts with `//` is checked as a comment, and a
-//! comment after code on the same line is not checked. Neither appears in this repository.
+//! line, cannot be wrapped and passes. A line that is not UTF-8 fails, since its columns
+//! cannot be counted.
+//!
+//! Comments are found line by line as text, which leaves three limits. A line inside a
+//! multi-line string literal that starts with `//` is checked as a comment; none is in this
+//! repository. A comment after code on the same line is not checked, nor is a `/* … */` block
+//! comment; neither is wider than 100 columns in this repository today.
 
 use std::path::Path;
 

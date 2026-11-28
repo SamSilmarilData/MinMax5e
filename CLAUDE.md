@@ -20,7 +20,7 @@ A personal build solver for 5th-edition TTRPG characters (Rust, egui). It runs a
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues (SamSilmarilData/MinMax5e). Read and write them with the `gh` forms in `docs/agents/issue-tracker.md`; parent specs are long.
+Read issues with the `--json` forms in `docs/agents/issue-tracker.md`; parent specs are long. Issues are tracked in GitHub Issues (SamSilmarilData/MinMax5e).
 
 ### Triage labels
 

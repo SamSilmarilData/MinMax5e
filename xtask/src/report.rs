@@ -1,4 +1,4 @@
-//! The one shape both guards report problems in: `<where>: [<check>] <message>`.
+//! The one shape every guard reports problems in: `<where>: [<check>] <message>`.
 
 use std::fmt;
 

@@ -84,7 +84,7 @@ The repo guards, which CI also runs on every push:
 | `cargo xtask xhash` | Evaluation gives the same bits natively and in WebAssembly ([ADR-0050](docs/adr/0050-solve-as-deterministic-job-plan.md)). Needs [wasmtime](https://wasmtime.dev) on PATH; CI runs it on macOS. The hashed fixture Builds are listed in `xtask/xhash.toml`, which says how to add one |
 | `cargo deny check` | Advisories, licences and banned crates (needs [cargo-deny](https://github.com/EmbarkStudios/cargo-deny)) |
 
-The `leak-scan` and `glossary` guards read tracked files' staged contents, as a commit records them: stage a change (`git add`) before running them. (The leak scan's check for the banned WASM target feature also reads untracked files.) The other guards read the working tree.
+The `leak-scan`, `glossary` and `comment-width` guards read tracked files' staged contents, as a commit records them: stage a change (`git add`) before running them. (The leak scan's check for the banned WASM target feature also reads untracked files.) The other guards read the working tree.
 
 `cargo test --workspace` runs the tests. The `xhash` process tests build two targets and need wasmtime, so they are ignored by default; run them with `cargo test -p xtask --test xhash -- --ignored`.
 

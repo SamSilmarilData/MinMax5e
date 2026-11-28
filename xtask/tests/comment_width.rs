@@ -88,3 +88,10 @@ fn code_other_files_and_the_spikes_are_not_checked() {
     tree.track("spikes/tape-spike/src/main.rs", format!("{long}\n"));
     check(&tree).assert_ok();
 }
+
+#[test]
+fn a_line_that_is_not_utf8_fails_as_unreadable() {
+    let tree = TempTree::git();
+    tree.track("a.rs", b"fn a() {}\n// caf\xe9\n".as_slice());
+    check(&tree).assert_fails_with(&["a.rs:2", "[parse]", "not UTF-8"]);
+}
