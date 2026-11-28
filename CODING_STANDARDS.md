@@ -1,12 +1,12 @@
 # Coding standards
 
-Read during review. Tooling already enforces fmt, clippy (`all` and `pedantic`, the float and hash-map iteration bans in `clippy.toml`; a `for` loop over a map is review's to catch), the crate dependency rules (`cargo xtask deps`), the leak scan, content kind names (Content ID kinds, `Kind::NAME`, `Record` and `Encoding` variants) against GLOSSARY.md's _Avoid_ lists (`cargo xtask glossary`; avoided words in prose and other identifiers stay with review), ADR immutability (`cargo xtask adr-check`) and native/WebAssembly bit identity of the hashed fixture Builds (`cargo xtask xhash`), so review spends its attention on the judgement calls below.
+Read during review. Tooling already enforces fmt, clippy (`all` and `pedantic`, the float and hash-map iteration bans in `clippy.toml`; iteration the ban misses, as ADR-0050's amendment lists, is review's to catch), the crate dependency rules (`cargo xtask deps`), the leak scan, content kind names (Content ID kinds, `Kind::NAME`, `Record` and `Encoding` variants) against GLOSSARY.md's _Avoid_ lists (`cargo xtask glossary`; avoided words in prose and other identifiers stay with review), ADR immutability (`cargo xtask adr-check`) and native/WebAssembly bit identity of the hashed fixture Builds (`cargo xtask xhash`), so review spends its attention on the judgement calls below.
 
 ## Where the conventions live
 
 - Workspace, crate boundaries and CI: [ADR-0034](docs/adr/0034-cargo-workspace.md) and its amendments.
 - What may be committed: [ADR-0028](docs/adr/0028-no-upstream-bytes-in-public-repo.md).
-- Determinism and banned float operations: [ADR-0037](docs/adr/0037-deterministic-parallel-solving.md), [ADR-0050](docs/adr/0050-solve-as-deterministic-job-plan.md).
+- Determinism, banned float operations and hash-map iteration: [ADR-0037](docs/adr/0037-deterministic-parallel-solving.md), [ADR-0050](docs/adr/0050-solve-as-deterministic-job-plan.md).
 - Toolchain, lints and determinism rules: [research 09](docs/research/09-rust-engine-core.md) §5–6.
 - Vocabulary: [GLOSSARY.md](GLOSSARY.md).
 
