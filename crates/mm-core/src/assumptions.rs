@@ -140,8 +140,8 @@ impl EncounterProfile {
 }
 
 impl AdventuringDayModel {
-    /// An Adventuring Day Model of `encounters` encounters of `rounds_per_encounter` rounds each, with a
-    /// short rest after each encounter in `short_rests_after` (counted from 1).
+    /// An Adventuring Day Model of `encounters` encounters of `rounds_per_encounter` rounds
+    /// each, with a short rest after each encounter in `short_rests_after` (counted from 1).
     ///
     /// # Errors
     /// Unless the rests follow distinct encounters, in increasing order, each before the
