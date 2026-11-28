@@ -6,6 +6,10 @@ status: accepted
 
 > *Accepted 2026-11-27 (walking-skeleton lock, before any code).*
 
+> *Amended 2026-11-28 (retro after #20):*
+>
+> - **`cargo xtask comment-width`** joins the repo guards and CI. It fails on any comment line (`//`, `///`, `//!`) in a tracked `.rs` file that is wider than 100 columns, counting characters, which is rustfmt's default `max_width`. Stable rustfmt does not wrap comments, so #20's review had to flag one. A comment with no space to break at, such as a link alone on its line, passes; a line that is not UTF-8 fails, since its width cannot be counted; and the frozen `spikes/` are not checked. Comment width is a property of text, not of Rust syntax, so this guard reads lines rather than parsing with `syn`.
+
 > *Amended 2026-11-28 (after retro-19's push run):*
 >
 > - **CI's `adr-check` compares a branch with `main`.** It used to compare a push with the commit before it, so a branch that revised an amendment it had not merged yet failed as a silent edit, although `main` was untouched. Now a pull request compares with its base and a branch push with `origin/main`; a push to `main` still compares with the `main` before it.

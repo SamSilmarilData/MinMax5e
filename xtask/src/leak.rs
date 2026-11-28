@@ -115,7 +115,8 @@ struct Patterns {
 impl Patterns {
     fn new() -> Self {
         Self {
-            // ADR-0028: an opening brace and `@`, a lowercase tag name, then a space, pipe or brace.
+            // ADR-0028: an opening brace and `@`, a lowercase tag name, then a space, pipe or
+            // brace.
             tag: Regex::new(&format!(r"\{{{}[a-z]+[ |}}]", '@')).expect("valid regex"),
             relaxed_simd: Regex::new(&format!("(?i){RELAXED_SIMD}")).expect("valid regex"),
             content_id: Regex::new(content_id::PATTERN).expect("valid regex"),

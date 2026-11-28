@@ -459,7 +459,8 @@ crates/
   mm-testkit      synthetic fixtures ★, TestRules ★, Rational + Sample oracles, proptest strategies,
                   metamorphic relations (used only from integration tests)
 xtask/ ★          dep-graph check (ADR-0034 via cargo metadata), dist/ content check, leak scan,
-                  glossary check of content kind names, cross-target result hash (native vs wasm32-wasip1 under wasmtime)
+                  ADR immutability, glossary check of content kind names, comment width,
+                  cross-target result hash (native vs wasm32-wasip1 under wasmtime)
 spikes/ ★         standalone measurement code (tape-spike), not workspace members
 data/rules-2024/**.ron, data/rules-2014/**.ron
 web/              index.html, manifest, service worker, _headers, gate Worker (JS), wrangler.jsonc
@@ -591,7 +592,7 @@ The level-5 warrior reproduces research 03 §7.2 end to end; the crusader mirror
 
 **CLI:** `mm-cli evaluate <build.ron> [--assumptions] [--ac] [--hp] [--nova-rounds] [--mode nova|sustained|both] [--rulings] [--pack-dir]… [--format text|ron]` and `mm-cli validate-packs`. `compile` already emits `(KitShape, KitParams)` with `ShapeKey`/`ParamsFp` over the Rulings read, so the tape drops in behind the same call at step 4.
 
-**Done** when CI is green (fmt, clippy, tests, the wasm32 check, `xtask deps`, `xtask leak-scan`, `xtask glossary`, `cargo deny`, `xtask xhash`) and these pass:
+**Done** when CI is green (fmt, clippy, tests, the wasm32 check, `xtask deps`, `xtask leak-scan`, `xtask adr-check`, `xtask glossary`, `xtask comment-width`, `mm-cli validate-packs`, `cargo deny`, `xtask xhash`) and these pass:
 
 1. golden: research 03 §7.2's mean, SD, percentiles and variant table, first in `mm-dice` alone, then through the pipeline;
 2. `mm-dice` against BigRational to within 1e-12 relative;

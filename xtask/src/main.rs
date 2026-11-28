@@ -4,9 +4,11 @@
 //! - `leak-scan`: no upstream rules data in tracked files (ADR-0028).
 //! - `adr-check`: accepted ADRs change only by dated amendment.
 //! - `glossary`: content kind names use no term GLOSSARY.md avoids.
+//! - `comment-width`: Rust comments wrap at 100 columns, as rustfmt does code.
 //! - `xhash`: evaluation gives the same bits natively and in WebAssembly (ADR-0050).
 
 mod adr;
+mod comment_width;
 mod content_id;
 mod deps;
 mod git;
@@ -56,6 +58,12 @@ enum Command {
         #[arg(long)]
         root: Option<PathBuf>,
     },
+    /// Check that no comment in a tracked Rust file is wider than 100 columns.
+    CommentWidth {
+        /// The git working tree to check; defaults to this repository.
+        #[arg(long)]
+        root: Option<PathBuf>,
+    },
     /// Check that evaluation gives the same bits natively and under wasmtime (ADR-0050).
     ///
     /// Builds mm-cli for the host and for wasm32-wasip1, evaluates every Build in the
@@ -78,6 +86,7 @@ fn main() -> ExitCode {
         Command::LeakScan { root } => leak::run(&root.unwrap_or_else(repo_root)),
         Command::AdrCheck { root, base } => adr::run(&root.unwrap_or_else(repo_root), &base),
         Command::Glossary { root } => glossary::run(&root.unwrap_or_else(repo_root)),
+        Command::CommentWidth { root } => comment_width::run(&root.unwrap_or_else(repo_root)),
         Command::Xhash { mismatch } => xhash::run(&repo_root(), mismatch),
     };
     match result {
