@@ -18,8 +18,10 @@ Invented content for tests and the CLI (ADR-0028). Every RON file starts with th
 - `malformed/`: one pack directory per mistake, each loaded alongside `pack/` by
   `mm-cli validate-packs`: an unknown Content ID, a wrong Ruleset prefix, a misspelled
   DSL variant, a missing citation, a record with no encoding, a weapon naming an
-  unknown mastery property, an encoding reading an option its Ruling lacks, and a Ruling
-  whose default is not one of its options.
+  unknown mastery property, an encoding reading a Ruling the pack lacks or an option its
+  Ruling lacks, and Rulings that are malformed: a default that is not one of the options,
+  a single option, an option offered twice, an option id of the wrong form, no citation,
+  and a Ruling declared twice.
 - `assumptions/`: Assumption Set files (`mm-cli evaluate --assumptions`). `hand-count`
   is the target of the CLI tests' hand count for `warrior-1` (AC 16, 6 HP), with an
   Adventuring Day Model other than the default.

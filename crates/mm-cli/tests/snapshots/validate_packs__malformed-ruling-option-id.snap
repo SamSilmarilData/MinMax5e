@@ -1,0 +1,16 @@
+---
+source: crates/mm-cli/tests/validate_packs.rs
+expression: stderr
+---
+error: the pack has 1 problem(s)
+    Diagnostic severity: error
+
+Error: `Second Reading` is not a Ruling option id (lowercase letters, digits and hyphens, starting with a letter and not ending in a hyphen)
+    Diagnostic severity: error
+
+Begin snippet for malformed/malformed-ruling-option-id/rulings/R-TST-BAD-OPTION-ID.ron starting at line 7, column 1
+
+snippet line 7:         (id: "first", reading: "The first."),
+snippet line 8:         (id: "Second Reading", reading: "The second."),
+    label at line 8, columns 15 to 29: here
+snippet line 9:     ],

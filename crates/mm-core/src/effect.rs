@@ -9,7 +9,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::records::WeaponProperty;
-use crate::{Citation, ContentId, RulingId};
+use crate::{Citation, ContentId, RulingId, RulingOptionId};
 
 /// One encoding file: our mechanics for one record.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -111,7 +111,7 @@ pub enum Pred {
     Fact(Fact),
     /// The active Rulings choose this option of this Ruling (ADR-0006). The pack checks
     /// both exist when it loads.
-    Ruling(RulingId, String),
+    Ruling(RulingId, RulingOptionId),
     All(Vec<Pred>),
     Any(Vec<Pred>),
     Not(Box<Pred>),

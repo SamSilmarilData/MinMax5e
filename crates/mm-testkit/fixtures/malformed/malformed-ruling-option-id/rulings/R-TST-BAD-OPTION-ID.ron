@@ -1,0 +1,13 @@
+// fixture: synthetic
+// A Ruling whose option id is not lowercase letters, digits and hyphens.
+(
+    id: "R-TST-BAD-OPTION-ID",
+    question: "Which reading?",
+    options: [
+        (id: "first", reading: "The first."),
+        (id: "Second Reading", reading: "The second."),
+    ],
+    default: "first",
+    reasoning: "None.",
+    citations: [(tier: Synthetic, reference: "a malformed fixture")],
+)

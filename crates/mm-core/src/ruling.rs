@@ -8,69 +8,100 @@ use serde::{Deserialize, Serialize};
 
 use crate::Citation;
 
-/// A Ruling's stable id: `R-` then uppercase letters, digits and hyphens, not ending in a
-/// hyphen, for example `R-TST-HEW-BONUS`.
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(try_from = "String", into = "String")]
-pub struct RulingId(Box<str>);
+/// Declares a validated string id: its parser, serde through `String`, `Display` and
+/// `Debug`.
+macro_rules! string_id {
+    ($(#[$doc:meta])* $name:ident, $error:ident, $what:literal, $form:literal, $valid:expr) => {
+        $(#[$doc])*
+        #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+        #[serde(try_from = "String", into = "String")]
+        pub struct $name(Box<str>);
 
-/// Why a string is not a Ruling id.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error(
-    "`{0}` is not a Ruling id (`R-` then uppercase letters, digits and hyphens, not ending in a hyphen)"
-)]
-pub struct RulingIdError(pub String);
+        #[doc = concat!("Why a string is not ", $what, ".")]
+        #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+        #[error("`{text}` is not {what} ({form})", text = .0, what = $what, form = $form)]
+        pub struct $error(pub String);
 
-impl RulingId {
-    /// Parses `R-` followed by uppercase letters, digits and hyphens, not ending in one.
-    ///
-    /// # Errors
-    /// If `text` is not of that form.
-    pub fn parse(text: &str) -> Result<RulingId, RulingIdError> {
-        let valid = text.strip_prefix("R-").is_some_and(|rest| {
+        impl $name {
+            #[doc = concat!("Parses ", $what, ": ", $form, ".")]
+            ///
+            /// # Errors
+            /// If `text` is not of that form.
+            pub fn parse(text: &str) -> Result<$name, $error> {
+                let valid: fn(&str) -> bool = $valid;
+                if valid(text) {
+                    Ok($name(text.into()))
+                } else {
+                    Err($error(text.to_owned()))
+                }
+            }
+
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+        }
+
+        impl TryFrom<String> for $name {
+            type Error = $error;
+
+            fn try_from(text: String) -> Result<Self, Self::Error> {
+                $name::parse(&text)
+            }
+        }
+
+        impl From<$name> for String {
+            fn from(id: $name) -> String {
+                id.0.into()
+            }
+        }
+
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str(&self.0)
+            }
+        }
+
+        impl fmt::Debug for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{}({})", stringify!($name), self.0)
+            }
+        }
+    };
+}
+
+string_id!(
+    /// A Ruling's stable id: `R-` then uppercase letters, digits and hyphens, not ending in
+    /// a hyphen, for example `R-TST-HEW-BONUS`.
+    RulingId,
+    RulingIdError,
+    "a Ruling id",
+    "`R-` then uppercase letters, digits and hyphens, not ending in a hyphen",
+    |text| {
+        text.strip_prefix("R-").is_some_and(|rest| {
             !rest.is_empty()
                 && !rest.ends_with('-')
                 && rest
                     .bytes()
                     .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'-')
-        });
-        if valid {
-            Ok(RulingId(text.into()))
-        } else {
-            Err(RulingIdError(text.to_owned()))
-        }
+        })
     }
+);
 
-    pub fn as_str(&self) -> &str {
-        &self.0
+string_id!(
+    /// One option's stable id within its Ruling: lowercase letters, digits and hyphens,
+    /// starting with a letter and not ending in a hyphen, for example `bonus-action-too`.
+    RulingOptionId,
+    RulingOptionIdError,
+    "a Ruling option id",
+    "lowercase letters, digits and hyphens, starting with a letter and not ending in a hyphen",
+    |text| {
+        text.starts_with(|c: char| c.is_ascii_lowercase())
+            && !text.ends_with('-')
+            && text
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
     }
-}
-
-impl TryFrom<String> for RulingId {
-    type Error = RulingIdError;
-
-    fn try_from(text: String) -> Result<Self, Self::Error> {
-        RulingId::parse(&text)
-    }
-}
-
-impl From<RulingId> for String {
-    fn from(id: RulingId) -> String {
-        id.0.into()
-    }
-}
-
-impl fmt::Display for RulingId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl fmt::Debug for RulingId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "RulingId({})", self.0)
-    }
-}
+);
 
 /// A Ruling as a pack declares it: one file under a pack's `rulings/` directory.
 ///
@@ -86,7 +117,7 @@ pub struct Ruling {
     /// The readings, each with a stable id; at least two.
     pub options: Vec<RulingOption>,
     /// The id of the option used when a Ruling Set does not choose one.
-    pub default: String,
+    pub default: RulingOptionId,
     /// Why the default is the default.
     pub reasoning: String,
     /// Where the readings come from (ADR-0007); at least one.
@@ -97,29 +128,23 @@ pub struct Ruling {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RulingOption {
-    /// Lowercase letters, digits and hyphens.
-    pub id: String,
+    pub id: RulingOptionId,
     /// What this reading says, in our words.
     pub reading: String,
 }
 
 impl Ruling {
-    /// Whether `option` is one of this Ruling's option ids.
-    pub fn has_option(&self, option: &str) -> bool {
-        self.options.iter().any(|o| o.id == option)
-    }
-
     /// Whether `option` is one of this Ruling's options.
     ///
     /// # Errors
     /// If it is not, naming the options there are.
-    pub fn check_option(&self, option: &str) -> Result<(), RulingError> {
-        if self.has_option(option) {
+    pub fn check_option(&self, option: &RulingOptionId) -> Result<(), RulingError> {
+        if self.options.iter().any(|o| &o.id == option) {
             return Ok(());
         }
         Err(RulingError::UnknownOption {
             ruling: self.id.clone(),
-            option: option.to_owned(),
+            option: option.clone(),
             options: self.options.iter().map(|o| o.id.clone()).collect(),
         })
     }
@@ -132,13 +157,13 @@ pub enum RulingError {
     Unknown(RulingId),
     #[error(
         "Ruling `{ruling}` has no option `{option}`; its options are {}",
-        options.join(", ")
+        options.iter().map(RulingOptionId::as_str).collect::<Vec<_>>().join(", ")
     )]
     UnknownOption {
         ruling: RulingId,
-        option: String,
+        option: RulingOptionId,
         /// The Ruling's option ids, in declaration order.
-        options: Vec<String>,
+        options: Vec<RulingOptionId>,
     },
 }
 
@@ -159,5 +184,5 @@ pub enum RulingError {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct RulingSet {
-    pub chosen: BTreeMap<RulingId, String>,
+    pub chosen: BTreeMap<RulingId, RulingOptionId>,
 }

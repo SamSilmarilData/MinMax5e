@@ -1,0 +1,12 @@
+// fixture: synthetic
+// A Ruling with one option: there is nothing to choose.
+(
+    id: "R-TST-ONE-OPTION",
+    question: "Which reading?",
+    options: [
+        (id: "only", reading: "The only one."),
+    ],
+    default: "only",
+    reasoning: "None.",
+    citations: [(tier: Synthetic, reference: "a malformed fixture")],
+)

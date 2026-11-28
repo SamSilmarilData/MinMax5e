@@ -8,7 +8,8 @@
 //! - [`Pack::coverage`]: which in-scope records have an encoding and which do not, so
 //!   unencoded content is never silently ignored (ADR-0002).
 //! - [`Pack::ruling`]: the Rulings the pack declares (ADR-0006). Each is checked when it
-//!   loads (two or more distinct options, a default among them, a citation), and so is
+//!   loads (two or more distinct options, a default among them, a citation, declared
+//!   once), and so is
 //!   every Ruling an encoding's predicate reads, with its option.
 //!
 //! Every Content ID must carry the Ruleset's prefix, so an ID from another edition can
@@ -22,7 +23,10 @@ use miette::{NamedSource, SourceSpan};
 use mm_core::effect::{ClassEncoding, Encoding, FeaturesEncoding, Pred, Rider};
 use mm_core::kind::{self, Kind};
 use mm_core::records::{ClassRecord, NamedRecord, Record, WeaponRecord};
-use mm_core::{ContentId, Id, Ruleset, Ruling, RulingError, RulingId, Source, SourceRole, Sources};
+use mm_core::{
+    ContentId, Id, Ruleset, Ruling, RulingError, RulingId, RulingOptionId, Source, SourceRole,
+    Sources,
+};
 use rustc_hash::FxHashMap;
 
 /// A loaded Rules Pack for Ruleset `R`: every record, with its encoding where it has one.
@@ -169,6 +173,16 @@ impl<R: Ruleset> Pack<R> {
     pub fn ruling(&self, id: &RulingId) -> Option<&Ruling> {
         self.rulings.get(id)
     }
+
+    /// Whether the pack declares Ruling `id` with option `option`.
+    ///
+    /// # Errors
+    /// If it declares no such Ruling, or the Ruling offers no such option.
+    pub fn check_ruling(&self, id: &RulingId, option: &RulingOptionId) -> Result<(), RulingError> {
+        self.ruling(id)
+            .ok_or_else(|| RulingError::Unknown(id.clone()))?
+            .check_option(option)
+    }
 }
 
 impl<R> Pack<R> {
@@ -270,22 +284,14 @@ impl<'s, R: Ruleset> Loader<'s, R> {
         }
         let problem = if ruling.options.len() < 2 {
             Some((id, "a Ruling offers at least two options".to_owned()))
-        } else if let Some(bad) = ruling.options.iter().find(|o| !is_option_id(&o.id)) {
-            Some((
-                bad.id.as_str(),
-                format!(
-                    "`{}` is not an option id (lowercase letters, digits and hyphens)",
-                    bad.id
-                ),
-            ))
         } else if let Some(twice) = ruling.options.iter().enumerate().find_map(|(i, o)| {
             let earlier = &ruling.options[..i];
             earlier.iter().any(|before| before.id == o.id).then_some(o)
         }) {
-            Some((
-                twice.id.as_str(),
-                format!("option `{}` is offered twice", twice.id),
-            ))
+            // Point at the repeat, the option id's second quoted occurrence.
+            let message = format!("option `{}` is offered twice", twice.id);
+            self.report_quoted_nth(source, twice.id.as_str(), 1, message);
+            return;
         } else if let Err(error) = ruling.check_option(&ruling.default) {
             Some((
                 ruling.default.as_str(),
@@ -321,18 +327,12 @@ impl<'s, R: Ruleset> Loader<'s, R> {
             ruling_reads(pred, &mut reads);
         }
         for (id, option) in reads {
-            let checked = self
-                .pack
-                .rulings
-                .get(id)
-                .ok_or_else(|| RulingError::Unknown(id.clone()))
-                .and_then(|ruling| ruling.check_option(option));
-            match checked {
+            match self.pack.check_ruling(id, option) {
                 Err(error @ RulingError::Unknown(_)) => {
                     self.report_quoted(source, id.as_str(), error.to_string());
                 }
                 Err(error @ RulingError::UnknownOption { .. }) => {
-                    self.report_quoted(source, option, error.to_string());
+                    self.report_quoted(source, option.as_str(), error.to_string());
                 }
                 Ok(()) => {}
             }
@@ -505,11 +505,18 @@ impl<'s, R: Ruleset> Loader<'s, R> {
 
     /// Reports a problem with `text`, pointing at its first quoted occurrence in the source.
     fn report_quoted(&mut self, source: &Source, text: &str, message: String) {
+        self.report_quoted_nth(source, text, 0, message);
+    }
+
+    /// Reports a problem with `text`, pointing at its quoted occurrence `nth` (from 0) in
+    /// the source, or at its start if there are fewer.
+    fn report_quoted_nth(&mut self, source: &Source, text: &str, nth: usize, message: String) {
         let quoted = format!("\"{text}\"");
         let span = source
             .text
-            .find(&quoted)
-            .map_or((0, 0), |at| (at, quoted.len()));
+            .match_indices(&quoted)
+            .nth(nth)
+            .map_or((0, 0), |(at, _)| (at, quoted.len()));
         self.report(source, span, message);
     }
 
@@ -523,7 +530,7 @@ impl<'s, R: Ruleset> Loader<'s, R> {
 }
 
 /// Every `(Ruling, option)` that `pred` can read, in order.
-fn ruling_reads<'p>(pred: &'p Pred, reads: &mut Vec<(&'p RulingId, &'p str)>) {
+fn ruling_reads<'p>(pred: &'p Pred, reads: &mut Vec<(&'p RulingId, &'p RulingOptionId)>) {
     match pred {
         Pred::Fact(_) => {}
         Pred::Ruling(id, option) => reads.push((id, option)),
@@ -534,14 +541,6 @@ fn ruling_reads<'p>(pred: &'p Pred, reads: &mut Vec<(&'p RulingId, &'p str)>) {
         }
         Pred::Not(pred) => ruling_reads(pred, reads),
     }
-}
-
-/// Whether `text` is a Ruling option id: lowercase letters, digits and hyphens.
-fn is_option_id(text: &str) -> bool {
-    !text.is_empty()
-        && text
-            .bytes()
-            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-')
 }
 
 fn len<T>(items: &[T]) -> u32 {

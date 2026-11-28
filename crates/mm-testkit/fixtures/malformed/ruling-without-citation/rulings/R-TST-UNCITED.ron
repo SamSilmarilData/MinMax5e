@@ -1,0 +1,13 @@
+// fixture: synthetic
+// A Ruling that cites nothing (ADR-0006).
+(
+    id: "R-TST-UNCITED",
+    question: "Which reading?",
+    options: [
+        (id: "first", reading: "The first."),
+        (id: "second", reading: "The second."),
+    ],
+    default: "first",
+    reasoning: "None.",
+    citations: [],
+)

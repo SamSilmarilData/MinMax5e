@@ -10,7 +10,7 @@ use mm_core::kind::{self, Kind};
 use mm_core::records::WeaponRecord;
 use mm_core::{
     AbilityScores, Build, BuildError, ContentId, Fp, FpHasher, Ruleset, RulingError, RulingId,
-    RulingSet,
+    RulingOptionId, RulingSet,
 };
 use mm_dice::Pmf;
 use mm_load::{FeaturesKind, Pack};
@@ -236,9 +236,7 @@ impl<'a, R: Ruleset> Active<'a, R> {
     /// Checks that every Ruling `chosen` names is in the pack and offers that option.
     fn new(pack: &'a Pack<R>, chosen: &'a RulingSet) -> Result<Self, RulingError> {
         for (id, option) in &chosen.chosen {
-            pack.ruling(id)
-                .ok_or_else(|| RulingError::Unknown(id.clone()))?
-                .check_option(option)?;
+            pack.check_ruling(id, option)?;
         }
         Ok(Active { pack, chosen })
     }
@@ -247,7 +245,7 @@ impl<'a, R: Ruleset> Active<'a, R> {
     ///
     /// # Panics
     /// If the pack does not declare `id`. Loading checks every Ruling an encoding reads.
-    fn option(&self, id: &RulingId) -> &'a str {
+    fn option(&self, id: &RulingId) -> &'a RulingOptionId {
         if let Some(option) = self.chosen.chosen.get(id) {
             return option;
         }
@@ -295,9 +293,9 @@ struct Reader<'r, 'a, R> {
 
 impl<R: Ruleset> Reader<'_, '_, R> {
     /// Whether Ruling `id`'s active option is `option`; records the read.
-    fn is(&mut self, id: &RulingId, option: &str) -> bool {
+    fn is(&mut self, id: &RulingId, option: &RulingOptionId) -> bool {
         let active = self.active.option(id);
-        self.read.chosen.insert(id.clone(), active.to_owned());
+        self.read.chosen.insert(id.clone(), active.clone());
         active == option
     }
 }
@@ -545,6 +543,6 @@ impl KitParams {
 fn hash_rulings(h: &mut FpHasher, rulings: &RulingSet) {
     h.u64(rulings.chosen.len() as u64);
     for (id, option) in &rulings.chosen {
-        h.str(id.as_str()).str(option);
+        h.str(id.as_str()).str(option.as_str());
     }
 }
