@@ -4,11 +4,12 @@
 //! Build in the hashed set (`xtask/xhash.toml`) with each, and hashes the results. The
 //! WebAssembly build runs under wasmtime, which must be on PATH.
 //!
-//! What is hashed is `mm-cli evaluate --format ron` output, with `--assumptions`, `--ac`
-//! and `--hp` where the entry gives them; an entry with none is evaluated against the
-//! Encounter Baseline. RON writes each float in Rust's shortest round-trip form, so the
+//! What is hashed is `mm-cli evaluate --format ron` output, with `--assumptions`, `--ac`,
+//! `--hp` and `--rulings` where the entry gives them. An entry with none of the first three
+//! is evaluated against the Encounter Baseline, and one without `--rulings` under every
+//! Ruling's default. RON writes each float in Rust's shortest round-trip form, so the
 //! text carries every bit of every finite result. The entries are hashed in set order,
-//! each as its path, its target flags and its output, each preceded by its length, with
+//! each as its path, its flags and its output, each preceded by its length, with
 //! BLAKE3.
 
 use std::ffi::OsString;
@@ -59,11 +60,13 @@ struct Entry {
     ac: Option<i32>,
     /// The target's hit points, passed as `--hp`.
     hp: Option<u32>,
+    /// A Ruling Set file, relative to the repository root, passed as `--rulings`.
+    rulings: Option<String>,
 }
 
 impl Entry {
-    /// The target flags `mm-cli evaluate` gets, with paths under `root`.
-    fn target_args(&self, root: &Path) -> Vec<OsString> {
+    /// The target and Ruling flags `mm-cli evaluate` gets, with paths under `root`.
+    fn flags(&self, root: &Path) -> Vec<OsString> {
         let mut args = Vec::new();
         if let Some(assumptions) = &self.assumptions {
             args.push("--assumptions".into());
@@ -74,6 +77,10 @@ impl Entry {
         }
         if let Some(hp) = self.hp {
             args.extend(["--hp".into(), hp.to_string().into()]);
+        }
+        if let Some(rulings) = &self.rulings {
+            args.push("--rulings".into());
+            args.push(root.join(rulings).into_os_string());
         }
         args
     }
@@ -181,7 +188,7 @@ fn evaluate(mut command: Command, root: &Path, entry: &Entry) -> Result<Vec<u8>>
     command
         .arg("evaluate")
         .arg(root.join(&entry.path))
-        .args(entry.target_args(root))
+        .args(entry.flags(root))
         .args(["--format", "ron", "--pack-dir"])
         .arg(root.join(PACK));
     let output = command
@@ -200,7 +207,10 @@ fn evaluate(mut command: Command, root: &Path, entry: &Entry) -> Result<Vec<u8>>
 fn absorb(hasher: &mut blake3::Hasher, entry: &Entry, output: &[u8]) {
     // The flags as written in the set, so both targets absorb the same bytes whatever
     // root they see.
-    let flags = format!("{:?} {:?} {:?}", entry.assumptions, entry.ac, entry.hp);
+    let flags = format!(
+        "{:?} {:?} {:?} {:?}",
+        entry.assumptions, entry.ac, entry.hp, entry.rulings
+    );
     for part in [entry.path.as_bytes(), flags.as_bytes(), output] {
         hasher.update(&(part.len() as u64).to_le_bytes());
         hasher.update(part);

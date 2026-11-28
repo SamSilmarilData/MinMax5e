@@ -1,0 +1,13 @@
+// fixture: synthetic
+// A Ruling whose default is not one of its options.
+(
+    id: "R-TST-BAD-DEFAULT",
+    question: "Which reading?",
+    options: [
+        (id: "first", reading: "The first."),
+        (id: "second", reading: "The second."),
+    ],
+    default: "third",
+    reasoning: "None.",
+    citations: [(tier: Synthetic, reference: "a malformed fixture")],
+)

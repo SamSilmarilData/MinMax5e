@@ -1,0 +1,21 @@
+// fixture: synthetic
+// The synthetic disputed Ruling of research 03 §7.2 (Open question 2): the heavy-weapon
+// feat's +PB names hits made as part of the Attack action, and its crit-gated attack is
+// a Bonus Action.
+(
+    id: "R-TST-HEW-BONUS",
+    question: "Does the heavy-weapon feat's +PB reach its crit-gated Bonus Action attack?",
+    options: [
+        (
+            id: "attack-action-only",
+            reading: "No: the Bonus Action attack is not made as part of the Attack action.",
+        ),
+        (
+            id: "bonus-action-too",
+            reading: "Yes: it is the feat's own attack, so the feat's +PB applies to it.",
+        ),
+    ],
+    default: "attack-action-only",
+    reasoning: "The +PB names the Attack action, and the crit-gated attack is a Bonus Action; this reading is also the lower DPR (ADR-0006's conservative default).",
+    citations: [(tier: Synthetic, reference: "research 03 §7.2 and its Open question 2")],
+)

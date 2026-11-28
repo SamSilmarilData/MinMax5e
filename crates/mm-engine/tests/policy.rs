@@ -3,7 +3,7 @@
 
 use std::num::NonZeroU32;
 
-use mm_core::{AssumptionSet, EncounterProfile};
+use mm_core::{AssumptionSet, EncounterProfile, RulingSet};
 use mm_dice::Pmf;
 use mm_engine::{AttackSource, CombatKit, KitParams, KitShape, RowParams, RowShape};
 use mm_testkit::tolerance::assert_close;
@@ -31,9 +31,11 @@ fn kit(rows: &[&Pmf]) -> CombatKit {
                     crit_offers: None,
                 })
                 .collect(),
+            rulings: RulingSet::default(),
         },
         params: KitParams {
             rows: rows.iter().map(|&hit| row(hit)).collect(),
+            rulings: RulingSet::default(),
         },
     }
 }

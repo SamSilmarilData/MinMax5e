@@ -1,9 +1,17 @@
 //! Compiling a Build into a Combat Kit, split into Kit Shape and Kit Params (ADR-0047).
+//!
+//! Compile reads the active Rulings through a recorder (ADR-0052). Each half of the kit
+//! keeps the Rulings read while deciding it, with the option each had, and its fingerprint
+//! covers those alone: a Ruling read to decide a rider that changes which attacks exist
+//! enters the `ShapeKey`, one read to decide a rider's numbers enters the `ParamsFp`.
 
 use mm_core::effect::{Fact, Grant, Op, Pred, Rider, Stage};
 use mm_core::kind::{self, Kind};
 use mm_core::records::WeaponRecord;
-use mm_core::{AbilityScores, Build, BuildError, ContentId, Fp, FpHasher, Ruleset};
+use mm_core::{
+    AbilityScores, Build, BuildError, ContentId, Fp, FpHasher, Ruleset, RulingError, RulingId,
+    RulingOptionId, RulingSet,
+};
 use mm_dice::Pmf;
 use mm_load::{FeaturesKind, Pack};
 
@@ -21,6 +29,8 @@ pub struct KitShape {
     pub attacks_per_action: u8,
     /// The ways the character can attack, one row each.
     pub rows: Vec<RowShape>,
+    /// The Rulings read while deciding the shape, each with the option it had.
+    pub rulings: RulingSet,
 }
 
 /// One attack row's structure.
@@ -44,6 +54,8 @@ pub enum AttackSource {
 #[derive(Debug, Clone, PartialEq)]
 pub struct KitParams {
     pub rows: Vec<RowParams>,
+    /// The Rulings read while working out the numbers, each with the option it had.
+    pub rulings: RulingSet,
 }
 
 /// One attack row's numbers (ADR-0047): the roll, and each outcome's Damage Distribution.
@@ -77,14 +89,27 @@ pub enum CompileError {
         feature: String,
         reason: &'static str,
     },
+    #[error(transparent)]
+    Ruling(#[from] RulingError),
 }
 
-/// Compiles `build` against `pack`.
+/// Compiles `build` against `pack`, under the options `rulings` chooses and the pack's
+/// defaults for the rest.
 ///
 /// # Errors
 /// If the Build is not for `R`, names content the pack lacks or has not encoded, or gains
-/// a rider the engine cannot run yet.
-pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, CompileError> {
+/// a rider the engine cannot run yet; or if `rulings` names a Ruling the pack lacks, or an
+/// option its Ruling does not offer, whether or not the Build reads it.
+pub fn compile<R: Ruleset>(
+    pack: &Pack<R>,
+    build: &Build,
+    rulings: &RulingSet,
+) -> Result<CombatKit, CompileError> {
+    let mut recorder = Recorder {
+        active: Active::new(pack, rulings)?,
+        shape: RulingSet::default(),
+        params: RulingSet::default(),
+    };
     let ruleset = build.ruleset()?;
     if ruleset != R::PREFIX {
         return Err(CompileError::WrongRuleset {
@@ -161,7 +186,7 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
         let applying: Vec<&Rider> = gained
             .riders
             .iter()
-            .filter(|rider| rider.when.as_ref().is_none_or(|pred| attack.holds(pred)))
+            .filter(|rider| recorder.applies(attack, rider))
             .collect();
         let crit_offers = applying
             .iter()
@@ -178,9 +203,101 @@ pub fn compile<R: Ruleset>(pack: &Pack<R>, build: &Build) -> Result<CombatKit, C
         shape: KitShape {
             attacks_per_action: gained.attacks_per_action,
             rows: shape_rows,
+            rulings: recorder.shape,
         },
-        params: KitParams { rows: param_rows },
+        params: KitParams {
+            rows: param_rows,
+            rulings: recorder.params,
+        },
     })
+}
+
+/// Whether a rider with this effect changes which attacks exist, so the Rulings its
+/// predicate reads decide the shape; otherwise they decide numbers. An effect is
+/// structural when applying it changes a [`RowShape`] (today, `crit_offers`) rather than
+/// a [`RowParams`]; one that changes both must count as structural.
+fn decides_shape(effect: &Op) -> bool {
+    match effect {
+        Op::BonusActionAttack => true,
+        Op::FlatDamage(_)
+        | Op::ProficiencyBonusDamage
+        | Op::AbilityModifierDamage
+        | Op::MinimumDieRoll(_) => false,
+    }
+}
+
+/// The active option of every Ruling: the one the Ruling Set chooses, or the default.
+struct Active<'a, R> {
+    pack: &'a Pack<R>,
+    chosen: &'a RulingSet,
+}
+
+impl<'a, R: Ruleset> Active<'a, R> {
+    /// Checks that every Ruling `chosen` names is in the pack and offers that option.
+    fn new(pack: &'a Pack<R>, chosen: &'a RulingSet) -> Result<Self, RulingError> {
+        for (id, option) in &chosen.chosen {
+            pack.check_ruling(id, option)?;
+        }
+        Ok(Active { pack, chosen })
+    }
+
+    /// The active option of Ruling `id`.
+    ///
+    /// # Panics
+    /// If the pack does not declare `id`. Loading checks every Ruling an encoding reads.
+    fn option(&self, id: &RulingId) -> &'a RulingOptionId {
+        if let Some(option) = self.chosen.chosen.get(id) {
+            return option;
+        }
+        let ruling = self.pack.ruling(id);
+        &ruling
+            .expect("the pack declares every Ruling its encodings read")
+            .default
+    }
+}
+
+/// The active Rulings, and those read so far by each half of the kit (ADR-0052).
+struct Recorder<'a, R> {
+    active: Active<'a, R>,
+    shape: RulingSet,
+    params: RulingSet,
+}
+
+impl<R: Ruleset> Recorder<'_, R> {
+    /// Whether `rider` applies to `attack`. The Rulings its predicate reads are recorded
+    /// against the half of the kit the rider decides.
+    fn applies(&mut self, attack: &Attack<'_>, rider: &Rider) -> bool {
+        let Some(pred) = &rider.when else {
+            return true;
+        };
+        let read = if decides_shape(&rider.effect) {
+            &mut self.shape
+        } else {
+            &mut self.params
+        };
+        attack.holds(
+            pred,
+            &mut Reader {
+                active: &self.active,
+                read,
+            },
+        )
+    }
+}
+
+/// Reads Rulings for one half of the kit, recording each one read (ADR-0052).
+struct Reader<'r, 'a, R> {
+    active: &'r Active<'a, R>,
+    read: &'r mut RulingSet,
+}
+
+impl<R: Ruleset> Reader<'_, '_, R> {
+    /// Whether Ruling `id`'s active option is `option`; records the read.
+    fn is(&mut self, id: &RulingId, option: &RulingOptionId) -> bool {
+        let active = self.active.option(id);
+        self.read.chosen.insert(id.clone(), active.clone());
+        active == option
+    }
 }
 
 /// The row of the crit-gated Bonus Action attack, when the kit has one: the second, after
@@ -299,14 +416,16 @@ struct Attack<'a> {
 }
 
 impl Attack<'_> {
-    /// Whether `pred` holds for this attack.
-    fn holds(&self, pred: &Pred) -> bool {
+    /// Whether `pred` holds for this attack. `All` and `Any` stop once the answer is known,
+    /// so `rulings` records only the Rulings that decided it.
+    fn holds<R: Ruleset>(&self, pred: &Pred, rulings: &mut Reader<'_, '_, R>) -> bool {
         match pred {
             Pred::Fact(Fact::WeaponProperty(property)) => self.weapon.properties.contains(property),
             Pred::Fact(Fact::AttackAction) => self.source == AttackSource::AttackAction,
-            Pred::All(preds) => preds.iter().all(|p| self.holds(p)),
-            Pred::Any(preds) => preds.iter().any(|p| self.holds(p)),
-            Pred::Not(pred) => !self.holds(pred),
+            Pred::Ruling(id, option) => rulings.is(id, option),
+            Pred::All(preds) => preds.iter().all(|p| self.holds(p, rulings)),
+            Pred::Any(preds) => preds.iter().any(|p| self.holds(p, rulings)),
+            Pred::Not(pred) => !self.holds(pred, rulings),
         }
     }
 
@@ -361,10 +480,29 @@ struct FlatDamage {
     crit: i32,
 }
 
+impl CombatKit {
+    /// Every Ruling the kit read, shape and params together, each with its option.
+    pub fn rulings_read(&self) -> RulingSet {
+        let both = self
+            .shape
+            .rulings
+            .chosen
+            .iter()
+            .chain(&self.params.rulings.chosen);
+        RulingSet {
+            chosen: both
+                .map(|(id, option)| (id.clone(), option.clone()))
+                .collect(),
+        }
+    }
+}
+
 impl KitShape {
-    /// The `ShapeKey`: a fingerprint of everything in the shape. Equal shapes give equal keys.
+    /// The `ShapeKey`: a fingerprint of everything in the shape, the Rulings it read
+    /// included. Equal shapes give equal keys.
     pub fn key(&self) -> Fp {
-        let mut h = FpHasher::new("mm-engine/ShapeKey/2");
+        let mut h = FpHasher::new("mm-engine/ShapeKey/3");
+        hash_rulings(&mut h, &self.rulings);
         h.u64(u64::from(self.attacks_per_action))
             .u64(self.rows.len() as u64);
         for row in &self.rows {
@@ -380,11 +518,12 @@ impl KitShape {
 }
 
 impl KitParams {
-    /// The `ParamsFp`: a fingerprint of every number in the params, floats by their bits.
-    /// Equal params give equal fingerprints: each damage term enters as its support and
-    /// the mass at every total in it.
+    /// The `ParamsFp`: a fingerprint of every number in the params, floats by their bits,
+    /// and of the Rulings they read. Equal params give equal fingerprints: each damage term
+    /// enters as its support and the mass at every total in it.
     pub fn fp(&self) -> Fp {
-        let mut h = FpHasher::new("mm-engine/ParamsFp/3");
+        let mut h = FpHasher::new("mm-engine/ParamsFp/4");
+        hash_rulings(&mut h, &self.rulings);
         h.u64(self.rows.len() as u64);
         for row in &self.rows {
             h.i64(row.to_hit.into()).i64(row.crit_on.into());
@@ -397,5 +536,13 @@ impl KitParams {
             }
         }
         h.finish()
+    }
+}
+
+/// Hashes the Rulings read, in id order, each with its option.
+fn hash_rulings(h: &mut FpHasher, rulings: &RulingSet) {
+    h.u64(rulings.chosen.len() as u64);
+    for (id, option) in &rulings.chosen {
+        h.str(id.as_str()).str(option.as_str());
     }
 }

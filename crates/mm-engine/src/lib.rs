@@ -2,9 +2,10 @@
 //! (architecture §8, build-order step 3).
 //!
 //! The public seam:
-//! - [`compile`]: a [`Pack`](mm_load::Pack) and a [`Build`](mm_core::Build) give a
-//!   [`CombatKit`], split into a [`KitShape`] (with its `ShapeKey`, [`KitShape::key`]) and
-//!   [`KitParams`] (with its `ParamsFp`, [`KitParams::fp`]), or a [`CompileError`].
+//! - [`compile`]: a [`Pack`](mm_load::Pack), a [`Build`](mm_core::Build) and a
+//!   [`RulingSet`](mm_core::RulingSet) give a [`CombatKit`], split into a [`KitShape`]
+//!   (with its `ShapeKey`, [`KitShape::key`]) and [`KitParams`] (with its `ParamsFp`,
+//!   [`KitParams::fp`]), each covering only the Rulings it read; or a [`CompileError`].
 //! - [`evaluate`]: a kit (or a raw shape and params, put together as a `CombatKit`) and an
 //!   [`AssumptionSet`](mm_core::AssumptionSet) give an [`Evaluation`].
 //! - [`turn`]: the turn state machine, `legal_steps` and `apply`, and [`turn::Illegal`]: the

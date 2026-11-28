@@ -3,10 +3,11 @@ source: crates/mm-cli/tests/evaluate.rs
 expression: ron
 ---
 (
-    shape_key: "115a129669fce08c1dfef2fdb5496c64",
-    params_fp: "64a0bb0ec5a000ed298b7b5c8b3b9d4f",
+    shape_key: "ccbccdb6505194fa57038a08f00c2e08",
+    params_fp: "a04ac057b68f102fae94de90fd8b3fc4",
     target_ac: 16,
     target_hp: 6,
+    rulings: {},
     nova: (
         rounds: 2,
         lanes: [

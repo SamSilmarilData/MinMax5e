@@ -1,0 +1,16 @@
+---
+source: crates/mm-cli/tests/validate_packs.rs
+expression: stderr
+---
+error: the pack has 1 problem(s)
+    Diagnostic severity: error
+
+Error: the default is not an option: Ruling `R-TST-BAD-DEFAULT` has no option `third`; its options are first, second
+    Diagnostic severity: error
+
+Begin snippet for malformed/ruling-default-not-an-option/rulings/R-TST-BAD-DEFAULT.ron starting at line 9, column 1
+
+snippet line 9:     ],
+snippet line 10:     default: "third",
+    label at line 10, columns 14 to 20: here
+snippet line 11:     reasoning: "None.",

@@ -1,0 +1,16 @@
+---
+source: crates/mm-cli/tests/validate_packs.rs
+expression: stderr
+---
+error: the pack has 1 problem(s)
+    Diagnostic severity: error
+
+Error: Ruling `R-TST-HEW-BONUS` is declared twice
+    Diagnostic severity: error
+
+Begin snippet for malformed/ruling-declared-twice/rulings/R-TST-HEW-BONUS.ron starting at line 3, column 1
+
+snippet line 3: (
+snippet line 4:     id: "R-TST-HEW-BONUS",
+    label at line 4, columns 9 to 25: here
+snippet line 5:     question: "Does the heavy-weapon feat's +PB reach its crit-gated Bonus Action attack?",

@@ -1,0 +1,16 @@
+---
+source: crates/mm-cli/tests/validate_packs.rs
+expression: stderr
+---
+error: the pack has 1 problem(s)
+    Diagnostic severity: error
+
+Error: there is no Ruling `R-TST-NO-SUCH` in the pack
+    Diagnostic severity: error
+
+Begin snippet for malformed/unknown-ruling/encodings/test-unruled.ron starting at line 11, column 1
+
+snippet line 11:                     on: AttackHit,
+snippet line 12:                     when: Some(Ruling("R-TST-NO-SUCH", "yes")),
+    label at line 12, columns 39 to 53: here
+snippet line 13:                     effect: FlatDamage(1),

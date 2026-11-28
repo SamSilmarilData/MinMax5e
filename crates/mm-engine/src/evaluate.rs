@@ -1,6 +1,6 @@
 //! Evaluating a Combat Kit under an Assumption Set.
 
-use mm_core::{AssumptionSet, Fp};
+use mm_core::{AssumptionSet, Fp, RulingSet};
 use mm_dice::Pmf;
 use serde::Serialize;
 
@@ -16,6 +16,8 @@ pub struct Evaluation {
     pub target_ac: i32,
     /// The hit points Time-to-kill and Kill probability are measured against.
     pub target_hp: u32,
+    /// The Rulings the kit read, each with the option it had (ADR-0006, ADR-0052).
+    pub rulings: RulingSet,
     pub nova: ModeResult,
 }
 
@@ -89,6 +91,7 @@ pub fn evaluate(kit: &CombatKit, assumptions: &AssumptionSet) -> Evaluation {
         params_fp: kit.params.fp(),
         target_ac: assumptions.encounter_profile.target_ac,
         target_hp,
+        rulings: kit.rulings_read(),
         nova: ModeResult {
             rounds,
             lanes: lanes

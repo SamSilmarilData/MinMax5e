@@ -80,7 +80,7 @@ Each stage is a pure function from a fingerprinted input to a fingerprinted outp
             └────────► Pool ─► top-K per grid point ─► Signature collapse ─► MMR ─► view models ─► UI
 ```
 
-**Fingerprints record what was read, not everything that was available** [design, after salsa]. While compiling a kit and tracing its shape, the engine records which Rulings it actually consulted. `ShapeKey` and `ParamsFp` hash only those Rulings, which is salsa's dependency recording ([research 14](research/14-prior-art-and-refinements.md)). Two consequences:
+**Fingerprints record what was read, not everything that was available** [design, after salsa]. While compiling a kit and tracing its shape, the engine records which Rulings it actually consulted. `ShapeKey` and `ParamsFp` hash only those Rulings, each the ones read while building its own half (ADR-0052 amendment), which is salsa's dependency recording ([research 14](research/14-prior-art-and-refinements.md)). Two consequences:
 
 - Flipping a Ruling invalidates only the kits that read it. ADR-0006's "show how much DPR flipping this Ruling would change" re-evaluates only the pool entries that depend on it.
 - If recompiling yields the same fingerprint, everything downstream is reused (salsa's *backdating*). Pack-derived inputs are high-durability; Query inputs are low-durability.
@@ -102,7 +102,7 @@ The fingerprint is one 128-bit type, `Fp` (blake3, truncated) [design]. These ke
 | resource kinds, their maxima, and their **spend caps** (§3) | save DCs; resistance variants of each damage term |
 | weapons in hand, legal swaps, mastery property per weapon | enhancement (+1/+2/+3), flat fighting-style bonuses |
 | concentration options, whether pre-combat setup is allowed, the set of horizons | advantage baseline from the Encounter Profile |
-| the active Ruling set (whatever changes legality or branching) | |
+| the Rulings read that change legality or branching | the Rulings read that change only numbers |
 
 Rule of thumb: if changing it can change *which states exist or which choices are legal*, it belongs to the shape. Otherwise it is a param.
 

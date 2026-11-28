@@ -1,0 +1,8 @@
+// fixture: synthetic
+// A feat whose encoding reads a Ruling the pack does not declare.
+[
+    Feat((
+        id: "2024:feat/test-unruled|tst",
+        name: "Test Unruled",
+    )),
+]

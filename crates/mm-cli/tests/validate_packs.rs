@@ -109,3 +109,74 @@ fn a_weapon_naming_an_unknown_mastery_property_is_a_diagnostic() {
     );
     insta::assert_snapshot!("unknown-mastery-property", stderr);
 }
+
+#[test]
+fn an_encoding_reading_an_option_its_ruling_lacks_is_a_diagnostic() {
+    let stderr = diagnostic_for(
+        "unknown-ruling-option",
+        "encodings/test-ruled.ron",
+        "\"sometimes\"",
+    );
+    assert!(
+        stderr.contains("Ruling `R-TST-HEW-BONUS` has no option `sometimes`"),
+        "{stderr}"
+    );
+    insta::assert_snapshot!("unknown-ruling-option", stderr);
+}
+
+#[test]
+fn a_ruling_whose_default_is_not_an_option_is_a_diagnostic() {
+    let stderr = diagnostic_for(
+        "ruling-default-not-an-option",
+        "rulings/R-TST-BAD-DEFAULT.ron",
+        "\"third\"",
+    );
+    insta::assert_snapshot!("ruling-default-not-an-option", stderr);
+}
+
+#[test]
+fn each_malformed_ruling_is_a_diagnostic() {
+    for (case, file, offending, message) in [
+        (
+            "ruling-with-one-option",
+            "rulings/R-TST-ONE-OPTION.ron",
+            "\"R-TST-ONE-OPTION\"",
+            "a Ruling offers at least two options",
+        ),
+        (
+            "ruling-option-offered-twice",
+            "rulings/R-TST-TWICE.ron",
+            "\"first\"",
+            "option `first` is offered twice",
+        ),
+        (
+            "ruling-without-citation",
+            "rulings/R-TST-UNCITED.ron",
+            "\"R-TST-UNCITED\"",
+            "a Ruling cites at least one source",
+        ),
+        (
+            "malformed-ruling-option-id",
+            "rulings/R-TST-BAD-OPTION-ID.ron",
+            // A parse error: RON points at the value, so the quotes may fall outside.
+            "Second Reading",
+            "`Second Reading` is not a Ruling option id",
+        ),
+        (
+            "ruling-declared-twice",
+            "rulings/R-TST-HEW-BONUS.ron",
+            "\"R-TST-HEW-BONUS\"",
+            "Ruling `R-TST-HEW-BONUS` is declared twice",
+        ),
+        (
+            "unknown-ruling",
+            "encodings/test-unruled.ron",
+            "\"R-TST-NO-SUCH\"",
+            "there is no Ruling `R-TST-NO-SUCH` in the pack",
+        ),
+    ] {
+        let stderr = diagnostic_for(case, file, offending);
+        assert!(stderr.contains(message), "{case}: {stderr}");
+        insta::assert_snapshot!(case, stderr);
+    }
+}

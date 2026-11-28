@@ -2,6 +2,7 @@
 
 mod common;
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -65,6 +66,7 @@ struct Evaluation {
     params_fp: String,
     target_ac: i32,
     target_hp: u32,
+    rulings: BTreeMap<String, String>,
     nova: Mode,
 }
 
@@ -214,9 +216,9 @@ fn the_level_5_warrior_prints_research_03_mean_and_sd_for_nova_round_1() {
     );
     let (highlighted, dpr, sd) = table_row(&text, 16);
     assert!(highlighted, "{text}");
-    // The table prints three decimals. The crit-gated Bonus Action attack is its own
-    // Attack source, so the feat's +PB on Attack-action hits does not reach it: 22.897,
-    // not the 23.07 of the alternative reading (research 03 §7.2, "Hew counted with +PB").
+    // The table prints three decimals. Under R-TST-HEW-BONUS's default, the feat's +PB on
+    // Attack-action hits does not reach the crit-gated Bonus Action attack: 22.897, not
+    // the 23.07 of the alternative reading (research 03 §7.2, "Hew counted with +PB").
     assert_rounds_to("mean", dpr, 22.897, 0.001);
     assert_rounds_to("SD", sd, 10.26, 0.01);
     // Then the minimum and the Band (p10, p50, p90, Floor), to one decimal.
@@ -601,5 +603,162 @@ fn copy_dir(from: &Path, to: &Path) {
         } else {
             std::fs::copy(&path, &target).expect("copy");
         }
+    }
+}
+
+/// The fixture Ruling Set that flips `R-TST-HEW-BONUS` to its alternative reading.
+fn hew_with_pb() -> String {
+    fixture("ruling-sets/hew-with-pb.ron")
+        .into_os_string()
+        .into_string()
+        .expect("a UTF-8 path")
+}
+
+/// The Rulings `build` read, as `id → option`, evaluated with the flags `extra`.
+fn rulings_read(build: &str, extra: &[&str]) -> Vec<(String, String)> {
+    evaluation(&evaluate(build, &args(extra, &["--format", "ron"])))
+        .rulings
+        .into_iter()
+        .collect()
+}
+
+/// One Ruling read, with its option, as `rulings_read` lists it.
+fn read(ruling: &str, option: &str) -> Vec<(String, String)> {
+    vec![(ruling.to_owned(), option.to_owned())]
+}
+
+#[test]
+fn evaluate_lists_the_rulings_each_result_read_with_their_options() {
+    // The heavy-weapon feat's +PB rider reads R-TST-HEW-BONUS for the crit-gated attack,
+    // whose default is that the +PB stays with the Attack action.
+    let default = read("R-TST-HEW-BONUS", "attack-action-only");
+    assert_eq!(rulings_read("builds/warrior-5.ron", &[]), default);
+    let flipped = &hew_with_pb();
+    assert_eq!(
+        rulings_read("builds/warrior-5.ron", &["--rulings", flipped]),
+        read("R-TST-HEW-BONUS", "bonus-action-too")
+    );
+    // Without the crit-gated attack, or without the feat, nothing reads it.
+    for build in ["builds/warrior-5-no-hew.ron", "builds/warrior-1.ron"] {
+        assert_eq!(rulings_read(build, &[]), [], "{build}");
+        assert_eq!(rulings_read(build, &["--rulings", flipped]), [], "{build}");
+    }
+
+    let text = stdout_of(&evaluate("builds/warrior-5.ron", &[]));
+    assert!(
+        text.contains("Rulings read: R-TST-HEW-BONUS = attack-action-only"),
+        "{text}"
+    );
+    let text = stdout_of(&evaluate("builds/warrior-1.ron", &[]));
+    assert!(text.contains("Rulings read: none"), "{text}");
+}
+
+#[test]
+fn flipping_r_tst_hew_bonus_gives_research_03_alternative_reading() {
+    // Research 03 §7.2's variant table, "Hew counted with +PB": 23.07, SD 10.68. By hand,
+    // the crit-gated attack (taken with probability 0.0975) gains 0.60 · 3 = 1.8 on
+    // average: 22.897 + 0.0975 · 1.8 = 23.0725.
+    let flipped = &hew_with_pb();
+    let lane = ac_16_lane(
+        "builds/warrior-5.ron",
+        &["--nova-rounds", "1", "--rulings", flipped],
+    );
+    assert_rounds_to("mean", lane.dpr, 23.07, 0.01);
+    assert_rounds_to("SD", lane.sd, 10.68, 0.01);
+    let default = round_1_at_ac_16("builds/warrior-5.ron");
+    assert_close(lane.dpr - default.dpr, 0.0975 * 1.8);
+}
+
+/// The `(ShapeKey, ParamsFp)` of `build` at AC 16, with the flags `extra`.
+fn fingerprints(build: &str, extra: &[&str]) -> (String, String) {
+    let evaluation = evaluation(&evaluate(build, &args(extra, &["--format", "ron"])));
+    (evaluation.shape_key, evaluation.params_fp)
+}
+
+#[test]
+fn flipping_a_ruling_changes_the_fingerprints_of_only_the_builds_that_read_it() {
+    let flipped = &hew_with_pb();
+    let flip = ["--rulings", flipped.as_str()];
+    for build in [
+        "builds/warrior-5.ron",
+        "builds/warrior-5-no-graze.ron",
+        "builds/warrior-5-no-style.ron",
+    ] {
+        let (shape, params) = fingerprints(build, &[]);
+        let (flipped_shape, flipped_params) = fingerprints(build, &flip);
+        // The Ruling decides a number, not which attacks exist (architecture §2.1), so it
+        // is recorded by the params alone (ADR-0052 amendment).
+        assert_eq!(shape, flipped_shape, "{build}: same ShapeKey");
+        assert_ne!(params, flipped_params, "{build}: new ParamsFp");
+    }
+    for build in ["builds/warrior-5-no-hew.ron", "builds/warrior-1.ron"] {
+        assert_eq!(
+            fingerprints(build, &[]),
+            fingerprints(build, &flip),
+            "{build}"
+        );
+    }
+}
+
+#[test]
+fn setting_a_ruling_to_its_default_gives_the_same_fingerprints_as_leaving_it_unset() {
+    let set = scratch_file(
+        "rulings-default",
+        "default.ron",
+        &fixture_text("ruling-sets/hew-with-pb.ron")
+            .replace("bonus-action-too", "attack-action-only"),
+    );
+    let set = set.to_str().expect("a UTF-8 path");
+    assert_eq!(
+        fingerprints("builds/warrior-5.ron", &[]),
+        fingerprints("builds/warrior-5.ron", &["--rulings", set])
+    );
+}
+
+#[test]
+fn the_flipped_ruling_case_is_snapshotted() {
+    let flipped = hew_with_pb();
+    let ron = stdout_of(&evaluate_untargeted(
+        "builds/warrior-5.ron",
+        &["--rulings", &flipped, "--format", "ron"],
+    ));
+    insta::assert_snapshot!("warrior-5-hew-with-pb", ron);
+}
+
+#[test]
+fn an_unknown_ruling_or_option_in_the_rulings_file_is_a_clear_error() {
+    let set = fixture_text("ruling-sets/hew-with-pb.ron");
+    for (name, from, to, expected) in [
+        (
+            "unknown-ruling.ron",
+            "R-TST-HEW-BONUS",
+            "R-TST-NO-SUCH",
+            "no Ruling `R-TST-NO-SUCH` in the pack",
+        ),
+        (
+            "unknown-option.ron",
+            "bonus-action-too",
+            "always",
+            "Ruling `R-TST-HEW-BONUS` has no option `always`; its options are \
+             attack-action-only, bonus-action-too",
+        ),
+        (
+            "malformed-id.ron",
+            "R-TST-HEW-BONUS",
+            "hew bonus",
+            "`hew bonus` is not a Ruling id",
+        ),
+        (
+            "malformed-option.ron",
+            "bonus-action-too",
+            "Bonus Too",
+            "`Bonus Too` is not a Ruling option id",
+        ),
+    ] {
+        let file = scratch_file("bad-rulings", name, &set.replace(from, to));
+        let file = file.to_str().expect("a UTF-8 path");
+        let stderr = stderr_of_failure(&evaluate("builds/warrior-5.ron", &["--rulings", file]));
+        assert!(stderr.contains(file), "{name} names the file: {stderr}");
+        assert!(stderr.contains(expected), "{name}: {stderr}");
     }
 }

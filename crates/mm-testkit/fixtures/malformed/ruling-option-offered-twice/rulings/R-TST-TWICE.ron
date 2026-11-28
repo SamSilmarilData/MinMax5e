@@ -1,0 +1,13 @@
+// fixture: synthetic
+// A Ruling that offers the same option id twice.
+(
+    id: "R-TST-TWICE",
+    question: "Which reading?",
+    options: [
+        (id: "first", reading: "The first."),
+        (id: "first", reading: "The first again."),
+    ],
+    default: "first",
+    reasoning: "None.",
+    citations: [(tier: Synthetic, reference: "a malformed fixture")],
+)

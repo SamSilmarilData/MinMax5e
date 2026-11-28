@@ -3,10 +3,13 @@ source: crates/mm-cli/tests/evaluate.rs
 expression: ron
 ---
 (
-    shape_key: "aa1785c700015e8c89355e8fe2f590d9",
-    params_fp: "4fdb65c46ef3f9c0e3c4880a94970492",
+    shape_key: "0eb39cd9975ba54c203bdd653f671e91",
+    params_fp: "42a96e57ac33380e5cff0a7d326a15d4",
     target_ac: 15,
     target_hp: 95,
+    rulings: {
+        "R-TST-HEW-BONUS": "attack-action-only",
+    },
     nova: (
         rounds: 2,
         lanes: [

@@ -1,0 +1,8 @@
+// fixture: synthetic
+// A feat whose encoding reads an option its Ruling does not offer.
+[
+    Feat((
+        id: "2024:feat/test-ruled|tst",
+        name: "Test Ruled",
+    )),
+]

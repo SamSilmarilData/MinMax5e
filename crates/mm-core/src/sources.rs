@@ -22,6 +22,8 @@ pub enum SourceRole {
     Records,
     /// One encoding in the Effect DSL ([`effect::Encoding`](crate::effect::Encoding)).
     Encoding,
+    /// One Ruling's declaration ([`Ruling`](crate::Ruling)).
+    Ruling,
 }
 
 impl Sources {

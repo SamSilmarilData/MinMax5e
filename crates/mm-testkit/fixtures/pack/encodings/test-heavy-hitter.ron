@@ -1,7 +1,9 @@
 // fixture: synthetic
 // A heavy-weapon feat: hits made as part of the Attack action with a Heavy weapon deal
 // extra damage equal to the proficiency bonus, and a crit offers one more attack with the
-// same weapon as a Bonus Action, taken immediately after it.
+// same weapon as a Bonus Action, taken immediately after it. Whether the +PB reaches that
+// attack too is the Ruling R-TST-HEW-BONUS; Heavy and the Attack action are tested first,
+// so only the crit-gated attack reads it.
 Feat((
     id: "2024:feat/test-heavy-hitter|tst",
     features: [
@@ -11,7 +13,13 @@ Feat((
             riders: [
                 (
                     on: AttackHit,
-                    when: Some(All([Fact(AttackAction), Fact(WeaponProperty(Heavy))])),
+                    when: Some(All([
+                        Fact(WeaponProperty(Heavy)),
+                        Any([
+                            Fact(AttackAction),
+                            Ruling("R-TST-HEW-BONUS", "bonus-action-too"),
+                        ]),
+                    ])),
                     effect: ProficiencyBonusDamage,
                 ),
                 (on: AttackCrit, optional: true, effect: BonusActionAttack),

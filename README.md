@@ -39,7 +39,7 @@ Character builders record the choices you make. Optimization guides rate options
 
 - the Cargo workspace, its CI and its repo guards ([#13](https://github.com/SamSilmarilData/MinMax5e/issues/13));
 - `mm-dice`, exact damage distributions checked against a `BigRational` oracle ([#14](https://github.com/SamSilmarilData/MinMax5e/issues/14));
-- `mm-cli evaluate`, which gives exact Nova DPR and its SD at every AC from 10 to 25 ([#15](https://github.com/SamSilmarilData/MinMax5e/issues/15)), now for the full level-5 synthetic warrior, reproducing research 03 §7.2's worked example and its variants ([#18](https://github.com/SamSilmarilData/MinMax5e/issues/18)), and its Reliability Band, with Time-to-kill and Kill probability ([#19](https://github.com/SamSilmarilData/MinMax5e/issues/19)), against the Encounter Baseline for the Build's level unless `--ac`, `--hp` or an `--assumptions` file say otherwise ([#20](https://github.com/SamSilmarilData/MinMax5e/issues/20));
+- `mm-cli evaluate`, which gives exact Nova DPR and its SD at every AC from 10 to 25 ([#15](https://github.com/SamSilmarilData/MinMax5e/issues/15)), now for the full level-5 synthetic warrior, reproducing research 03 §7.2's worked example and its variants ([#18](https://github.com/SamSilmarilData/MinMax5e/issues/18)), and its Reliability Band, with Time-to-kill and Kill probability ([#19](https://github.com/SamSilmarilData/MinMax5e/issues/19)), against the Encounter Baseline for the Build's level unless `--ac`, `--hp` or an `--assumptions` file say otherwise ([#20](https://github.com/SamSilmarilData/MinMax5e/issues/20)), listing the Rulings each result read, with a `--rulings` file to choose their options ([#21](https://github.com/SamSilmarilData/MinMax5e/issues/21));
 - the cross-target result hash, which shows that evaluation gives the same bits natively and in WebAssembly ([#16](https://github.com/SamSilmarilData/MinMax5e/issues/16));
 - `mm-cli validate-packs`, with diagnostics and a coverage report ([#17](https://github.com/SamSilmarilData/MinMax5e/issues/17)).
 
@@ -49,9 +49,10 @@ Try it on the synthetic fixtures:
 cargo run -p mm-cli -- evaluate crates/mm-testkit/fixtures/builds/warrior-5.ron \
   --pack-dir crates/mm-testkit/fixtures/pack
 # or pick the target yourself: --ac 16 --hp 40, or --assumptions <file.ron>
+# and flip a Ruling: --rulings crates/mm-testkit/fixtures/ruling-sets/hew-with-pb.ron
 ```
 
-Next come the rest of the skeleton's tickets (#21–#27): Rulings, resources, Sustained mode, Turn Plans and the independent oracles. Then the Tape (step 4) and the solver (step 5).
+Next come the rest of the skeleton's tickets (#22–#27): resources, Sustained mode, Turn Plans and the independent oracles. Then the Tape (step 4) and the solver (step 5).
 
 The design is written up:
 

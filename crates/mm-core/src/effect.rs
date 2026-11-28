@@ -9,7 +9,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::records::WeaponProperty;
-use crate::{Citation, ContentId};
+use crate::{Citation, ContentId, RulingId, RulingOptionId};
 
 /// One encoding file: our mechanics for one record.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -102,10 +102,16 @@ pub enum Stage {
     AttackMiss,
 }
 
-/// A test over the facts of an attack.
+/// A test over the facts of an attack, and over the active Rulings.
+///
+/// `All` and `Any` test their parts in order and stop once the answer is known, so a
+/// Ruling placed after a part that settles it is not read (ADR-0052).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Pred {
     Fact(Fact),
+    /// The active Rulings choose this option of this Ruling (ADR-0006). The pack checks
+    /// both exist when it loads.
+    Ruling(RulingId, RulingOptionId),
     All(Vec<Pred>),
     Any(Vec<Pred>),
     Not(Box<Pred>),

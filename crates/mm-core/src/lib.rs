@@ -11,6 +11,8 @@
 //!   Encounter Baseline default target ([`EncounterProfile::baseline`], ADR-0024).
 //! - [`Citation`] and [`SourceTier`]: where an encoded feature comes from, and how far it is
 //!   trusted (ADR-0007).
+//! - [`Ruling`] and [`RulingSet`]: a pack's declared Rulings and a user's chosen options
+//!   (ADR-0006).
 //! - [`Fp`]: the 128-bit fingerprint (ADR-0052).
 //! - [`Sources`]: named RON texts, the input to loading a pack.
 //!
@@ -25,6 +27,7 @@ mod id;
 pub mod kind;
 pub mod records;
 mod ruleset;
+mod ruling;
 mod sources;
 
 pub use assumptions::{
@@ -35,4 +38,8 @@ pub use citation::{Citation, SourceTier};
 pub use fp::{Fp, FpHasher};
 pub use id::{ContentId, ContentIdError, Id};
 pub use ruleset::{ActionEconomy, Refresh, ResourceDecl, Ruleset};
+pub use ruling::{
+    Ruling, RulingError, RulingId, RulingIdError, RulingOption, RulingOptionId,
+    RulingOptionIdError, RulingSet,
+};
 pub use sources::{Source, SourceRole, Sources};
