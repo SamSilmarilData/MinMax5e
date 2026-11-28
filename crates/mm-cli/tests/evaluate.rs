@@ -29,13 +29,18 @@ fn evaluate_with(build: &Path, pack: &Path, extra: &[&str]) -> Output {
         .expect("mm-cli runs")
 }
 
+/// `first` followed by `rest`, as one argument list.
+fn args<'a>(first: &[&'a str], rest: &[&'a str]) -> Vec<&'a str> {
+    first.iter().chain(rest).copied().collect()
+}
+
 /// Evaluates the fixture Build `build` on the fixture pack against AC 16.
 fn evaluate(build: &str, extra: &[&str]) -> Output {
-    let args: Vec<&str> = ["--ac", "16"]
-        .into_iter()
-        .chain(extra.iter().copied())
-        .collect();
-    evaluate_with(&fixture(build), &fixture("pack"), &args)
+    evaluate_with(
+        &fixture(build),
+        &fixture("pack"),
+        &args(&["--ac", "16"], extra),
+    )
 }
 
 /// Evaluates the fixture Build `build` on the fixture pack, with no target given.
@@ -187,8 +192,7 @@ fn round_1_at_ac_16(build: &str) -> Lane {
 
 /// The AC 16 lane of `build` evaluated with the flags `extra`.
 fn ac_16_lane(build: &str, extra: &[&str]) -> Lane {
-    let args: Vec<&str> = extra.iter().copied().chain(["--format", "ron"]).collect();
-    evaluation(&evaluate(build, &args))
+    evaluation(&evaluate(build, &args(extra, &["--format", "ron"])))
         .nova
         .lanes
         .into_iter()
@@ -345,18 +349,23 @@ fn a_target_flag_overrides_only_its_own_figure_of_the_baseline() {
 /// The fixture Assumption Set: AC 16 and 6 HP, the hand count's target.
 const HAND_COUNT: &str = "assumptions/hand-count.ron";
 
-/// `--assumptions <the fixture set>` followed by `extra`.
-fn with_hand_count<'a>(assumptions: &'a str, extra: &[&'a str]) -> Vec<&'a str> {
-    ["--assumptions", assumptions]
-        .into_iter()
-        .chain(extra.iter().copied())
-        .collect()
+/// The path of the fixture Assumption Set.
+fn hand_count_path() -> String {
+    fixture(HAND_COUNT)
+        .into_os_string()
+        .into_string()
+        .expect("a UTF-8 path")
+}
+
+/// `--assumptions <path>` followed by `extra`.
+fn with_hand_count<'a>(path: &'a str, extra: &[&'a str]) -> Vec<&'a str> {
+    args(&["--assumptions", path], extra)
 }
 
 #[test]
 fn an_assumptions_file_replaces_the_defaults_and_feeds_the_kill_odds() {
-    let path = fixture(HAND_COUNT);
-    let path = path.to_str().expect("a UTF-8 path");
+    let path = hand_count_path();
+    let path = path.as_str();
     let args = with_hand_count(path, &["--format", "ron"]);
     let evaluation = evaluation(&evaluate_untargeted("builds/warrior-1.ron", &args));
     assert_eq!((evaluation.target_ac, evaluation.target_hp), (16, 6));
@@ -382,8 +391,8 @@ fn an_assumptions_file_replaces_the_defaults_and_feeds_the_kill_odds() {
 
 #[test]
 fn flags_take_precedence_over_the_assumptions_file() {
-    let path = fixture(HAND_COUNT);
-    let path = path.to_str().expect("a UTF-8 path");
+    let path = hand_count_path();
+    let path = path.as_str();
     let args = with_hand_count(
         path,
         &["--hp", "30", "--nova-rounds", "1", "--format", "ron"],
@@ -400,8 +409,8 @@ fn flags_take_precedence_over_the_assumptions_file() {
 
 #[test]
 fn an_assumptions_file_case_is_snapshotted() {
-    let path = fixture(HAND_COUNT);
-    let args = with_hand_count(path.to_str().expect("a UTF-8 path"), &["--format", "ron"]);
+    let path = hand_count_path();
+    let args = with_hand_count(&path, &["--format", "ron"]);
     let ron = stdout_of(&evaluate_untargeted("builds/warrior-1.ron", &args));
     insta::assert_snapshot!("warrior-1-hand-count", ron);
 }

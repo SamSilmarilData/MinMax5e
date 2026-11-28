@@ -3,7 +3,7 @@
 //!
 //! # The Encounter Baseline
 //!
-//! The default Target Dummy is a monster of CR equal to the character's level. Only its AC
+//! The default Target Dummy has a CR equal to the character's level. Only its AC
 //! and HP are modelled yet; the per-ability save curves and Magic Resistance that ADR-0024
 //! also gives wait for saves (spec #12, "Out of Scope").
 //!
@@ -140,7 +140,7 @@ impl EncounterProfile {
 }
 
 impl AdventuringDayModel {
-    /// A day of `encounters` encounters of `rounds_per_encounter` rounds each, with a
+    /// An Adventuring Day Model of `encounters` encounters of `rounds_per_encounter` rounds each, with a
     /// short rest after each encounter in `short_rests_after` (counted from 1).
     ///
     /// # Errors
@@ -182,12 +182,12 @@ impl AdventuringDayModel {
     }
 }
 
-/// The default day (spec #12): 4 encounters of 3 rounds, with a short rest after
-/// encounter 2.
+/// The default Adventuring Day Model (spec #12): 4 encounters of 3 rounds, with a short
+/// rest after encounter 2.
 impl Default for AdventuringDayModel {
     fn default() -> AdventuringDayModel {
         let n = |n| NonZeroU32::new(n).expect("not zero");
-        AdventuringDayModel::new(n(4), n(3), vec![n(2)]).expect("the default day is in order")
+        AdventuringDayModel::new(n(4), n(3), vec![n(2)]).expect("the default rests are in order")
     }
 }
 

@@ -69,7 +69,7 @@ struct EvaluateArgs {
     #[arg(long)]
     hp: Option<NonZeroU32>,
     /// The Nova horizon: rounds 1 to this. 1 gives a single round's DPR, SD and Band.
-    /// Defaults to 2.
+    /// Defaults to rounds 1–2, as GLOSSARY.md defines Nova DPR.
     #[arg(long)]
     nova_rounds: Option<NonZeroU32>,
     /// A directory of records and encodings to load into the pack. Repeatable.
@@ -145,17 +145,20 @@ fn evaluate_in<R: Ruleset>(
     Ok(mm_engine::evaluate(&kit, assumptions))
 }
 
-/// The Assumption Set an evaluation runs under, and where its target came from.
+/// The Assumption Set an evaluation runs under, and what each target figure rests on.
 struct Target {
     assumptions: AssumptionSet,
-    ac_from: Origin,
-    hp_from: Origin,
+    ac_basis: Basis,
+    hp_basis: Basis,
 }
 
-/// Where a target figure came from, as the text output names it.
+/// What a target figure rests on, as the text output names it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Origin {
-    Baseline { cr: usize },
+enum Basis {
+    /// The Encounter Baseline at this CR, the character level.
+    Baseline {
+        cr: usize,
+    },
     File(PathBuf),
     Flag(&'static str),
 }
@@ -164,44 +167,41 @@ impl Target {
     /// The defaults, or the `--assumptions` file in their place, with the flags on top.
     /// The Encounter Baseline is only consulted for a figure no file or flag gives.
     fn resolve(build: &Build, args: &EvaluateArgs) -> Result<Target> {
-        let (mut assumptions, origin) = match (&args.assumptions, args.ac, args.hp) {
-            (Some(path), _, _) => (read_assumptions(path)?, Origin::File(path.clone())),
-            // Both figures are the flags', so the origin is replaced below.
-            (None, Some(target_ac), Some(target_hp)) => (
-                AssumptionSet::against(EncounterProfile {
-                    target_ac,
-                    target_hp,
-                }),
-                Origin::Flag("--ac"),
-            ),
-            (None, _, _) => (
-                AssumptionSet::baseline(build.level())
-                    .context("the Build has no default target; give --ac and --hp")?,
-                Origin::Baseline { cr: build.level() },
-            ),
+        let mut assumptions = match (&args.assumptions, args.ac, args.hp) {
+            (Some(path), _, _) => read_assumptions(path)?,
+            (None, Some(target_ac), Some(target_hp)) => AssumptionSet::against(EncounterProfile {
+                target_ac,
+                target_hp,
+            }),
+            (None, _, _) => AssumptionSet::baseline(build.level())
+                .context("the Build has no default target; give --ac and --hp")?,
+        };
+        let unflagged = match &args.assumptions {
+            Some(path) => Basis::File(path.clone()),
+            None => Basis::Baseline { cr: build.level() },
         };
         let profile = &mut assumptions.encounter_profile;
-        let ac_from = match args.ac {
+        let ac_basis = match args.ac {
             Some(ac) => {
                 profile.target_ac = ac;
-                Origin::Flag("--ac")
+                Basis::Flag("--ac")
             }
-            None => origin.clone(),
+            None => unflagged.clone(),
         };
-        let hp_from = match args.hp {
+        let hp_basis = match args.hp {
             Some(hp) => {
                 profile.target_hp = hp;
-                Origin::Flag("--hp")
+                Basis::Flag("--hp")
             }
-            None => origin,
+            None => unflagged,
         };
         if let Some(rounds) = args.nova_rounds {
             assumptions.nova_rounds = rounds;
         }
         Ok(Target {
             assumptions,
-            ac_from,
-            hp_from,
+            ac_basis,
+            hp_basis,
         })
     }
 
@@ -211,23 +211,23 @@ impl Target {
             target_ac,
             target_hp,
         } = self.assumptions.encounter_profile;
-        if self.ac_from == self.hp_from {
-            format!("Target: AC {target_ac}, {target_hp} HP ({})", self.ac_from)
+        if self.ac_basis == self.hp_basis {
+            format!("Target: AC {target_ac}, {target_hp} HP ({})", self.ac_basis)
         } else {
             format!(
                 "Target: AC {target_ac} ({}), {target_hp} HP ({})",
-                self.ac_from, self.hp_from
+                self.ac_basis, self.hp_basis
             )
         }
     }
 }
 
-impl fmt::Display for Origin {
+impl fmt::Display for Basis {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Origin::Baseline { cr } => write!(f, "Encounter Baseline, CR {cr}"),
-            Origin::File(path) => write!(f, "{}", path.display()),
-            Origin::Flag(flag) => f.write_str(flag),
+            Basis::Baseline { cr } => write!(f, "Encounter Baseline, CR {cr}"),
+            Basis::File(path) => write!(f, "{}", path.display()),
+            Basis::Flag(flag) => f.write_str(flag),
         }
     }
 }
