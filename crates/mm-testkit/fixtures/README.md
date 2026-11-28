@@ -16,6 +16,9 @@ Invented content for tests and the CLI (ADR-0028). Every RON file starts with th
   `mm-cli validate-packs`: an unknown Content ID, a wrong Ruleset prefix, a misspelled
   DSL variant, a missing citation, a record with no encoding, and a weapon naming an
   unknown mastery property.
+- `assumptions/`: Assumption Set files (`mm-cli evaluate --assumptions`). `hand-count`
+  is the target of the CLI tests' hand count for `warrior-1` (AC 16, 6 HP), with a
+  day other than the default.
 - `builds/`: Build files. `warrior-1` is #15's level-1 warrior, wielding the plainblade.
   `warrior-5` is research 03 §7.2's level-5 warrior, and each
   `warrior-5-no-*` drops one component for the note's variant table. Each Build is

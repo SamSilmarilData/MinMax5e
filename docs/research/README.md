@@ -50,6 +50,7 @@ The owner decided MinMax5e is a personal tool (ADR-0026), sourced from 5e.tools 
 Notes are left as written; corrections found later are listed here.
 
 - **03 §7.2, AC sensitivity, AC 25** (2026-11-27): the base round's mean is 12.646 (12.6), not 12.7. By hand, +7 needs an 18 (miss 0.85, hit 0.10, crit 0.05): 2·6.05 + 0.0975·5.6 = 12.646. The note's own "Graze worth 7.1 at AC 25" agrees. Found by `crates/mm-dice/tests/golden.rs` (#14).
+- **03 §5.3, default AC against the SRD fit** (2026-11-28): Dunn's table, the default AC, lies within about ±1.0 of our SRD 5.2.1 fit (12.90 + 0.374·CR) over levels 1–20, not ±0.6. By the note's own table, level 3 is 15 against 14.0; at CR 19 Dunn gives 19 against 20.0. The default stays Dunn's table, as ADR-0024 says. Found while encoding the Encounter Baseline in `crates/mm-core/src/assumptions.rs` (#20).
 - **09 §5, determinism rule 8** (2026-11-28): the reason is incomplete. Hash-map iteration order differs between native and WebAssembly even on one thread with a fixed insertion order, because FxHash hashes in `usize`, which is 64 bits natively and 32 bits on wasm32. Scored code keeps anything it iterates in a `Vec` (a map may index into it), and `clippy.toml` bans `HashMap`'s iterating methods. Found while writing the forward pass's `Frontier` (#19).
 
 ## Blocking open questions

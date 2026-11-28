@@ -1,7 +1,9 @@
 //! The forward pass follows the Policy the backward pass recorded (spec #12, seam 2: the
 //! `mm-engine` facade on a raw Kit Shape and Kit Params).
 
-use mm_core::AssumptionSet;
+use std::num::NonZeroU32;
+
+use mm_core::{AssumptionSet, EncounterProfile};
 use mm_dice::Pmf;
 use mm_engine::{AttackSource, CombatKit, KitParams, KitShape, RowParams, RowShape};
 use mm_testkit::tolerance::assert_close;
@@ -39,8 +41,11 @@ fn kit(rows: &[&Pmf]) -> CombatKit {
 /// The round-1 p90 at AC 16.
 fn p90(kit: &CombatKit) -> f64 {
     let assumptions = AssumptionSet {
-        nova_rounds: 1,
-        ..AssumptionSet::against(16)
+        nova_rounds: NonZeroU32::MIN,
+        ..AssumptionSet::against(EncounterProfile {
+            target_ac: 16,
+            target_hp: NonZeroU32::MIN,
+        })
     };
     let evaluation = mm_engine::evaluate(kit, &assumptions);
     let lane = evaluation

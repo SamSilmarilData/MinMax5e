@@ -4,10 +4,12 @@
 //! Build in the hashed set (`xtask/xhash.toml`) with each, and hashes the results. The
 //! WebAssembly build runs under wasmtime, which must be on PATH.
 //!
-//! What is hashed is `mm-cli evaluate --format ron` output (with `--hp` where the entry
-//! gives one). RON writes each float in Rust's shortest round-trip form, so the text
-//! carries every bit of every finite result. The Builds are hashed in set order, each
-//! as its path and its output, each preceded by its length, with BLAKE3.
+//! What is hashed is `mm-cli evaluate --format ron` output, with `--assumptions`, `--ac`
+//! and `--hp` where the entry gives them; an entry with none is evaluated against the
+//! Encounter Baseline. RON writes each float in Rust's shortest round-trip form, so the
+//! text carries every bit of every finite result. The entries are hashed in set order,
+//! each as its path, its target flags and its output, each preceded by its length, with
+//! BLAKE3.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -51,11 +53,30 @@ struct HashedSet {
 struct Entry {
     /// The Build file, relative to the repository root.
     path: String,
-    /// The target AC it is evaluated against.
-    ac: i32,
-    /// The target's hit points, passed as `--hp` so Time-to-kill and Kill probability are
-    /// hashed too.
+    /// An Assumption Set file, relative to the repository root, passed as `--assumptions`.
+    assumptions: Option<String>,
+    /// The target AC, passed as `--ac`.
+    ac: Option<i32>,
+    /// The target's hit points, passed as `--hp`.
     hp: Option<u32>,
+}
+
+impl Entry {
+    /// The target flags `mm-cli evaluate` gets, with paths under `root`.
+    fn target_args(&self, root: &Path) -> Vec<OsString> {
+        let mut args = Vec::new();
+        if let Some(assumptions) = &self.assumptions {
+            args.push("--assumptions".into());
+            args.push(root.join(assumptions).into_os_string());
+        }
+        if let Some(ac) = self.ac {
+            args.extend(["--ac".into(), ac.to_string().into()]);
+        }
+        if let Some(hp) = self.hp {
+            args.extend(["--hp".into(), hp.to_string().into()]);
+        }
+        args
+    }
 }
 
 /// Runs the cross-target hash for the repository at `root`. With `mismatch`, the last
@@ -107,7 +128,10 @@ pub fn run(root: &Path, mismatch: bool) -> Result<Outcome> {
     println!("native        {}", native_hash.finalize().to_hex());
     println!("{WASM_TARGET} {}", wasm_hash.finalize().to_hex());
     Ok(report.finish(
-        &format!("{} Build(s) hash alike on both targets", set.build.len()),
+        &format!(
+            "{} evaluation(s) hash alike on both targets",
+            set.build.len()
+        ),
         "The hashes differ: a scored value is not bit-identical across targets. Check the \
          ADR-0050 rules for scored code.",
     ))
@@ -157,17 +181,9 @@ fn evaluate(mut command: Command, root: &Path, entry: &Entry) -> Result<Vec<u8>>
     command
         .arg("evaluate")
         .arg(root.join(&entry.path))
-        .args([
-            "--ac",
-            &entry.ac.to_string(),
-            "--format",
-            "ron",
-            "--pack-dir",
-        ])
+        .args(entry.target_args(root))
+        .args(["--format", "ron", "--pack-dir"])
         .arg(root.join(PACK));
-    if let Some(hp) = entry.hp {
-        command.args(["--hp", &hp.to_string()]);
-    }
     let output = command
         .output()
         .with_context(|| format!("running {command:?}"))?;
@@ -182,10 +198,13 @@ fn evaluate(mut command: Command, root: &Path, entry: &Entry) -> Result<Vec<u8>>
 }
 
 fn absorb(hasher: &mut blake3::Hasher, entry: &Entry, output: &[u8]) {
-    hasher.update(&(entry.path.len() as u64).to_le_bytes());
-    hasher.update(entry.path.as_bytes());
-    hasher.update(&(output.len() as u64).to_le_bytes());
-    hasher.update(output);
+    // The flags as written in the set, so both targets absorb the same bytes whatever
+    // root they see.
+    let flags = format!("{:?} {:?} {:?}", entry.assumptions, entry.ac, entry.hp);
+    for part in [entry.path.as_bytes(), flags.as_bytes(), output] {
+        hasher.update(&(part.len() as u64).to_le_bytes());
+        hasher.update(part);
+    }
 }
 
 /// Flips the low bit of the last ASCII digit in `output`, which keeps it a digit

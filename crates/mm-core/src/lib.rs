@@ -7,7 +7,8 @@
 //!   [`Id<R, K>`](Id) handles a Rules Pack hands out, with the kinds in [`kind`].
 //! - [`records`]: resolved records, the shape `mm-import` will produce.
 //! - [`effect`]: the closed Effect DSL (ADR-0010, ADR-0011) that encodings are written in.
-//! - [`Build`] and [`AssumptionSet`]: what is evaluated, and against what.
+//! - [`Build`] and [`AssumptionSet`]: what is evaluated, and against what, with the
+//!   Encounter Baseline default target ([`EncounterProfile::baseline`], ADR-0024).
 //! - [`Citation`] and [`SourceTier`]: where an encoded feature comes from, and how far it is
 //!   trusted (ADR-0007).
 //! - [`Fp`]: the 128-bit fingerprint (ADR-0052).
@@ -26,7 +27,9 @@ pub mod records;
 mod ruleset;
 mod sources;
 
-pub use assumptions::{AssumptionSet, EncounterProfile};
+pub use assumptions::{
+    AdventuringDayModel, AssumptionError, AssumptionSet, DEFAULT_NOVA_ROUNDS, EncounterProfile,
+};
 pub use build::{AbilityScores, Build, BuildError, Loadout};
 pub use citation::{Citation, SourceTier};
 pub use fp::{Fp, FpHasher};

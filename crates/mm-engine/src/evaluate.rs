@@ -14,8 +14,8 @@ pub struct Evaluation {
     pub params_fp: Fp,
     /// The AC the Assumption Set targets; every lane is still reported.
     pub target_ac: i32,
-    /// The hit points Time-to-kill and Kill probability are measured against, if given.
-    pub target_hp: Option<u32>,
+    /// The hit points Time-to-kill and Kill probability are measured against.
+    pub target_hp: u32,
     pub nova: ModeResult,
 }
 
@@ -40,8 +40,8 @@ pub struct LaneResult {
     pub minimum: f64,
     /// The spread of damage per round over the horizon.
     pub band: ReliabilityBand,
-    /// Time-to-kill and Kill probability against the target's hit points, if given.
-    pub kill: Option<KillOdds>,
+    /// Time-to-kill and Kill probability against the target's hit points.
+    pub kill: KillOdds,
 }
 
 /// The Reliability Band (GLOSSARY.md) of damage per round. Each figure is that of one
@@ -79,13 +79,9 @@ const P50: f64 = 0.5;
 const P90: f64 = 0.9;
 
 /// Evaluates `kit` in Nova mode: rounds 1 to `assumptions.nova_rounds`, full resources.
-///
-/// # Panics
-/// If `nova_rounds` is 0.
 pub fn evaluate(kit: &CombatKit, assumptions: &AssumptionSet) -> Evaluation {
-    let rounds = assumptions.nova_rounds;
-    assert!(rounds > 0, "the Nova horizon has at least one round");
-    let target_hp = assumptions.encounter_profile.target_hp;
+    let rounds = assumptions.nova_rounds.get();
+    let target_hp = assumptions.encounter_profile.target_hp.get();
     let lanes = interp::totals(&kit.shape, &kit.params, rounds);
     let per_round = f64::from(rounds);
     Evaluation {
@@ -114,7 +110,7 @@ pub fn evaluate(kit: &CombatKit, assumptions: &AssumptionSet) -> Evaluation {
                             p90: f64::from(one_round.quantile(P90)),
                             floor: one_round.mean_of_lowest(FLOOR_SHARE),
                         },
-                        kill: target_hp.map(|hp| kill_odds(&lane.by_round, hp)),
+                        kill: kill_odds(&lane.by_round, target_hp),
                     }
                 })
                 .collect(),
